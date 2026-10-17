@@ -15,4 +15,6 @@ Date: 2026-10-17. Scope: Level 0 only. Verification used a separate Git clone at
 
 The cold image build time includes dependency downloads and Next.js compilation. The 90-second service startup check was measured after images were built. The generated client was checked with `git diff --exit-code` and `git status --porcelain` from a clean clone.
 
+Context7 and Playwright MCP were not available in this session. The current shadcn CLI was checked against the official shadcn documentation, and the UI was verified with the Playwright CLI in Chrome, including a screenshot and console-error assertion.
+
 Current conclusion: local Level 0 implementation and runtime checks pass. The level is not complete until a PR runs both GitHub Actions workflows successfully.
