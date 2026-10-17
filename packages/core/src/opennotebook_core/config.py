@@ -1,0 +1,45 @@
+from functools import lru_cache
+from pathlib import Path
+from typing import Literal
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    database_url: str = "postgresql+asyncpg://studio:studio@localhost:5432/studio"
+    redis_url: str = "redis://localhost:6379/0"
+    embed_url: str = "http://localhost:8001"
+    api_url: str = "http://localhost:8000"
+    web_origin: str = "http://localhost:3000"
+    storage_backend: Literal["local", "memory"] = "local"
+    storage_path: Path = Path("storage")
+    embed_backend: Literal["gemma2", "fake"] = "gemma2"
+    embed_dim: int = 768
+    embed_batch_size: int = Field(default=32, ge=1, le=128)
+    embed_concurrency: int = Field(default=2, ge=1, le=8)
+    llm_provider: Literal["openrouter", "gemini", "openai", "anthropic", "ollama", "fake"] = (
+        "openrouter"
+    )
+    default_chat_model: str = ""
+    default_cheap_model: str = ""
+    openrouter_api_key: str = ""
+    gemini_api_key: str = ""
+    openai_api_key: str = ""
+    anthropic_api_key: str = ""
+    llm_concurrency: int = Field(default=4, ge=1, le=32)
+    upload_max_mb: int = Field(default=50, ge=1)
+
+    @field_validator("embed_dim")
+    @classmethod
+    def valid_embed_dim(cls, value: int) -> int:
+        if value not in {128, 256, 512, 768}:
+            raise ValueError("EMBED_DIM must be 128, 256, 512, or 768")
+        return value
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
