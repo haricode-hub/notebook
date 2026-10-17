@@ -34,12 +34,17 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
       - run: uv python install 3.13
       - run: uv sync --frozen --all-packages
-      - run: uv run --frozen --all-packages ruff check .
-      - run: uv run --frozen --all-packages mypy .
+      - run: pnpm install --frozen-lockfile
+      - run: make lint
+      - run: make typecheck
       - run: uv run --frozen --all-packages alembic -c packages/core/alembic.ini upgrade head
-      - run: uv run --frozen --all-packages pytest --cov=opennotebook_core.storage --cov=opennotebook_core.embeddings --cov=opennotebook_core.queue --cov-report=term-missing --cov-fail-under=80
+      - run: make test
       - name: Persisted arq ping
         run: |
           uv run --frozen --all-packages arq opennotebook_worker.main.WorkerSettings > worker.log 2>&1 &
