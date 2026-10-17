@@ -16,9 +16,11 @@ def test_defaults() -> None:
 def test_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("EMBED_DIM", "256")
     monkeypatch.setenv("EMBED_BACKEND", "fake")
+    monkeypatch.setenv("STORAGE_BACKEND", "memory")
     settings = Settings()
     assert settings.embed_dim == 256
     assert isinstance(make_embedding(settings), FakeEmbedding)
+    assert isinstance(make_storage(settings), MemoryStorage)
 
 
 def test_backend_selection(tmp_path: Path) -> None:
