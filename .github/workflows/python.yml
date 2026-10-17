@@ -31,7 +31,7 @@ jobs:
       EMBED_BACKEND: fake
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v9
+      - uses: astral-sh/setup-uv@v10.3.0
         with:
           enable-cache: true
       - run: uv python install 3.13

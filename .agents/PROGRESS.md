@@ -9,3 +9,5 @@
 2026-10-17: All six Compose services became healthy in 22.1 seconds with built images. API health/readiness and persisted ping passed; stopping Redis returned 503 and recovery returned 200. A cold image build took 402.2 seconds.
 
 2026-10-17: PR CI remains pending. GitHub HTTPS push rejected credentials, and the connected account `Hari-jmr` reports `push: false` for `haricode-hub/notebook`. The user will push the local main and Level 0 branches and open the PR themselves.
+
+2026-10-17: The user pushed `level-0-foundation`. Web push CI passed; Python push CI failed before tests because the `astral-sh/setup-uv@v9` ref did not exist. Replaced it with verified release tag `v10.3.0`; awaiting the user's push and CI rerun.

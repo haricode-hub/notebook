@@ -11,7 +11,7 @@ Date: 2026-10-17. Scope: Level 0 only. Verification used a separate Git clone at
 | Environment-selected implementations | Pass: tests select memory/local storage, fake/HTTP embedding, and fake/LiteLLM by settings; `STORAGE_BACKEND=memory` and `EMBED_BACKEND=fake` are read from environment in the config test. |
 | Frozen lockfile installs and Docker builds | `uv sync --frozen` and `uv sync --frozen --all-packages` succeeded under Python 3.13.5; `pnpm install --frozen-lockfile` succeeded; all four application images built from committed lockfiles. |
 | Web readiness and generated types | Pass: Chrome Playwright smoke test showed API and embedding ready with no console errors; `openapi-typescript` regeneration left the clean clone unchanged. |
-| PR CI | Pending: the GitHub repository is empty; local HTTPS push was rejected, and the connected `Hari-jmr` account has read access only. The user will push the local branches and open the PR. |
+| PR CI | Pending: the user pushed `level-0-foundation`; web push CI passed. Python push CI failed during runner setup because `astral-sh/setup-uv@v9` did not resolve. The workflow now pins the verified `v10.3.0` tag; the user will push this fix and run PR CI. |
 
 The cold image build time includes dependency downloads and Next.js compilation. The 90-second service startup check was measured after images were built. The generated client was checked with `git diff --exit-code` and `git status --porcelain` from a clean clone.
 
