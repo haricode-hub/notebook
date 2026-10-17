@@ -1,0 +1,48 @@
+name: Python
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: studio
+          POSTGRES_PASSWORD: studio
+          POSTGRES_DB: studio
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U studio -d studio"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql+asyncpg://studio:studio@localhost:5432/studio
+      REDIS_URL: redis://localhost:6379/0
+      EMBED_BACKEND: fake
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v9
+        with:
+          enable-cache: true
+      - run: uv python install 3.13
+      - run: uv sync --frozen --all-packages
+      - run: uv run --frozen --all-packages ruff check .
+      - run: uv run --frozen --all-packages mypy .
+      - run: uv run --frozen --all-packages alembic -c packages/core/alembic.ini upgrade head
+      - run: uv run --frozen --all-packages pytest --cov=opennotebook_core.storage --cov=opennotebook_core.embeddings --cov=opennotebook_core.queue --cov-report=term-missing --cov-fail-under=80
+      - name: Persisted arq ping
+        run: |
+          uv run --frozen --all-packages arq opennotebook_worker.main.WorkerSettings > worker.log 2>&1 &
+          worker_pid=$!
+          trap 'kill "$worker_pid" || true; cat worker.log' EXIT
+          uv run --frozen --all-packages python scripts/smoke_ping.py
