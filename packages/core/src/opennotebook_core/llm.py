@@ -29,7 +29,10 @@ class LiteLLMProvider:
     async def stream(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
         if not self.settings.default_chat_model:
             raise ValueError("DEFAULT_CHAT_MODEL is required for live LLM calls")
-        model = f"{self.settings.llm_provider}/{self.settings.default_chat_model}"
+        model = self.settings.default_chat_model
+        prefix = f"{self.settings.llm_provider}/"
+        if not model.startswith(prefix):
+            model = f"{prefix}{model}"
         keys = {
             "openrouter": self.settings.openrouter_api_key,
             "gemini": self.settings.gemini_api_key,
@@ -43,6 +46,11 @@ class LiteLLMProvider:
                         model=model,
                         messages=messages,
                         api_key=keys.get(self.settings.llm_provider) or None,
+                        api_base=(
+                            self.settings.ollama_base_url
+                            if self.settings.llm_provider == "ollama"
+                            else None
+                        ),
                         stream=True,
                         timeout=60,
                     )

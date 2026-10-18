@@ -1,4 +1,4 @@
-.PHONY: dev test lint typecheck migrate seed types smoke
+.PHONY: dev test lint typecheck migrate auth-migrate seed types smoke
 
 dev:
 	docker compose up --build -d
@@ -17,6 +17,9 @@ typecheck:
 
 migrate:
 	docker compose exec -T api alembic -c packages/core/alembic.ini upgrade head
+
+auth-migrate:
+	docker compose run --rm auth-migrate
 
 seed:
 	uv run python scripts/seed.py

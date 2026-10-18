@@ -12,10 +12,17 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from opennotebook_core.config import Settings, get_settings
+from opennotebook_core.db import make_session_factory
+from opennotebook_core.embeddings import make_embedding
+from opennotebook_core.llm import make_llm
 from pydantic import BaseModel
 from redis.asyncio import Redis
 from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import create_async_engine
+
+from opennotebook_api.deps.auth import JWKSVerifier
+from opennotebook_api.routers import notebooks
+from opennotebook_api.routers import settings as settings_router
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
@@ -87,6 +94,14 @@ def create_app(
     settings = settings or get_settings()
     configure_logging()
     app = FastAPI(title="OpenNotebook Studio API", version="0.1.0")
+    app.state.settings = settings
+    app.state.session_factory = make_session_factory(settings)
+    app.state.jwks_verifier = JWKSVerifier(settings)
+    app.state.llm_factory = make_llm
+    app.state.embedding_factory = make_embedding
+    app.state.model_catalog = settings_router.ModelCatalog()
+    app.include_router(notebooks.router)
+    app.include_router(settings_router.router)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.web_origin],
@@ -133,6 +148,7 @@ def create_app(
     async def http_error(request: Request, exc: HTTPException) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status_code,
+            headers=exc.headers,
             content=ErrorBody(
                 code="http_error", message=str(exc.detail), request_id=request_id_var.get()
             ).model_dump(),
