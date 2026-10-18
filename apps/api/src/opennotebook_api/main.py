@@ -105,6 +105,7 @@ def create_app(
     )
     app.include_router(notebooks.router)
     app.include_router(sources.router)
+    app.include_router(sources.files_router)
     app.include_router(chat.router)
     app.include_router(settings_router.router)
     app.add_middleware(

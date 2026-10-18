@@ -2,7 +2,7 @@
 
 import re
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import UTC, datetime
 from io import BytesIO
 from typing import Annotated
 from urllib.parse import urlsplit
@@ -12,10 +12,10 @@ from zipfile import BadZipFile, ZipFile
 from arq import create_pool
 from arq.connections import ArqRedis, RedisSettings
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
-from fastapi.responses import StreamingResponse
-from opennotebook_core.models import Job, Notebook, Source
+from fastapi.responses import Response, StreamingResponse
+from opennotebook_core.models import Chunk, Job, Notebook, Source
 from opennotebook_core.safe_fetch import UnsafeURL, validate_url
-from opennotebook_core.storage import make_storage
+from opennotebook_core.storage import make_storage, verify_file_token
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 from sqlalchemy import func, select
@@ -56,7 +56,27 @@ class URLSourceIn(BaseModel):
 
 
 class SourceSelectionIn(BaseModel):
-    selected: bool
+    selected: bool | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+
+
+class SourceChunkOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    text: str
+    page_start: int | None
+    page_end: int | None
+    char_start: int
+    char_end: int
+
+
+class SourceContentOut(BaseModel):
+    source: SourceOut
+    text: str
+    chunks: list[SourceChunkOut]
+    original_url: str | None
+    file_url: str | None
+    expires_at: int | None
 
 
 async def _owned_source(db: AsyncSession, notebook_id: str, user_id: str, source_id: str) -> Source:
@@ -239,12 +259,93 @@ async def get_source(notebook_id: str, source_id: str, user: User, db: Db) -> So
     return await _owned_source(db, notebook_id, user.id, source_id)
 
 
+@router.get("/sources/{source_id}/content", response_model=SourceContentOut)
+async def source_content(
+    notebook_id: str, source_id: str, request: Request, user: User, db: Db
+) -> SourceContentOut:
+    source = await _owned_source(db, notebook_id, user.id, source_id)
+    chunks = list(
+        (
+            await db.scalars(
+                select(Chunk)
+                .where(Chunk.source_id == source_id, Chunk.notebook_id == notebook_id)
+                .order_by(Chunk.ordinal)
+            )
+        ).all()
+    )
+    file_url = None
+    expires_at = None
+    if source.kind == "pdf" and source.storage_key:
+        expires_at = int(datetime.now(UTC).timestamp()) + 300
+        try:
+            file_url = make_storage(request.app.state.settings).url(
+                source.storage_key,
+                user_id=user.id,
+                source_id=source.id,
+                expires_at=expires_at,
+                signing_key=request.app.state.settings.settings_encryption_key,
+            )
+        except ValueError as exc:
+            raise HTTPException(503, "File URL signing is unavailable") from exc
+    return SourceContentOut(
+        source=SourceOut.model_validate(source),
+        text=source.extracted_text or "",
+        chunks=[SourceChunkOut.model_validate(chunk) for chunk in chunks],
+        original_url=source.url,
+        file_url=file_url,
+        expires_at=expires_at,
+    )
+
+
+files_router = APIRouter(tags=["sources"])
+
+
+@files_router.get("/files/{token}")
+async def signed_file(token: str, request: Request, user: User, db: Db) -> Response:
+    try:
+        key, source_id = verify_file_token(
+            token,
+            user_id=user.id,
+            signing_key=request.app.state.settings.settings_encryption_key,
+        )
+    except ValueError as exc:
+        raise HTTPException(403, "File URL is invalid or expired") from exc
+    source = (
+        await db.scalars(
+            select(Source).where(
+                Source.id == source_id,
+                Source.user_id == user.id,
+                Source.storage_key == key,
+            )
+        )
+    ).one_or_none()
+    if source is None:
+        raise HTTPException(404, "File not found")
+    try:
+        data = await make_storage(request.app.state.settings).get(key)
+    except (FileNotFoundError, KeyError) as exc:
+        raise HTTPException(404, "File not found") from exc
+    media_type = "application/pdf" if source.kind == "pdf" else "application/octet-stream"
+    return Response(
+        data,
+        media_type=media_type,
+        headers={"Cache-Control": "private, no-store", "Content-Disposition": "inline"},
+    )
+
+
 @router.patch("/sources/{source_id}", response_model=SourceOut)
 async def select_source(
     notebook_id: str, source_id: str, body: SourceSelectionIn, user: User, db: Db
 ) -> Source:
     source = await _owned_source(db, notebook_id, user.id, source_id)
-    source.selected = body.selected
+    if body.selected is None and body.name is None:
+        raise HTTPException(422, "At least one source field is required")
+    if body.selected is not None:
+        source.selected = body.selected
+    if body.name is not None:
+        if not body.name.strip():
+            raise HTTPException(422, "Source name cannot be blank")
+        source.name = body.name.strip()
     await db.commit()
     await db.refresh(source)
     return source

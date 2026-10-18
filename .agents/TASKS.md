@@ -44,6 +44,12 @@
 
 ## Level 4: Source viewer
 
+- [x] 4.1 Add owned content endpoint and expiring, user-bound signed PDF URLs
+- [x] 4.2 Build virtualized PDF and Text source viewer with citation highlighting
+- [x] 4.3 Connect citation and source controls, navigation, rename and details
+- [x] 4.4 Verify offset mapping, signed URLs, 20 citation samples and 300-page PDF
+- [x] 4.5 Pass lint, types, tests, production build and browser journeys; record report and commit
+
 ## Level 5: Source guides and notes
 
 ## Level 6: Text study artifacts

@@ -83,6 +83,7 @@ export const settingsApi = {
 };
 
 export type Source = components["schemas"]["SourceOut"];
+export type SourceContent = components["schemas"]["SourceContentOut"];
 export type ChatMessage = components["schemas"]["ChatMessageOut"];
 export type ChatCitation = components["schemas"]["ChatCitation"];
 export type ChatFinal = {
@@ -95,6 +96,8 @@ export type ChatFinal = {
 
 export const sourceApi = {
   list: (id: string) => apiFetch<Source[]>(`/notebooks/${encodeURIComponent(id)}/sources`),
+  content: (id: string, sourceId: string) => apiFetch<SourceContent>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}/content`),
+  rename: (id: string, sourceId: string, name: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}`, { method: "PATCH", body: JSON.stringify({ name }) }),
   text: (id: string, name: string, text: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/text`, { method: "POST", body: JSON.stringify({ name, text }) }),
   url: (id: string, url: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/url`, { method: "POST", body: JSON.stringify({ url }) }),
   retry: (id: string, sourceId: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}/retry`, { method: "POST" }),

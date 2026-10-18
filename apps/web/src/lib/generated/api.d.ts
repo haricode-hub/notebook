@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/files/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Signed File */
+        get: operations["signed_file_files__token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -196,6 +213,23 @@ export interface paths {
         head?: never;
         /** Select Source */
         patch: operations["select_source_notebooks__notebook_id__sources__source_id__patch"];
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/sources/{source_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source Content */
+        get: operations["source_content_notebooks__notebook_id__sources__source_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/notebooks/{notebook_id}/sources/{source_id}/retry": {
@@ -453,6 +487,35 @@ export interface components {
             /** Provider */
             provider?: ("openrouter" | "gemini" | "openai" | "anthropic" | "ollama") | null;
         };
+        /** SourceChunkOut */
+        SourceChunkOut: {
+            /** Char End */
+            char_end: number;
+            /** Char Start */
+            char_start: number;
+            /** Id */
+            id: string;
+            /** Page End */
+            page_end: number | null;
+            /** Page Start */
+            page_start: number | null;
+            /** Text */
+            text: string;
+        };
+        /** SourceContentOut */
+        SourceContentOut: {
+            /** Chunks */
+            chunks: components["schemas"]["SourceChunkOut"][];
+            /** Expires At */
+            expires_at: number | null;
+            /** File Url */
+            file_url: string | null;
+            /** Original Url */
+            original_url: string | null;
+            source: components["schemas"]["SourceOut"];
+            /** Text */
+            text: string;
+        };
         /** SourceOut */
         SourceOut: {
             /**
@@ -485,8 +548,10 @@ export interface components {
         };
         /** SourceSelectionIn */
         SourceSelectionIn: {
+            /** Name */
+            name?: string | null;
             /** Selected */
-            selected: boolean;
+            selected?: boolean | null;
         };
         /** TextSourceIn */
         TextSourceIn: {
@@ -522,6 +587,37 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    signed_file_files__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     healthz_healthz_get: {
         parameters: {
             query?: never;
@@ -1070,6 +1166,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    source_content_notebooks__notebook_id__sources__source_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceContentOut"];
                 };
             };
             /** @description Validation Error */

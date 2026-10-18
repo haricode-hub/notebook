@@ -10,9 +10,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { SourcesPanel } from "@/components/sources-panel";
 import { ChatPanel } from "@/components/chat-panel";
+import { SourceViewer, type ViewerSelection } from "@/components/source-viewer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { notebookApi, type NotebookUpdate } from "@/lib/api-client";
+import { notebookApi, type ChatCitation, type NotebookUpdate } from "@/lib/api-client";
 
 type Tab = "Sources" | "Chat" | "Studio";
 
@@ -31,6 +32,9 @@ export default function WorkspacePage() {
   const client = useQueryClient();
   const query = useQuery({ queryKey: ["notebook", id], queryFn: () => notebookApi.get(id) });
   const [tab, setTab] = useState<Tab>("Sources");
+  const [viewer, setViewer] = useState<ViewerSelection | null>(null);
+  const openSource = (sourceId: string) => setViewer({ sourceId, citations: [], index: 0 });
+  const openCitation = (citation: ChatCitation, citations: ChatCitation[]) => setViewer({ sourceId: citation.source_id, citations, index: Math.max(0, citations.findIndex((item) => item.chunk_id === citation.chunk_id && item.n === citation.n)) });
   const [desktop, setDesktop] = useState(false);
   useEffect(() => {
     const media = window.matchMedia("(min-width: 768px)");
@@ -59,15 +63,16 @@ export default function WorkspacePage() {
       <Button type="submit" className="self-end" disabled={save.isPending}>Save</Button>
     </form>}
     <div className="flex border-b border-slate-200 md:hidden dark:border-slate-800" role="tablist" aria-label="Workspace panels">{panels.map((panel) => <button key={panel.title} type="button" role="tab" aria-selected={tab === panel.title} onClick={() => setTab(panel.title)} className={`flex-1 px-4 py-3 text-sm ${tab === panel.title ? "border-b-2 border-indigo-600 font-semibold text-indigo-600" : "text-slate-500"}`}>{panel.title}</button>)}</div>
-    <div className="min-h-0 flex-1 md:hidden">{tab === "Sources" ? (!desktop && <SourcesPanel notebookId={id} />) : tab === "Chat" ? (!desktop && <ChatPanel notebookId={id} />) : <EmptyPanel {...panels[2]} />}</div>
+    <div className="min-h-0 flex-1 md:hidden">{tab === "Sources" ? (!desktop && <SourcesPanel notebookId={id} onOpenSource={openSource} />) : tab === "Chat" ? (!desktop && <ChatPanel notebookId={id} onOpenCitation={openCitation} />) : <EmptyPanel {...panels[2]} />}</div>
     <div className="hidden min-h-0 flex-1 md:flex">
     <Group orientation="horizontal" className="min-h-0 flex-1" id="workspace-panels">
-      <Panel id="sources" panelRef={sourcesRef} defaultSize="25%" minSize="15%" collapsible collapsedSize="0%">{desktop && <SourcesPanel notebookId={id} />}</Panel>
+      <Panel id="sources" panelRef={sourcesRef} defaultSize="25%" minSize="15%" collapsible collapsedSize="0%">{desktop && <SourcesPanel notebookId={id} onOpenSource={openSource} />}</Panel>
       <Separator className="w-1 bg-slate-200 transition-colors hover:bg-indigo-400 dark:bg-slate-800" />
-      <Panel id="chat" defaultSize="50%" minSize="25%">{desktop && <ChatPanel notebookId={id} />}</Panel>
+      <Panel id="chat" defaultSize="50%" minSize="25%">{desktop && <ChatPanel notebookId={id} onOpenCitation={openCitation} />}</Panel>
       <Separator className="w-1 bg-slate-200 transition-colors hover:bg-indigo-400 dark:bg-slate-800" />
       <Panel id="studio" panelRef={studioRef} defaultSize="25%" minSize="15%" collapsible collapsedSize="0%"><EmptyPanel {...panels[2]} /></Panel>
     </Group>
     </div>
+    {viewer && <SourceViewer notebookId={id} selection={viewer} onClose={() => setViewer(null)} onNavigate={(index) => setViewer((current) => current && ({ ...current, index }))} />}
   </main>;
 }

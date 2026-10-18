@@ -26,12 +26,12 @@ Output <promise>L4_COMPLETE</promise> when acceptance tests pass.
 ```
 
 ## Task checklist
-- [ ] content endpoint + signed URLs
-- [ ] SourceViewer drawer (PDF + Text tabs)
-- [ ] offset highlighting + PDF fuzzy highlight + fallback card
-- [ ] citation navigation + keyboard
-- [ ] rename + details
-- [ ] tests + e2e + `next build` check
+- [x] content endpoint + signed URLs
+- [x] SourceViewer drawer (PDF + Text tabs)
+- [x] offset highlighting + PDF fuzzy highlight + fallback card
+- [x] citation navigation + keyboard
+- [x] rename + details
+- [x] tests + e2e + `next build` check
 
 ## Acceptance tests
 1. For 20 sampled eval citations the highlighted text contains the cited chunk text (>= 95% Text tab; >= 90% PDF tab; the rest show the fallback card).
