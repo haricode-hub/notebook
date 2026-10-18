@@ -1,1 +1,1 @@
-"""Grounding prompts arrive in Level 3."""
+"""Versioned prompts for source-grounded generation."""

@@ -1,0 +1,17 @@
+[
+  {"question": "How many kilowatts did the Helios array produce at noon?", "expected_fact": "28 kilowatts", "source": "solar", "paragraph": 0},
+  {"question": "How much energy can the lithium battery store?", "expected_fact": "96 kilowatt-hours", "source": "solar", "paragraph": 1},
+  {"question": "How many degrees did the rainwater loop cool the panels?", "expected_fact": "6 degrees Celsius", "source": "solar", "paragraph": 2},
+  {"question": "When did technicians inspect the inverters?", "expected_fact": "every Tuesday morning", "source": "solar", "paragraph": 3},
+  {"question": "Where was the Helios pilot site located?", "expected_fact": "Mira Island", "source": "solar", "paragraph": 4},
+  {"question": "By what percent did mangrove roots reduce shoreline erosion?", "expected_fact": "37 percent", "source": "wetlands", "paragraph": 0},
+  {"question": "How many red mangrove seedlings were planted?", "expected_fact": "1,200", "source": "wetlands", "paragraph": 1},
+  {"question": "What happened to juvenile fish counts after the second growing season?", "expected_fact": "doubled", "source": "wetlands", "paragraph": 2},
+  {"question": "What salinity did the water remain near?", "expected_fact": "18 parts per thousand", "source": "wetlands", "paragraph": 3},
+  {"question": "When did volunteers collect litter?", "expected_fact": "first Saturday", "source": "wetlands", "paragraph": 4},
+  {"question": "What press did the archive acquire in 1894?", "expected_fact": "Albion press", "source": "printing", "paragraph": 0},
+  {"question": "What paper did archivists use for old posters?", "expected_fact": "cotton rag paper", "source": "printing", "paragraph": 1},
+  {"question": "How many distinct pamphlets were in the first catalog?", "expected_fact": "430", "source": "printing", "paragraph": 2},
+  {"question": "What was blue ink mixed from?", "expected_fact": "Prussian blue pigment and linseed oil", "source": "printing", "paragraph": 3},
+  {"question": "Where did the archive move in 1926?", "expected_fact": "Harbor Street", "source": "printing", "paragraph": 4}
+]

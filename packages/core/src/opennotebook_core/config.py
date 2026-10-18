@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     settings_encryption_key: str = ""
     ollama_base_url: str = "http://localhost:11434"
     llm_concurrency: int = Field(default=4, ge=1, le=32)
+    chat_context_tokens: int = Field(default=8192, ge=2048)
+    chat_max_history: int = Field(default=6, ge=0, le=20)
+    chat_rate_limit_per_minute: int = Field(default=30, ge=1)
+    chat_rerank: bool = False
     upload_max_mb: int = Field(default=50, ge=1)
 
     @field_validator("embed_dim")
