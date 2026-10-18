@@ -9,9 +9,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-studio} -d ${POSTGRES_DB:-studio}"]
-      interval: 3s
-      timeout: 3s
-      retries: 20
+      interval: 1s
+      timeout: 2s
+      retries: 60
     ports:
       - "5432:5432"
 
@@ -22,16 +22,17 @@ services:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 3s
-      timeout: 3s
-      retries: 20
+      interval: 1s
+      timeout: 2s
+      retries: 60
     ports:
       - "6379:6379"
 
   embed:
     build:
       context: .
-      dockerfile: apps/embed/Dockerfile
+      dockerfile: Dockerfile.python
+      target: embed
     environment:
       EMBED_BACKEND: ${EMBED_BACKEND:-fake}
       EMBED_DIM: ${EMBED_DIM:-768}
@@ -41,16 +42,17 @@ services:
       - model_cache:/root/.cache/huggingface
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/readyz', timeout=2)"]
-      interval: 3s
-      timeout: 3s
-      retries: 20
+      interval: 1s
+      timeout: 2s
+      retries: 60
     ports:
       - "8001:8001"
 
   api:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: Dockerfile.python
+      target: api
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-studio}:${POSTGRES_PASSWORD:-studio}@postgres:5432/${POSTGRES_DB:-studio}
       REDIS_URL: redis://redis:6379/0
@@ -73,16 +75,17 @@ services:
       - files_data:/app/storage
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/readyz', timeout=2)"]
-      interval: 3s
-      timeout: 3s
-      retries: 20
+      interval: 1s
+      timeout: 2s
+      retries: 60
     ports:
       - "8000:8000"
 
   worker:
     build:
       context: .
-      dockerfile: apps/worker/Dockerfile
+      dockerfile: Dockerfile.python
+      target: worker
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-studio}:${POSTGRES_PASSWORD:-studio}@postgres:5432/${POSTGRES_DB:-studio}
@@ -95,9 +98,9 @@ services:
       - files_data:/app/storage
     healthcheck:
       test: ["CMD", "python", "-c", "import os,redis; assert redis.Redis.from_url(os.environ['REDIS_URL']).ping()"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      interval: 1s
+      timeout: 2s
+      retries: 60
 
   web:
     build:
@@ -109,9 +112,9 @@ services:
       api: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 3s
-      timeout: 3s
-      retries: 20
+      interval: 1s
+      timeout: 2s
+      retries: 60
     ports:
       - "3000:3000"
 

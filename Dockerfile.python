@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM python:3.13-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.8.4 /uv /bin/uv
 WORKDIR /app
@@ -7,13 +8,24 @@ COPY apps/api/pyproject.toml apps/api/pyproject.toml
 COPY apps/worker/pyproject.toml apps/worker/pyproject.toml
 COPY apps/embed/pyproject.toml apps/embed/pyproject.toml
 COPY packages/core/pyproject.toml packages/core/pyproject.toml
-RUN uv sync --frozen --no-dev --package opennotebook-api --no-install-workspace
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --all-packages --no-install-workspace
 COPY . /app
-RUN uv sync --frozen --no-dev --package opennotebook-api
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --all-packages
 
-FROM python:3.13-slim
+FROM python:3.13-slim AS runtime
 WORKDIR /app
 COPY --from=builder /app /app
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
+
+FROM runtime AS api
 EXPOSE 8000
 CMD ["sh", "-c", "alembic -c packages/core/alembic.ini upgrade head && uvicorn opennotebook_api.main:app --host 0.0.0.0 --port 8000 --workers 2"]
+
+FROM runtime AS worker
+CMD ["arq", "opennotebook_worker.main.WorkerSettings"]
+
+FROM runtime AS embed
+EXPOSE 8001
+CMD ["uvicorn", "opennotebook_embed.main:app", "--host", "0.0.0.0", "--port", "8001"]
