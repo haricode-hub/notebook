@@ -1,4 +1,4 @@
-.PHONY: dev test lint typecheck migrate auth-migrate seed types smoke
+.PHONY: dev test lint typecheck migrate auth-migrate seed types smoke eval benchmark-chat
 
 dev:
 	docker compose up --build -d
@@ -30,3 +30,9 @@ types:
 
 smoke:
 	docker compose exec -T api python scripts/smoke_ping.py
+
+eval:
+	uv run --frozen --all-packages python evals/run.py
+
+benchmark-chat:
+	uv run --frozen --all-packages python scripts/benchmark_level3.py

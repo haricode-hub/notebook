@@ -83,14 +83,78 @@ export const settingsApi = {
 };
 
 export type Source = components["schemas"]["SourceOut"];
+export type ChatMessage = components["schemas"]["ChatMessageOut"];
+export type ChatCitation = components["schemas"]["ChatCitation"];
+export type ChatFinal = {
+  message_id: string;
+  content: string;
+  citations: ChatCitation[];
+  followups: string[];
+  model_name: string;
+};
 
 export const sourceApi = {
   list: (id: string) => apiFetch<Source[]>(`/notebooks/${encodeURIComponent(id)}/sources`),
   text: (id: string, name: string, text: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/text`, { method: "POST", body: JSON.stringify({ name, text }) }),
   url: (id: string, url: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/url`, { method: "POST", body: JSON.stringify({ url }) }),
   retry: (id: string, sourceId: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}/retry`, { method: "POST" }),
+  select: (id: string, sourceId: string, selected: boolean) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}`, { method: "PATCH", body: JSON.stringify({ selected }) }),
   remove: (id: string, sourceId: string) => apiFetch<void>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" }),
   reindex: (id: string) => apiFetch<{ status: string }>(`/notebooks/${encodeURIComponent(id)}/reindex`, { method: "POST" }),
+};
+
+export const chatApi = {
+  history: (id: string) => apiFetch<ChatMessage[]>(`/notebooks/${encodeURIComponent(id)}/chat`),
+  clear: (id: string) => apiFetch<void>(`/notebooks/${encodeURIComponent(id)}/chat`, { method: "DELETE" }),
+  async stream(
+    notebookId: string,
+    question: string,
+    callbacks: { onToken: (token: string) => void; onFinal: (result: ChatFinal) => void },
+    signal: AbortSignal,
+  ): Promise<void> {
+    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const token = await getToken(attempt > 0);
+      const response = await fetch(`${base}/notebooks/${encodeURIComponent(notebookId)}/chat`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+        signal,
+        cache: "no-store",
+      });
+      if (response.status === 401 && attempt === 0) continue;
+      if (!response.ok || !response.body) {
+        const error = await response.json().catch(() => ({})) as { message?: string; detail?: string };
+        throw new Error(error.message ?? error.detail ?? `Chat failed (${response.status})`);
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let pending = "";
+      let completed = false;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          pending += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+          const frames = pending.split("\n\n");
+          pending = frames.pop() ?? "";
+          for (const frame of frames) {
+            const event = frame.split("\n").find((line) => line.startsWith("event: "))?.slice(7);
+            const data = frame.split("\n").find((line) => line.startsWith("data: "))?.slice(6);
+            if (!data) continue;
+            if (event === "token") callbacks.onToken((JSON.parse(data) as { text: string }).text);
+            if (event === "final") { callbacks.onFinal(JSON.parse(data) as ChatFinal); completed = true; }
+            if (event === "error") throw new Error((JSON.parse(data) as { message: string }).message);
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+      if (!completed && !signal.aborted) throw new Error("Chat stream ended before the answer completed");
+      return;
+    }
+    throw new Error("Your session has expired. Please sign in again.");
+  },
 };
 
 export async function uploadSource(notebookId: string, file: File, onProgress: (percentage: number) => void): Promise<Source> {

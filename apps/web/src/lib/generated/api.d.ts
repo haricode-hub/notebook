@@ -58,6 +58,25 @@ export interface paths {
         patch: operations["update_notebook_notebooks__notebook_id__patch"];
         trace?: never;
     };
+    "/notebooks/{notebook_id}/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chat History */
+        get: operations["chat_history_notebooks__notebook_id__chat_get"];
+        put?: never;
+        /** Chat Stream */
+        post: operations["chat_stream_notebooks__notebook_id__chat_post"];
+        /** Clear Chat */
+        delete: operations["clear_chat_notebooks__notebook_id__chat_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notebooks/{notebook_id}/events": {
         parameters: {
             query?: never;
@@ -175,7 +194,8 @@ export interface paths {
         delete: operations["delete_source_notebooks__notebook_id__sources__source_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Select Source */
+        patch: operations["select_source_notebooks__notebook_id__sources__source_id__patch"];
         trace?: never;
     };
     "/notebooks/{notebook_id}/sources/{source_id}/retry": {
@@ -273,6 +293,48 @@ export interface components {
             /** File */
             file: string;
         };
+        /** ChatCitation */
+        ChatCitation: {
+            /** Char End */
+            char_end: number;
+            /** Char Start */
+            char_start: number;
+            /** Chunk Id */
+            chunk_id: string;
+            /** N */
+            n: number;
+            /** Page Start */
+            page_start: number | null;
+            /** Quote */
+            quote: string;
+            /** Source Id */
+            source_id: string;
+            /** Source Name */
+            source_name: string;
+        };
+        /** ChatIn */
+        ChatIn: {
+            /** Question */
+            question: string;
+        };
+        /** ChatMessageOut */
+        ChatMessageOut: {
+            /** Citations */
+            citations: components["schemas"]["ChatCitation"][];
+            /** Content */
+            content: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Model Name */
+            model_name: string | null;
+            /** Role */
+            role: string;
+        };
         /** ConnectionOut */
         ConnectionOut: {
             /** Message */
@@ -290,6 +352,8 @@ export interface components {
         };
         /** ModelOption */
         ModelOption: {
+            /** Context Length */
+            context_length?: number | null;
             /** Id */
             id: string;
             /** Name */
@@ -414,8 +478,15 @@ export interface components {
             page_count: number | null;
             /** Progress */
             progress: number;
+            /** Selected */
+            selected: boolean;
             /** Status */
             status: string;
+        };
+        /** SourceSelectionIn */
+        SourceSelectionIn: {
+            /** Selected */
+            selected: boolean;
         };
         /** TextSourceIn */
         TextSourceIn: {
@@ -609,6 +680,99 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["NotebookOut"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_history_notebooks__notebook_id__chat_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatMessageOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_stream_notebooks__notebook_id__chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_chat_notebooks__notebook_id__chat_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -871,6 +1035,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    select_source_notebooks__notebook_id__sources__source_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceSelectionIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceOut"];
+                };
             };
             /** @description Validation Error */
             422: {

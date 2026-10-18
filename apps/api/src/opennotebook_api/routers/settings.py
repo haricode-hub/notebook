@@ -56,6 +56,7 @@ class SettingsUpdate(BaseModel):
 class ModelOption(BaseModel):
     id: str
     name: str
+    context_length: int | None = None
 
 
 class ModelsOut(BaseModel):
@@ -171,6 +172,12 @@ class ModelCatalog:
         self._openrouter_cache: list[ModelOption] = []
         self._openrouter_expires_at = 0.0
 
+    def context_length(self, model_id: str) -> int | None:
+        for model in self._openrouter_cache:
+            if model.id == model_id:
+                return model.context_length
+        return None
+
     async def list_models(self, provider: Provider, key: str, ollama_url: str) -> list[ModelOption]:
         if (
             provider == "openrouter"
@@ -218,7 +225,11 @@ class ModelCatalog:
             if provider == "gemini":
                 model_id = model_id.removeprefix("models/")
             name = item.get("displayName") or item.get("name") or model_id
-            models.append(ModelOption(id=model_id, name=str(name)))
+            raw_context = item.get("context_length") if provider == "openrouter" else None
+            context_length = (
+                raw_context if isinstance(raw_context, int) and raw_context > 0 else None
+            )
+            models.append(ModelOption(id=model_id, name=str(name), context_length=context_length))
         models.sort(key=lambda model: model.name.casefold())
         if provider == "openrouter":
             self._openrouter_cache = models
@@ -226,7 +237,7 @@ class ModelCatalog:
         return models
 
 
-@router.get("/models", response_model=ModelsOut)
+@router.get("/models", response_model=ModelsOut, response_model_exclude_none=True)
 async def list_models(
     user: User,
     db: Db,

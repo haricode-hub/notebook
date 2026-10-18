@@ -21,7 +21,7 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from opennotebook_api.deps.auth import JWKSVerifier
-from opennotebook_api.routers import notebooks, sources
+from opennotebook_api.routers import chat, notebooks, sources
 from opennotebook_api.routers import settings as settings_router
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
@@ -100,8 +100,12 @@ def create_app(
     app.state.llm_factory = make_llm
     app.state.embedding_factory = make_embedding
     app.state.model_catalog = settings_router.ModelCatalog()
+    app.state.chat_limiter = chat.RedisChatLimiter(
+        settings.redis_url, settings.chat_rate_limit_per_minute
+    )
     app.include_router(notebooks.router)
     app.include_router(sources.router)
+    app.include_router(chat.router)
     app.include_router(settings_router.router)
     app.add_middleware(
         CORSMiddleware,

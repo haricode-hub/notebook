@@ -33,6 +33,7 @@ explicit = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 asyncio_mode = "auto"
 addopts = "--basetemp=.pytest-tmp"
 markers = ["slow: downloads and runs the real local EmbeddingGemma model"]

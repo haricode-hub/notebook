@@ -35,6 +35,13 @@
 
 ## Level 3: Grounded chat
 
+- [x] 3.1 Add selected-source schema and owned hybrid/full-context retrieval
+- [x] 3.2 Add grounded prompt, citation validation, and chat persistence
+- [x] 3.3 Stream owned chat over SSE with limits and cancellation
+- [x] 3.4 Add typed chat UI, citation chips, source selection, history and clear
+- [x] 3.5 Add unit/integration tests and a 15-question offline evaluation
+- [ ] 3.6 Pass all gates and browser journey; record report and commit
+
 ## Level 4: Source viewer
 
 ## Level 5: Source guides and notes

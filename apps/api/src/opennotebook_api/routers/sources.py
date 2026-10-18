@@ -37,6 +37,7 @@ class SourceOut(BaseModel):
     name: str
     kind: str
     status: str
+    selected: bool
     progress: int
     error: str | None
     page_count: int | None
@@ -52,6 +53,10 @@ class TextSourceIn(BaseModel):
 
 class URLSourceIn(BaseModel):
     url: str = Field(min_length=10, max_length=2048)
+
+
+class SourceSelectionIn(BaseModel):
+    selected: bool
 
 
 async def _owned_source(db: AsyncSession, notebook_id: str, user_id: str, source_id: str) -> Source:
@@ -232,6 +237,17 @@ async def upload_source(
 @router.get("/sources/{source_id}", response_model=SourceOut)
 async def get_source(notebook_id: str, source_id: str, user: User, db: Db) -> Source:
     return await _owned_source(db, notebook_id, user.id, source_id)
+
+
+@router.patch("/sources/{source_id}", response_model=SourceOut)
+async def select_source(
+    notebook_id: str, source_id: str, body: SourceSelectionIn, user: User, db: Db
+) -> Source:
+    source = await _owned_source(db, notebook_id, user.id, source_id)
+    source.selected = body.selected
+    await db.commit()
+    await db.refresh(source)
+    return source
 
 
 @router.post("/sources/{source_id}/retry", response_model=SourceOut)
