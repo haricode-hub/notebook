@@ -85,7 +85,7 @@ async def benchmark() -> float:
                 selection, question, [], persona=None, response_length="short"
             )
             stream = cast(
-                AsyncGenerator[str, None],
+                AsyncGenerator[str],
                 LiteLLMProvider(settings.model_copy(update={"llm_provider": "openrouter"})).stream(
                     prompt
                 ),
