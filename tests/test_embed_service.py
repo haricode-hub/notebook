@@ -26,7 +26,7 @@ def test_batch_limit() -> None:
     )
 
 
-def test_gemma_stub_not_ready() -> None:
+def test_gemma_requires_lifespan_warmup() -> None:
     client = TestClient(create_app(Settings(embed_backend="gemma2")))
     assert client.get("/readyz").status_code == 503
     assert (

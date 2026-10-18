@@ -25,7 +25,7 @@ function tokenExpiry(token: string): number {
   }
 }
 
-async function getToken(force = false): Promise<string> {
+export async function getToken(force = false): Promise<string> {
   if (force) {
     cachedToken = null;
     tokenExpiresAt = 0;
@@ -81,3 +81,39 @@ export const settingsApi = {
   models: (provider: Provider) => apiFetch<{ models: ModelOption[] }>(`/settings/models?provider=${provider}`),
   test: () => apiFetch<Connection>("/settings/test-connection", { method: "POST" }),
 };
+
+export type Source = components["schemas"]["SourceOut"];
+
+export const sourceApi = {
+  list: (id: string) => apiFetch<Source[]>(`/notebooks/${encodeURIComponent(id)}/sources`),
+  text: (id: string, name: string, text: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/text`, { method: "POST", body: JSON.stringify({ name, text }) }),
+  url: (id: string, url: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/url`, { method: "POST", body: JSON.stringify({ url }) }),
+  retry: (id: string, sourceId: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}/retry`, { method: "POST" }),
+  remove: (id: string, sourceId: string) => apiFetch<void>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" }),
+  reindex: (id: string) => apiFetch<{ status: string }>(`/notebooks/${encodeURIComponent(id)}/reindex`, { method: "POST" }),
+};
+
+export async function uploadSource(notebookId: string, file: File, onProgress: (percentage: number) => void): Promise<Source> {
+  const body = new FormData();
+  body.append("file", file);
+  const send = async (refresh: boolean): Promise<Source> => new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/notebooks/${encodeURIComponent(notebookId)}/sources/upload`);
+    void getToken(refresh).then((token) => {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.send(body);
+    }).catch(reject);
+    xhr.upload.onprogress = (event) => { if (event.lengthComputable) onProgress(Math.round(event.loaded / event.total * 100)); };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText) as Source);
+      else if (xhr.status === 401 && !refresh) void send(true).then(resolve, reject);
+      else {
+        let message = `Upload failed (${xhr.status})`;
+        try { const error = JSON.parse(xhr.responseText) as { message?: string; detail?: string }; message = error.message ?? error.detail ?? message; } catch { /* response was not JSON */ }
+        reject(new Error(message));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Upload could not reach the API"));
+  });
+  return send(false);
+}

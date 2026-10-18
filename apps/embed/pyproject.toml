@@ -2,7 +2,15 @@
 name = "opennotebook-embed"
 version = "0.1.0"
 requires-python = ">=3.13,<3.14"
-dependencies = ["opennotebook-core", "fastapi>=0.115", "uvicorn>=0.32"]
+dependencies = [
+    "opennotebook-core",
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+    "sentence-transformers>=6.1.0",
+    "transformers>=5.18.0",
+    "torch>=2.9.0",
+    "torchvision>=0.29.1",
+]
 
 [tool.uv.sources]
 opennotebook-core = { workspace = true }

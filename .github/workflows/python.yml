@@ -2,6 +2,8 @@ name: Python
 on:
   push:
   pull_request:
+  schedule:
+    - cron: "17 2 * * *"
 
 jobs:
   checks:
@@ -45,6 +47,11 @@ jobs:
       - run: make typecheck
       - run: uv run --frozen --all-packages alembic -c packages/core/alembic.ini upgrade head
       - run: make test
+      - name: Real EmbeddingGemma ranking (nightly)
+        if: github.event_name == 'schedule'
+        env:
+          RUN_SLOW_EMBED: "1"
+        run: uv run --frozen --all-packages pytest -q -m slow
       - name: Persisted arq ping
         run: |
           uv run --frozen --all-packages arq opennotebook_worker.main.WorkerSettings > worker.log 2>&1 &

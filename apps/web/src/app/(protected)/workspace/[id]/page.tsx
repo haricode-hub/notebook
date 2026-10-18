@@ -5,9 +5,10 @@ import { ChevronLeft, PanelLeftClose, PanelRightClose, Settings2 } from "lucide-
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Group, Panel, Separator, type PanelImperativeHandle } from "react-resizable-panels";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { SourcesPanel } from "@/components/sources-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { notebookApi, type NotebookUpdate } from "@/lib/api-client";
@@ -19,7 +20,7 @@ function EmptyPanel({ title, description }: { title: Tab; description: string })
 }
 
 const panels: { title: Tab; description: string }[] = [
-  { title: "Sources", description: "Your sources will appear here when source upload arrives in Level 2." },
+  { title: "Sources", description: "Add a file, website, or text to start researching." },
   { title: "Chat", description: "Ask questions grounded in your sources when chat arrives in Level 4." },
   { title: "Studio", description: "Study guides and other artifacts will appear here in later levels." },
 ];
@@ -28,7 +29,15 @@ export default function WorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const client = useQueryClient();
   const query = useQuery({ queryKey: ["notebook", id], queryFn: () => notebookApi.get(id) });
-  const [tab, setTab] = useState<Tab>("Chat");
+  const [tab, setTab] = useState<Tab>("Sources");
+  const [desktop, setDesktop] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+    const update = () => setDesktop(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   const [showSettings, setShowSettings] = useState(false);
   const [persona, setPersona] = useState<string | null>(null);
   const [responseLength, setResponseLength] = useState<NotebookUpdate["response_length"] | null>(null);
@@ -49,10 +58,10 @@ export default function WorkspacePage() {
       <Button type="submit" className="self-end" disabled={save.isPending}>Save</Button>
     </form>}
     <div className="flex border-b border-slate-200 md:hidden dark:border-slate-800" role="tablist" aria-label="Workspace panels">{panels.map((panel) => <button key={panel.title} type="button" role="tab" aria-selected={tab === panel.title} onClick={() => setTab(panel.title)} className={`flex-1 px-4 py-3 text-sm ${tab === panel.title ? "border-b-2 border-indigo-600 font-semibold text-indigo-600" : "text-slate-500"}`}>{panel.title}</button>)}</div>
-    <div className="min-h-0 flex-1 md:hidden">{panels.filter((panel) => panel.title === tab).map((panel) => <EmptyPanel key={panel.title} {...panel} />)}</div>
+    <div className="min-h-0 flex-1 md:hidden">{tab === "Sources" ? (!desktop && <SourcesPanel notebookId={id} />) : panels.filter((panel) => panel.title === tab).map((panel) => <EmptyPanel key={panel.title} {...panel} />)}</div>
     <div className="hidden min-h-0 flex-1 md:flex">
     <Group orientation="horizontal" className="min-h-0 flex-1" id="workspace-panels">
-      <Panel id="sources" panelRef={sourcesRef} defaultSize="25%" minSize="15%" collapsible collapsedSize="0%"><EmptyPanel {...panels[0]} /></Panel>
+      <Panel id="sources" panelRef={sourcesRef} defaultSize="25%" minSize="15%" collapsible collapsedSize="0%">{desktop && <SourcesPanel notebookId={id} />}</Panel>
       <Separator className="w-1 bg-slate-200 transition-colors hover:bg-indigo-400 dark:bg-slate-800" />
       <Panel id="chat" defaultSize="50%" minSize="25%"><EmptyPanel {...panels[1]} /></Panel>
       <Separator className="w-1 bg-slate-200 transition-colors hover:bg-indigo-400 dark:bg-slate-800" />

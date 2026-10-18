@@ -34,9 +34,9 @@ services:
       dockerfile: Dockerfile.python
       target: embed
     environment:
-      EMBED_BACKEND: ${EMBED_BACKEND:-fake}
+      EMBED_BACKEND: ${EMBED_BACKEND:-gemma2}
       EMBED_DIM: ${EMBED_DIM:-768}
-      EMBED_BATCH_SIZE: ${EMBED_BATCH_SIZE:-32}
+      EMBED_BATCH_SIZE: ${EMBED_BATCH_SIZE:-8}
       EMBED_CONCURRENCY: ${EMBED_CONCURRENCY:-2}
     volumes:
       - model_cache:/root/.cache/huggingface
@@ -57,6 +57,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-studio}:${POSTGRES_PASSWORD:-studio}@postgres:5432/${POSTGRES_DB:-studio}
       REDIS_URL: redis://redis:6379/0
       EMBED_URL: http://embed:8001
+      EMBED_BACKEND: ${EMBED_BACKEND:-gemma2}
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
       STORAGE_PATH: /app/storage
@@ -97,6 +98,10 @@ services:
       REDIS_URL: redis://redis:6379/0
       STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
       STORAGE_PATH: /app/storage
+      EMBED_URL: http://embed:8001
+      EMBED_BACKEND: ${EMBED_BACKEND:-gemma2}
+      EMBED_DIM: ${EMBED_DIM:-768}
+      EMBED_BATCH_SIZE: ${EMBED_BATCH_SIZE:-8}
     depends_on:
       api: { condition: service_healthy }
     volumes:

@@ -46,7 +46,7 @@ class HttpEmbeddingProvider:
 
     async def embed(self, texts: list[str], kind: Kind, dim: int) -> list[list[float]]:
         vectors: list[list[float]] = []
-        client = self.client or httpx.AsyncClient(timeout=30)
+        client = self.client or httpx.AsyncClient(timeout=httpx.Timeout(120, connect=5))
         try:
             for offset in range(0, len(texts), self.batch_size):
                 batch = texts[offset : offset + self.batch_size]
@@ -56,12 +56,23 @@ class HttpEmbeddingProvider:
                             f"{self.base_url}/embed",
                             json={"texts": batch, "kind": kind, "dim": dim},
                         )
+                        if 400 <= response.status_code < 500 and response.status_code != 429:
+                            response.raise_for_status()
                         response.raise_for_status()
                         result = response.json()["vectors"]
-                        if len(result) != len(batch) or any(len(v) != dim for v in result):
+                        if len(result) != len(batch) or any(
+                            len(v) != dim or not all(math.isfinite(value) for value in v)
+                            for v in result
+                        ):
                             raise ValueError("invalid embedding response dimensions")
                         vectors.extend(result)
                         break
+                    except httpx.HTTPStatusError as exc:
+                        if exc.response.status_code < 500 and exc.response.status_code != 429:
+                            raise
+                        if attempt == 2:
+                            raise
+                        await asyncio.sleep(2**attempt)
                     except (httpx.HTTPError, ValueError, KeyError):
                         if attempt == 2:
                             raise

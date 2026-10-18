@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     storage_path: Path = Path("storage")
     embed_backend: Literal["gemma2", "fake"] = "gemma2"
     embed_dim: int = 768
-    embed_batch_size: int = Field(default=32, ge=1, le=128)
+    embed_batch_size: int = Field(default=8, ge=1, le=128)
     embed_concurrency: int = Field(default=2, ge=1, le=8)
     llm_provider: Literal["openrouter", "gemini", "openai", "anthropic", "ollama", "fake"] = (
         "openrouter"

@@ -1,31 +1,46 @@
 # syntax=docker/dockerfile:1.7
-FROM python:3.13-slim AS builder
+FROM python:3.13-slim AS build-base
 COPY --from=ghcr.io/astral-sh/uv:0.8.4 /uv /bin/uv
 WORKDIR /app
-ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
 COPY pyproject.toml uv.lock .python-version ./
 COPY apps/api/pyproject.toml apps/api/pyproject.toml
 COPY apps/worker/pyproject.toml apps/worker/pyproject.toml
 COPY apps/embed/pyproject.toml apps/embed/pyproject.toml
 COPY packages/core/pyproject.toml packages/core/pyproject.toml
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --all-packages --no-install-workspace
-COPY . /app
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --all-packages
+
+FROM build-base AS build-api
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --package opennotebook-api --no-install-workspace
+COPY apps/api /app/apps/api
+COPY packages/core /app/packages/core
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --package opennotebook-api
+
+FROM build-base AS build-worker
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --package opennotebook-worker --no-install-workspace
+COPY apps/worker /app/apps/worker
+COPY packages/core /app/packages/core
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --package opennotebook-worker
+
+FROM build-base AS build-embed
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --package opennotebook-embed --no-install-workspace
+COPY apps/embed /app/apps/embed
+COPY packages/core /app/packages/core
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev --package opennotebook-embed
 
 FROM python:3.13-slim AS runtime
 WORKDIR /app
-COPY --from=builder /app /app
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 
 FROM runtime AS api
+COPY --from=build-api /app /app
 EXPOSE 8000
 CMD ["sh", "-c", "alembic -c packages/core/alembic.ini upgrade head && uvicorn opennotebook_api.main:app --host 0.0.0.0 --port 8000 --workers 2"]
 
 FROM runtime AS worker
+COPY --from=build-worker /app /app
 CMD ["arq", "opennotebook_worker.main.WorkerSettings"]
 
 FROM runtime AS embed
+COPY --from=build-embed /app /app
 EXPOSE 8001
 CMD ["uvicorn", "opennotebook_embed.main:app", "--host", "0.0.0.0", "--port", "8001"]

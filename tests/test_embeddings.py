@@ -53,3 +53,25 @@ async def test_http_rejects_bad_dimension() -> None:
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(ValueError):
             await HttpEmbeddingProvider("http://embed", client=client).embed(["a"], "query", 128)
+
+
+@pytest.mark.asyncio
+async def test_http_retries_server_error_and_passes_document_kind() -> None:
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        payload = __import__("json").loads(request.content)
+        assert payload["kind"] == "document"
+        assert payload["dim"] == 128
+        if attempts == 1:
+            return httpx.Response(503)
+        return httpx.Response(200, json={"vectors": [[1.0] + [0.0] * 127]})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        vectors = await HttpEmbeddingProvider("http://embed", client=client).embed(
+            ["source text"], "document", 128
+        )
+    assert attempts == 2
+    assert len(vectors[0]) == 128
