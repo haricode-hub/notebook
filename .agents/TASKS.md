@@ -15,6 +15,15 @@
 
 ## Level 1: Auth, notebooks, shell and settings
 
+- [x] 1.1 Verify current auth/LLM integration APIs and record ADR-004
+- [x] 1.2 Add Better Auth server/client config, schema migration, env and Compose wiring
+- [x] 1.3 Add sign-in/up/out and protected Next.js routes
+- [x] 1.4 Add JWKS verification and isolated notebook CRUD in FastAPI
+- [x] 1.5 Add encrypted user settings, model listing and provider connection checks
+- [x] 1.6 Add typed browser API client, notebook list and workspace shell
+- [x] 1.7 Add settings UI, theme, toasts and loading states
+- [x] 1.8 Verify JWT/ownership/settings tests, Playwright journey and all gates; commit
+
 ## Level 2: Ingestion and embeddings
 
 ## Level 3: Grounded chat

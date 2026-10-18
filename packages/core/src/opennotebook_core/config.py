@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     openai_api_key: str = ""
     anthropic_api_key: str = ""
+    jwks_url: str = "http://localhost:3000/api/auth/jwks"
+    jwt_issuer: str = "http://localhost:3000"
+    jwt_audience: str = "opennotebook-api"
+    settings_encryption_key: str = ""
+    ollama_base_url: str = "http://localhost:11434"
     llm_concurrency: int = Field(default=4, ge=1, le=32)
     upload_max_mb: int = Field(default=50, ge=1)
 

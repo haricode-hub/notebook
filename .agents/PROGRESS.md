@@ -21,3 +21,4 @@
 
 
 
+2026-10-18: Level 1 implemented on `level-1-auth`: Better Auth with Postgres, email/password, optional social providers, JWT/JWKS bridge, rate limits, auth migration, notebook CRUD, encrypted per-user provider settings, live model picker, test-connection, typed browser API client, responsive workspace, and theme. Context7 was unavailable; ADR-004 records verification against primary Better Auth, Next.js, LiteLLM, and OpenRouter documentation. Local Compose auth migration exited 0 and web/api/embed/postgres/redis/worker were healthy. Ruff, mypy, ESLint, TypeScript, 34 Python tests (88.89% measured core coverage), 2 web unit tests, production web build, and all 3 Playwright tests passed. Playwright covered sign-up, sign-in, session persistence, notebook creation, desktop/mobile workspace, settings search/switch, theme, sign-out, protected redirect, and sign-in throttling. The Level 1 branch is committed locally for the user's push and PR to main.
