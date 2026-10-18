@@ -16,6 +16,8 @@
 
 2026-10-17: Python and Web PR workflows passed at `ee04606`; Python CI ran the exact `make lint`, `make typecheck`, and `make test` targets. The strict cold-build timing is the only remaining failed Level 0 acceptance check.
 
+2026-10-18: PR #2 at `260d6a8` failed both Python and Web workflows on push and pull request before checks ran: `pnpm install --frozen-lockfile` rejected a lockfile that still pinned Next.js 15 and listed `@eslint/eslintrc` after the manifest moved to Next.js 16. Regenerated the lockfile with pnpm 10.18.0. Locally, frozen install, Ruff, mypy, 29 Python tests (88.89% coverage), ESLint, TypeScript, 2 web tests, and the Next.js production build passed. Docker Compose config is valid; image builds and the 90-second cold-start target remain unverified because the local Docker daemon is unavailable.
+
 
 
 
