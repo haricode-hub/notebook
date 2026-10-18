@@ -26,6 +26,13 @@
 
 ## Level 2: Ingestion and embeddings
 
+- [x] 2.1 Verify EmbeddingGemma 2 documentation and Python 3.13 dependencies; write ADR-005
+- [x] 2.2 Load and warm the text-only FP32 embedding backend; preserve fake backend
+- [x] 2.3 Add source/chunk schema, HNSW/GIN indexes, extractors, and offset-safe chunking
+- [x] 2.4 Add source API, SSRF-safe fetching, upload limits, worker stages, events, and atomic reindex
+- [x] 2.5 Add source panel, upload progress, retry/delete, and token-refreshing SSE
+- [x] 2.6 Pass all gates, 100-page benchmark, and Playwright journeys; record report and commit
+
 ## Level 3: Grounded chat
 
 ## Level 4: Source viewer
