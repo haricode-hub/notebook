@@ -32,7 +32,7 @@ Status: **PARTIAL — Pass 3 desktop panel physics and passes 4–8 are open; th
 | Undo and purge | Not implemented | No API or lifecycle measurement | OPEN | — |
 | Existing signed-in end-to-end journeys | Requires DB/API/worker services; Docker daemon access denied | Not run | BLOCKED | Local |
 
-Screenshot files are in [`docs/levels/level14/screenshots`](../../docs/levels/level14/screenshots). The screenshot set contains 28 PNGs across captured checkpoints; Pass 4 before/after screenshots show auth only, not the signed-in chat. Before-Pass-1 images use the committed baseline stylesheet; completed checkpoints have screenshots at all four required viewport/theme combinations. Pass 3 screenshots cover the auth UI; the local sign-in flow is available without API/DB services.
+Screenshot files are in [`docs/levels/level14/screenshots`](../../docs/levels/level14/screenshots). The screenshot set contains 36 PNGs across captured checkpoints. Pass 4–6 before/after screenshots show auth only, not signed-in workspace states. Before-Pass-1 images use the committed baseline stylesheet; completed checkpoints have screenshots at all four required viewport/theme combinations. Pass 3 screenshots cover the auth UI; the local sign-in flow is available without API/DB services.
 
 ## Known weaknesses and open work
 

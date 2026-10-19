@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { artifactApi, type ChatCitation } from "@/lib/api-client";
+import { springOptions } from "@/design/springs";
+import { useMotionPrefs } from "@/design/use-motion-prefs";
 
 type Card = { front: string; back: string; source_ref: number };
 type Progress = { card_index: number; box: number; due_at: string; last_result: string | null };
@@ -15,6 +18,7 @@ export default function FlashcardsView({ notebookId, artifactId, cards, citation
   const [active, setActive] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [progress, setProgress] = useState<Progress[]>([]);
+  const { reducedMotion } = useMotionPrefs();
   useEffect(() => { void artifactApi.flashcardProgress(notebookId, artifactId).then(setProgress); }, [notebookId, artifactId]);
   const currentIndex = order[active] ?? 0;
   const card = cards[currentIndex];
@@ -48,7 +52,10 @@ export default function FlashcardsView({ notebookId, artifactId, cards, citation
   const box = progress.find((item) => item.card_index === currentIndex)?.box ?? 1;
   return <section aria-label="Flashcards" className="space-y-3">
     <div className="flex items-center justify-between text-sm"><span>Card {active + 1} of {cards.length} · Leitner box {box}</span><span>{dueIndices.size} due</span></div>
-    <button type="button" aria-label="Flip flashcard" onClick={() => setFlipped((value) => !value)} className="flex min-h-48 w-full items-center justify-center rounded-xl border bg-indigo-50 p-6 text-center text-lg dark:bg-indigo-950">{flipped ? card.back : card.front}</button>
+    <motion.button type="button" aria-label={`Flip flashcard, showing ${flipped ? "answer" : "question"}`} aria-pressed={flipped} onClick={() => setFlipped((value) => !value)} whileTap={reducedMotion ? undefined : { scale: 0.985 }} animate={{ rotateY: flipped ? 180 : 0 }} transition={reducedMotion ? { duration: 0 } : springOptions("default")} style={{ transformStyle: "preserve-3d", perspective: 900 }} className="relative flex min-h-48 w-full items-center justify-center rounded-xl border bg-indigo-50 p-6 text-center text-lg dark:bg-indigo-950">
+      <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center p-6 [backface-visibility:hidden]">{card.front}</span>
+      <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center p-6 [transform:rotateY(180deg)] [backface-visibility:hidden]">{card.back}</span>
+    </motion.button>
     {flipped && citation && <span className="text-xs text-indigo-700">[S{citation.n}] {citation.source_name}</span>}
     <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => void rate(true)}>Known</Button><Button size="sm" variant="outline" onClick={() => void rate(false)}>Unknown</Button><Button size="sm" variant="outline" onClick={shuffle}>Shuffle</Button><Button size="sm" variant="outline" onClick={exportCsv}>Export Anki CSV</Button></div>
   </section>;

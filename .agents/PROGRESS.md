@@ -67,3 +67,10 @@
 - Web typecheck passed; all 11 web unit tests passed.
 - Citation click-to-viewer, PDF/text highlight, and viewport positioning e2e remains blocked without DB/API.
 - Commit: pending.
+
+## Level 14 Pass 6 — Studio interactions
+- Added a transform-only 3D flashcard flip with reduced-motion support and explicit question/answer state; quiz now shows progress and 44 px answer rows.
+- Mind map export and native audio scrubber already existed and were retained.
+- Checks: typecheck passed; 5 web test files/11 tests passed; lint passed with two existing PDF virtualization warnings.
+- Playwright auth screenshot matrix: 4/4 passed; generated artifact states unavailable without DB/API services.
+- Commit: pending.

@@ -146,6 +146,6 @@
 - [x] 14.3 Add global press feedback, visible focus, and 44 px targets
 - [ ] 14.4 Workspace panels, mobile sheet, soft delete, undo and delayed purge (partial: mobile sheet and notebook soft delete/restore implemented; desktop rubber-band and momentum snap remain open)
 - [ ] 14.5 Chat composer and streaming stability implemented; viewer drawer and citation-content entry transitions added; citation-click journey blocked without DB/API
-- [ ] 14.6 Studio and artifact interaction polish
+- [ ] 14.6 Studio: flashcard flip feedback and quiz progress affordance added; artifact screens not yet screenshot-verified
 - [ ] 14.7 Auth/settings/toast polish and development-only design lab
 - [ ] 14.8 Accessibility, performance, Playwright visual evidence, and report
