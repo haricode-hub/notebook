@@ -46,9 +46,9 @@ jobs:
         run: |
           uv export --locked --all-packages --all-groups --format requirements-txt --no-emit-workspace --no-annotate --no-header --no-hashes --output-file "$RUNNER_TEMP/python-requirements.txt"
           uv export --project apps/tts --locked --no-dev --format requirements-txt --no-annotate --no-header --no-hashes --output-file "$RUNNER_TEMP/tts-requirements.txt"
+          uv python install 3.12
           uv run --with pip-audit --frozen pip-audit --extra-index-url https://download.pytorch.org/whl/cpu -r "$RUNNER_TEMP/python-requirements.txt"
-          uv run --with pip-audit --frozen pip-audit --extra-index-url https://download.pytorch.org/whl/cpu -r "$RUNNER_TEMP/tts-requirements.txt"
-      - run: uv python install 3.12
+          uv run --python 3.12 --no-project --with pip-audit pip-audit --extra-index-url https://download.pytorch.org/whl/cpu -r "$RUNNER_TEMP/tts-requirements.txt"
       - run: uv sync --project apps/tts --locked --no-dev
       - run: uv run --project apps/tts --locked python -c "import kokoro, soundfile"
       - run: pnpm install --frozen-lockfile
