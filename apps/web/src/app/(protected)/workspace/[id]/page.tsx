@@ -77,7 +77,7 @@ export default function WorkspacePage() {
           initial={reducedMotion ? { opacity: 0 } : { y: 42, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={reducedMotion ? { opacity: 0 } : { y: 42, opacity: 0 }}
-          transition={reducedMotion ? { duration: 0.01 } : springOptions("sheet")}
+          transition={reducedMotion ? { duration: 0 } : springOptions("sheet")}
           drag={reducedMotion ? false : "y"}
           dragDirectionLock
           dragConstraints={{ top: 0, bottom: 260 }}

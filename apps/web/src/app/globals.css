@@ -8,7 +8,7 @@ h1 { letter-spacing: var(--tracking-display); }
 small, .text-xs { letter-spacing: var(--tracking-small); }
 button, input, select, textarea { font: inherit; }
 :focus-visible { outline: 2px solid hsl(var(--focus)); outline-offset: 3px; }
-.pressable, button, [role="button"] { min-block-size: 44px; }
+.pressable, button, [role="button"] { min-block-size: 44px; min-inline-size: 44px; }
 button, [role="button"], .pressable { transform-origin: center; transition: transform var(--motion-feedback-duration) ease-out, opacity var(--motion-feedback-duration) ease-out; }
 button:not(:disabled):active, [role="button"]:active, .pressable:active { transform: scale(var(--motion-press-scale)); transition-duration: 0ms; }
 .pressable { display: inline-flex; align-items: center; justify-content: center; }

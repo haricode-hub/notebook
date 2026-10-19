@@ -21,12 +21,18 @@ Production polish, quality measurement, and the scale path.
 
 ## Agent Prompt
 ```
+
 Read AGENTS.md and this file. Levels 0-9 are done. Execute LEVEL 10 only, in four passes with commits per pass.
+
 PASS 1 Quality: expand evals, add faithfulness metric, run the RAG tuning loop (one variable at a time; log each experiment in docs/DECISIONS.md; keep only improvements); run the model comparison through OpenRouter and record cost vs quality.
+
 PASS 2 Reliability + performance: retries/backoff/dead-letter, timeouts, fallback models, caches, EXPLAIN review, graceful shutdown, backup + cleanup jobs.
+
 PASS 3 Security + ops: auto-generated authorization sweep across all routes, uv pip-audit + pnpm audit, CSP/security headers, gitleaks, Better Auth hardening (confirm options via Context7), admin page, quotas, optional Langfuse.
+
 PASS 4 Scale + docs: k6 for 5 concurrent users, docker-compose.scale.yml with 3 web + 3 API replicas + MinIO behind a proxy, verify e2e passes against it, write SCALING.md and README, onboarding sample notebook, axe a11y pass with Playwright.
 Output <promise>L10_COMPLETE</promise> when acceptance tests pass.
+
 ```
 
 ## Task checklist
@@ -39,6 +45,8 @@ Output <promise>L10_COMPLETE</promise> when acceptance tests pass.
 - [ ] a11y + onboarding notebook + README
 
 ## Acceptance tests
+
+
 1. Eval targets: hit-rate@8 >= 0.9, citation validity 100%, faithfulness >= 0.9.
 2. k6, 5 concurrent users, 10 minutes: error rate < 1%, chat first-token p95 < 4 s (cloud model), no OOM, queue drains.
 3. Authorization sweep: every API route with another user's IDs returns 404/403; no token returns 401.
@@ -49,6 +57,8 @@ Output <promise>L10_COMPLETE</promise> when acceptance tests pass.
 8. Fresh-clone VPS deployment per README completes in under 30 minutes.
 9. Non-admin cannot reach admin routes or admin API endpoints.
 10. Primary model failure triggers the fallback model automatically and the answer still streams.
+
+
 
 ## Working condition
 "I'd let friends use this for real, I know its quality numbers, and I know exactly how to scale it."
