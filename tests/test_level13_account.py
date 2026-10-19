@@ -1,6 +1,7 @@
 import io
 import zipfile
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,6 +15,7 @@ from opennotebook_core.models import (
     Chunk,
     Job,
     LLMUsage,
+    MediaItem,
     Notebook,
     Source,
     SummaryCache,
@@ -39,7 +41,12 @@ async def test_account_purge_removes_only_owned_rows_and_files(tmp_path) -> None
     async with factory() as session:
         session.add_all(
             [
-                Notebook(id="owned-book", user_id="owner", title="Owned"),
+                Notebook(
+                    id="owned-book",
+                    user_id="owner",
+                    title="Owned",
+                    deleted_at=datetime.now(UTC),
+                ),
                 Notebook(id="other-book", user_id="other", title="Other"),
             ]
         )
@@ -137,11 +144,23 @@ async def test_account_purge_removes_only_owned_rows_and_files(tmp_path) -> None
                 ),
             ]
         )
+        session.add(
+            MediaItem(
+                id="owned-figure",
+                source_id="owned-source",
+                notebook_id="owned-book",
+                storage_key="owner/figure.png",
+                text_anchor="owned chart",
+                embedding=[0.0] * 768,
+                modality="image",
+            )
+        )
         await session.commit()
 
     (tmp_path / "owner").mkdir()
     (tmp_path / "other").mkdir()
     (tmp_path / "owner" / "owned.txt").write_text("owned")
+    (tmp_path / "owner" / "figure.png").write_bytes(b"figure")
     (tmp_path / "other" / "other.txt").write_text("other")
     app = create_app(
         Settings(
@@ -169,6 +188,7 @@ async def test_account_purge_removes_only_owned_rows_and_files(tmp_path) -> None
     )
     assert response.status_code == 204
     assert not (tmp_path / "owner" / "owned.txt").exists()
+    assert not (tmp_path / "owner" / "figure.png").exists()
     assert (tmp_path / "other" / "other.txt").read_text() == "other"
     async with factory() as session:
         assert await session.get(Notebook, "owned-book") is None

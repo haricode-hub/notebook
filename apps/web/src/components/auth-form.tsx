@@ -13,82 +13,99 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 
-const schema = z.object({
+const commonSchema = z.object({
   name: z.string().trim().min(2, "Enter your name").or(z.literal("")).optional(),
   email: z.email("Enter a valid email address"),
   password: z.string().min(8, "Use at least 8 characters"),
 });
-type FormValues = z.infer<typeof schema>;
+const signInSchema = commonSchema.extend({ confirmPassword: z.string().optional() });
+const signUpSchema = commonSchema.extend({
+  name: z.string().trim().min(2, "Enter your name"),
+  confirmPassword: z.string().min(8, "Confirm your password"),
+}).refine((values) => values.password === values.confirmPassword, { path: ["confirmPassword"], message: "Passwords do not match" });
+type FormValues = z.infer<typeof signInSchema> | z.infer<typeof signUpSchema>;
 
-export function AuthForm({ mode, socials }: { mode: "sign-in" | "sign-up"; socials: { google: boolean; github: boolean } }) {
+export function AuthForm({ mode, socials, verificationRequired = false }: { mode: "sign-in" | "sign-up"; socials: { google: boolean; github: boolean }; verificationRequired?: boolean }) {
   const router = useRouter();
   const search = useSearchParams();
-  const [serverError, setServerError] = useState("");
-  const [resetRequested, setResetRequested] = useState(false);
-  const { register, handleSubmit, getValues, formState: { errors, isSubmitting } } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: { name: "", email: "", password: "" },
-  });
   const signUp = mode === "sign-up";
-
+  const [serverError, setServerError] = useState("");
+  const [statusMessage, setStatusMessage] = useState(() => search.get("password-reset") === "1" ? "Your password has been updated. Sign in with your new password." : "");
+  const validationSchema = signUp ? signUpSchema : signInSchema;
+  const { register, handleSubmit, getValues, formState: { errors, isSubmitting } } = useForm<FormValues>({
+    resolver: zodResolver(validationSchema),
+    defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
+  });
   async function onSubmit(values: FormValues) {
     setServerError("");
     if (signUp && (!values.name || values.name.trim().length < 2)) {
       setServerError("Enter your name");
       return;
     }
-    const result = signUp
-      ? await authClient.signUp.email({ name: values.name?.trim() ?? "", email: values.email, password: values.password })
-      : await authClient.signIn.email({ email: values.email, password: values.password });
-    if (result.error) {
-      setServerError(result.error.message ?? "Authentication failed. Please try again.");
-      return;
+    try {
+      const result = signUp
+        ? await authClient.signUp.email({ name: values.name?.trim() ?? "", email: values.email, password: values.password })
+        : await authClient.signIn.email({ email: values.email, password: values.password });
+      if (result.error) {
+        setServerError(signUp ? result.error.message ?? "Could not create your account. Please try again." : "Invalid email or password.");
+        return;
+      }
+      if (signUp && verificationRequired) {
+        setStatusMessage("Your account was created. Check your email for a verification link before signing in.");
+        return;
+      }
+      toast.success(signUp ? "Account created" : "Welcome back");
+      const next = search.get("next");
+      const safeNext = next?.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : "/notebooks";
+      router.replace(safeNext);
+      router.refresh();
+    } catch {
+      setServerError("Authentication is temporarily unavailable. Check your connection and try again.");
     }
-    toast.success(signUp ? "Account created" : "Welcome back");
-    const next = search.get("next");
-    router.replace(next?.startsWith("/") && !next.startsWith("//") ? next : "/notebooks");
-    router.refresh();
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
       {signUp && <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
-        <Input id="name" autoComplete="name" {...register("name", { required: signUp })} />
+        <Input id="name" autoComplete="name" aria-invalid={Boolean(errors.name)} {...register("name", { required: signUp })} />
         {errors.name && <p className="text-sm text-red-600" role="alert">{errors.name.message}</p>}
       </div>}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" autoComplete="email" {...register("email")} />
+        <Input id="email" type="email" autoComplete="email" aria-invalid={Boolean(errors.email)} {...register("email")} />
         {errors.email && <p className="text-sm text-red-600" role="alert">{errors.email.message}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
-        <Input id="password" type="password" autoComplete={signUp ? "new-password" : "current-password"} {...register("password")} />
+        <Input id="password" type="password" autoComplete={signUp ? "new-password" : "current-password"} aria-invalid={Boolean(errors.password)} {...register("password")} />
         {errors.password && <p className="text-sm text-red-600" role="alert">{errors.password.message}</p>}
       </div>
+      {signUp && <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Confirm password</Label>
+        <Input id="confirmPassword" type="password" autoComplete="new-password" aria-invalid={Boolean(errors.confirmPassword)} {...register("confirmPassword")} />
+        {errors.confirmPassword && <p className="text-sm text-red-600" role="alert">{errors.confirmPassword.message}</p>}
+      </div>}
       {serverError && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200" role="alert">{serverError}</p>}
       <Button type="submit" disabled={isSubmitting} className="w-full bg-indigo-600 text-white hover:bg-indigo-700">
         {isSubmitting ? "Working…" : signUp ? "Create account" : "Sign in"}
       </Button>
       {!signUp && <div className="flex flex-wrap justify-center gap-4 text-sm">
-        <button type="button" className="text-indigo-600 hover:underline dark:text-indigo-400" onClick={async () => {
-          const email = getValues("email");
-          const parsed = z.email().safeParse(email);
-          if (!parsed.success) { setServerError("Enter your email above, then request a reset link."); return; }
-          setServerError("");
-          const result = await authClient.requestPasswordReset({ email, redirectTo: "/reset-password" });
-          if (result.error) { setServerError("Could not request a reset link. Try again shortly."); return; }
-          setResetRequested(true);
-        }}>Forgot password?</button>
+        <Link href="/forgot-password" className="min-h-11 inline-flex items-center text-indigo-600 hover:underline dark:text-indigo-400">Forgot password?</Link>
         <button type="button" className="text-indigo-600 hover:underline dark:text-indigo-400" onClick={async () => {
           const email = getValues("email");
           if (!z.email().safeParse(email).success) { setServerError("Enter your email above first."); return; }
-          await authClient.sendVerificationEmail({ email, callbackURL: "/notebooks" });
-          setResetRequested(true);
+          setServerError("");
+          try {
+            const result = await authClient.sendVerificationEmail({ email, callbackURL: "/notebooks" });
+            if (result.error) throw new Error("email failed");
+            setStatusMessage("If verification is needed, a message will be sent to that address.");
+          } catch {
+            setServerError("We couldn't send a verification link. Try again shortly.");
+          }
         }}>Resend verification email</button>
       </div>}
-      {resetRequested && <p role="status" className="text-center text-sm text-emerald-700">If that account can receive email, a secure link has been sent.</p>}
+      {statusMessage && <p role="status" className="text-center text-sm text-emerald-700 dark:text-emerald-300">{statusMessage}</p>}
       <p className="text-center text-sm text-slate-600 dark:text-slate-400">
         {signUp ? "Already have an account? " : "New here? "}
         <Link href={signUp ? "/sign-in" : "/sign-up"} className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">

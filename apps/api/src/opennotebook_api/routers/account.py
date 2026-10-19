@@ -117,14 +117,10 @@ async def send_account_email(
 
 @router.delete("/internal/accounts/{user_id}/data", status_code=204)
 async def purge_account_data(user_id: str, request: Request, _internal: Internal, db: Db) -> None:
+    # Include soft-deleted notebooks too: their source and figure files still need
+    # removal before the rows are hard-deleted during account cleanup.
     notebooks = list(
-        (
-            await db.scalars(
-                select(Notebook).where(
-                    Notebook.user_id == user_id, Notebook.deleted_at.is_(None)
-                )
-            )
-        ).all()
+        (await db.scalars(select(Notebook).where(Notebook.user_id == user_id))).all()
     )
     notebook_ids = [notebook.id for notebook in notebooks]
     sources = list((await db.scalars(select(Source).where(Source.user_id == user_id))).all())
