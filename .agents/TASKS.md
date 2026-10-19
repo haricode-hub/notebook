@@ -116,11 +116,11 @@
 
 ## Level 12: Real Quality and Reliability
 
-- [ ] 12.1 Build 10–12 document real corpus, 60+ questions, and isolated held-out split
-- [ ] 12.2 Implement a real EmbeddingGemma + real chat eval harness, baseline, and nightly regression workflow
-- [ ] 12.3 Run one-variable retrieval experiments on development data and log each in ADRs
-- [ ] 12.4 Measure dense-PDF stages and add user-visible ingestion ETA
-- [ ] 12.5 Add OCR for scanned PDFs and image uploads with citation mapping
+- [x] 12.1 Build 12-document real corpus + 60 questions with isolated held-out split; held-out remains unevaluated
+- [x] 12.2 Implement the real-stack harness + dev baseline + nightly workflow; held-out gate remains open
+- [x] 12.3 Run and log one-variable retrieval experiments on development data; held-out untouched
+- [x] 12.4 Measure dense-PDF stages and add ETA (browser verification remains open)
+- [x] 12.5 OCR scanned PDFs and image uploads with local citation-mapping tests; Linux/browser checks open
 - [ ] 12.6 Measure live Kokoro, YouTube transcript/fallback, and CPU Whisper behavior
 - [ ] 12.7 Add and test Linux server-side PDF export
 - [ ] 12.8 Add XSS, prompt-injection, SSRF, and upload-fuzz regressions and fixes
