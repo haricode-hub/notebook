@@ -1,10 +1,26 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
+@import "../design/tokens.css";
 
-:root { color-scheme: light; }
-.dark { color-scheme: dark; }
-body { background: #f8fafc; color: #171717; font-family: Arial, Helvetica, sans-serif; }
-.dark body { background: #090f1b; color: #f1f5f9; }
+body { background: hsl(var(--canvas)); color: hsl(var(--foreground)); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 1rem; line-height: var(--leading-body); letter-spacing: var(--tracking-body); }
+h1, h2, h3 { text-wrap: balance; letter-spacing: var(--tracking-heading); line-height: 1.15; }
+h1 { letter-spacing: var(--tracking-display); }
+small, .text-xs { letter-spacing: var(--tracking-small); }
+button, input, select, textarea { font: inherit; }
+:focus-visible { outline: 2px solid hsl(var(--focus)); outline-offset: 3px; }
+.pressable, button, [role="button"] { min-block-size: 44px; }
+button, [role="button"], .pressable { transform-origin: center; transition: transform var(--motion-feedback-duration) ease-out, opacity var(--motion-feedback-duration) ease-out; }
+button:not(:disabled):active, [role="button"]:active, .pressable:active { transform: scale(var(--motion-press-scale)); transition-duration: 0ms; }
+.pressable { display: inline-flex; align-items: center; justify-content: center; }
+.pressable:focus-visible, button:focus-visible, [role="button"]:focus-visible { outline: 2px solid hsl(var(--focus)); outline-offset: 3px; }
+.material-surface { position: relative; isolation: isolate; background: hsl(var(--surface) / var(--material-regular-alpha)); -webkit-backdrop-filter: blur(var(--material-regular-blur)) saturate(var(--material-saturation)); backdrop-filter: blur(var(--material-regular-blur)) saturate(var(--material-saturation)); box-shadow: 0 1px 0 hsl(var(--material-edge)) inset, 0 12px 36px rgb(15 23 42 / 0.1); }
+.material-surface::before { content: ""; position: absolute; z-index: -1; inset: 0; border: 1px solid hsl(var(--border) / 0.7); border-radius: inherit; pointer-events: none; }
+.material-thin { background: hsl(var(--surface) / var(--material-thin-alpha)); -webkit-backdrop-filter: blur(var(--material-thin-blur)) saturate(var(--material-saturation)); backdrop-filter: blur(var(--material-thin-blur)) saturate(var(--material-saturation)); }
+.material-regular { background: hsl(var(--surface) / var(--material-regular-alpha)); }
+.material-thick { background: hsl(var(--surface) / var(--material-thick-alpha)); -webkit-backdrop-filter: blur(var(--material-thick-blur)) saturate(var(--material-saturation)); backdrop-filter: blur(var(--material-thick-blur)) saturate(var(--material-saturation)); }
+@media (prefers-reduced-transparency: reduce) { .material-surface { -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; } }
+@media (prefers-contrast: more) { .material-surface { -webkit-backdrop-filter: none; backdrop-filter: none; border: 1px solid hsl(var(--border)); box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } button:not(:disabled):active, [role="button"]:active, .pressable:active { transform: none; opacity: 0.82; } }
 @media print {
   body > *:not(#artifact-print-root) { display: none !important; }
   #artifact-print-root { position: static !important; display: block !important; background: white !important; color: black !important; }
