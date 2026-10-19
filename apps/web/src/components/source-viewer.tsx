@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, Pencil, X } from "lucide-react
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { SourceTextBlock } from "@/components/source-text-block";
@@ -13,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { getToken, sourceApi, type ChatCitation, type SourceContent } from "@/lib/api-client";
 import { formatMediaTime } from "@/components/cited-markdown";
 import { splitTextBlocks } from "@/lib/source-highlight";
+import { springOptions } from "@/design/springs";
+import { useMotionPrefs } from "@/design/use-motion-prefs";
 
 const PdfOriginal = dynamic(() => import("@/components/pdf-original"), {
   ssr: false,
@@ -84,6 +87,7 @@ export function SourceViewer({ notebookId, selection, onClose, onNavigate, onAsk
   onNavigate: (index: number) => void;
   onAskQuestion: (question: string) => void;
 }) {
+  const { reducedMotion } = useMotionPrefs();
   const citation = selection.citations[selection.index];
   const sourceId = citation?.source_id ?? selection.sourceId;
   const queryClient = useQueryClient();
@@ -145,8 +149,8 @@ export function SourceViewer({ notebookId, selection, onClose, onNavigate, onAsk
   };
 
   return <div className="fixed inset-0 z-50" role="presentation">
-    <button type="button" className="absolute inset-0 bg-slate-950/50" aria-label="Close source viewer" onClick={onClose} />
-    <aside role="dialog" aria-modal="true" aria-label="Source viewer" className="absolute inset-y-0 right-0 flex w-full max-w-3xl flex-col bg-white shadow-2xl dark:bg-slate-950">
+    <motion.button type="button" initial={reducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-950/50" aria-label="Close source viewer" onClick={onClose} transition={{ duration: reducedMotion ? 0 : 0.2 }} />
+    <motion.aside initial={reducedMotion ? false : { x: "3%", opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={reducedMotion ? { duration: 0 } : springOptions("move")} role="dialog" aria-modal="true" aria-label="Source viewer" className="absolute inset-y-0 right-0 flex w-full max-w-3xl flex-col bg-white shadow-2xl dark:bg-slate-950">
       <header className="flex items-center gap-2 border-b border-slate-200 p-3 dark:border-slate-800">
         <div className="min-w-0 flex-1">
           {editing ? <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); void rename(); }}><Input aria-label="Source name" value={name} onChange={(event) => setName(event.target.value)} maxLength={255} autoFocus /><Button size="sm" disabled={saving || !name.trim()}>Save</Button></form> : <h2 className="truncate font-semibold">{data?.source.name ?? "Source"}</h2>}
@@ -161,6 +165,7 @@ export function SourceViewer({ notebookId, selection, onClose, onNavigate, onAsk
         <span>{selection.index + 1} of {selection.citations.length}</span>
         <Button size="sm" variant="outline" disabled={selection.index === selection.citations.length - 1} onClick={() => onNavigate(selection.index + 1)}>Next citation <ChevronRight className="size-4" /></Button>
       </nav>}
+      <motion.div key={`${sourceId}:${citation?.chunk_id ?? citation?.n ?? 0}:${tab}`} initial={reducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.16 }} className="flex min-h-0 flex-1 flex-col">
       {isPending ? <div className="m-4 h-36 animate-pulse rounded bg-slate-200 dark:bg-slate-800" aria-label="Loading source" /> : isError || !data ? <p className="p-4 text-red-600" role="alert">Could not load this source.</p> : <>
         <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-800">
           <div role="tablist" aria-label="Source views" className="flex gap-1"><Button size="sm" variant={tab === "original" ? "default" : "outline"} role="tab" aria-selected={tab === "original"} onClick={() => setTab("original")}>{data.source.kind === "pdf" ? "Original" : "Text"}</Button>{data.source.kind === "pdf" && <Button size="sm" variant={tab === "text" ? "default" : "outline"} role="tab" aria-selected={tab === "text"} onClick={() => setTab("text")}>Text</Button>}<Button size="sm" variant={tab === "guide" ? "default" : "outline"} role="tab" aria-selected={tab === "guide"} onClick={() => setTab("guide")}>Guide</Button></div>
@@ -172,6 +177,7 @@ export function SourceViewer({ notebookId, selection, onClose, onNavigate, onAsk
           tab === "guide" ? <div className="h-full space-y-5 overflow-y-auto p-5 text-sm">{guide.data?.status === "ready" ? <><section><h3 className="font-semibold">Summary</h3><p className="mt-2 leading-relaxed">{guide.data.summary}</p></section><section><h3 className="font-semibold">Key topics</h3><ul className="mt-2 flex flex-wrap gap-2">{guide.data.topics.map((topic) => <li key={topic} className="rounded bg-indigo-50 px-2 py-1 dark:bg-indigo-950">{topic}</li>)}</ul></section><section><h3 className="font-semibold">Suggested questions</h3><div className="mt-2 space-y-2">{guide.data.questions.map((question) => <Button key={question} variant="outline" className="h-auto w-full justify-start whitespace-normal text-left" onClick={() => { onAskQuestion(question); onClose(); }}>{question}</Button>)}</div></section></> : <p role="status" className="text-slate-500">{guide.data?.error ?? "Generating a guide for this source…"}</p>}</div> : data.source.kind === "pdf" && tab === "original" && data.file_url ? <PdfOriginal key={sourceId} content={data} citation={citation} onShowText={() => setTab("text")} /> : <div className="flex h-full min-h-0 flex-col">{data.source.kind === "audio" && data.file_url && <div className="border-b p-3"><TimedAudioSource filePath={data.file_url} timeStart={citation?.time_start ?? null} /></div>}<div className="min-h-0 flex-1"><TextOriginal content={data} citation={citation} /></div></div>}
         </div>
       </>}
-    </aside>
+      </motion.div>
+    </motion.aside>
   </div>;
 }

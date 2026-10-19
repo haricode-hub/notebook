@@ -60,3 +60,10 @@
 - Focused checks: web typecheck passed; 5 files/11 unit tests passed; ESLint passed with two existing TanStack Virtual warnings in PDF components.
 - Captured four before and four after auth-page screenshots at 1440x1000/390x844 in light/dark. Signed-in workspace screenshots and chat citation journey are blocked because DB/API services are unavailable.
 - Commit: pending.
+
+## Level 14 Pass 5 — Source viewer transitions
+- Added reduced-motion-aware drawer entry (opacity + horizontal transform) and short citation/tab content fade to the existing viewer.
+- Screenshot checkpoints: before-pass5 copied from prior auth UI, after-pass5 captured; four Playwright viewport/theme cases passed. These are auth screenshots only because workspace backend services are unavailable.
+- Web typecheck passed; all 11 web unit tests passed.
+- Citation click-to-viewer, PDF/text highlight, and viewport positioning e2e remains blocked without DB/API.
+- Commit: pending.

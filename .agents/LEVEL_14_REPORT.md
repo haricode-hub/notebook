@@ -37,7 +37,7 @@ Screenshot files are in [`docs/levels/level14/screenshots`](../../docs/levels/le
 ## Known weaknesses and open work
 
 - Level 11 task 11.2 is a stated Level 14 prerequisite and is not complete. Its CI workflow must be closed in the correct level before Level 14 can be declared complete.
-- Pass 4 chat composer, edge fades, and streaming scroll behavior are implemented; citation click transitions and signed-in visual evidence remain open. Passes 5–8 remain open: viewer transitions, Studio polish, settings/auth and design lab, reduced preference validation, axe, long-frame/CLS/INP, visual regression, and full journeys.
+- Pass 4 chat composer, edge fades, and streaming scroll behavior are implemented. Pass 5 added preference-aware viewer drawer/content transitions. Citation click-to-viewer/highlight e2e and signed-in visual evidence remain open. Passes 6–8 remain open: Studio polish, settings/auth and design lab, preference validation, axe, long-frame/CLS/INP, visual regression, and full journeys.
 - The Motion-driven mobile sheet is implemented, but desktop panel rubber-band/momentum snap is still missing. Motion is now imported by the workspace route; the 60 KB gzipped motion-layer budget has not been measured.
 - Local auth screenshots produce a hydration warning because the installed Chrome environment injects `style="caret-color:transparent"` into form inputs. The page still rendered and all screenshot assertions passed; a clean browser profile is needed to distinguish extension injection from app behavior.
 - The existing `/reset-password` page currently fails production prerender due to `useSearchParams()` outside Suspense. This surfaced during Level 14 build verification and is queued for the auth/settings pass.
