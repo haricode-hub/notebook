@@ -163,6 +163,15 @@ The optional scale Compose file configures 3 web replicas, 3 API replicas, one M
 
 The Compose merge uses the Docker Compose `!reset []` tag to remove host port declarations from replicated web/API services, as documented in [Compose file merge](https://docs.docker.com/reference/compose-file/merge/). MinIO initialization uses the official `mc alias set` and `mc mb` workflow; see [MinIO container deployment](https://min.io/docs/minio/container/operations/install-deploy-manage/deploy-minio-single-node-single-drive.html).
 
+## ADR-016: Linux proof runner and Windows developer commands
+
+**Status:** Accepted (2026-10-19).
+
+Use GitHub Actions `ubuntu-latest` as the Linux proof runner for Level 11 runtime and acceptance workflows. The Windows host's Docker Desktop service is stopped and cannot be opened by this workspace; selecting a runner available to CI lets the repository run Docker Compose checks without depending on that local service. Runtime measurements must still come from recorded workflow output; choosing a runner is not evidence that a runtime gate passed.
+
+This decision does not change Level 0's existing 90-second cold-build acceptance criterion. Its cold-build, warm-start, and pull-and-start values must be measured separately in task 11.3. Any proposal to revise an acceptance threshold requires an explicit user decision and a separate ADR first.
+
+Add `scripts/dev.ps1` as a Windows PowerShell equivalent for the Makefile targets and `scripts/loop.ps1` as a one-task-per-invocation Codex runner. Neither script bypasses approvals or modifies test/runtime thresholds.
 
 ### Level 9 multimodal extension to ADR-006 (2026-10-19)
 

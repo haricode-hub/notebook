@@ -103,3 +103,13 @@
 - [x] Pass 4 implementation: k6 profile, scale Compose/S3, scaling docs, sample notebook, axe checks
 - [ ] Pass 4 runtime gates: 10-minute k6, scaled full e2e, workspace axe, VPS rehearsal
 - [x] Verify the Python dependency audit passes in CI after switching from unsupported `uv.lock` discovery to exported locked requirements (root + Python 3.12 TTS)
+
+## Level 11: Close the Open Gates
+
+- [x] 11.1 Choose and document the Linux proof runner; add Windows `dev.ps1` and one-task `loop.ps1`
+- [ ] 11.2 Add fake-backend Playwright e2e workflow with failure traces and parallelizable tests
+- [ ] 11.3 Optimize Level 0 build layers/cache, publish CI images, and measure cold/warm/pull startup
+- [ ] 11.4 Complete Level 9 Pass C browser/security tests and record source timing measurements
+- [ ] 11.5 Add and run Linux scale acceptance for Compose, k6, axe, EXPLAIN, recovery, admin, fallback, and backup/restore
+- [ ] 11.6 Complete VPS runbook and rehearsal if a target is available
+- [ ] 11.7 Complete report, branch/tag, type/lint, and loop-prompt hygiene
