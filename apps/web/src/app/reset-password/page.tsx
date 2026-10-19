@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { authClient } from "@/lib/auth-client";
 const schema = z.object({ password: z.string().min(8, "Use at least 8 characters") });
 type Values = z.infer<typeof schema>;
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const search = useSearchParams();
   const router = useRouter();
   const { register, handleSubmit, formState: { errors, isSubmitting }, setError } = useForm<Values>({ resolver: zodResolver(schema) });
@@ -29,4 +30,8 @@ export default function ResetPasswordPage() {
     {errors.root && <p role="alert" className="text-sm text-red-600">{errors.root.message}</p>}
     <Button disabled={isSubmitting} className="w-full">{isSubmitting ? "Updating…" : "Update password"}</Button>
   </form></main>;
+}
+
+export default function ResetPasswordPage() {
+  return <Suspense fallback={<main className="flex min-h-screen items-center justify-center p-4"><p role="status">Loading reset link...</p></main>}><ResetPasswordForm /></Suspense>;
 }

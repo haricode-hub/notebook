@@ -74,3 +74,11 @@
 - Checks: typecheck passed; 5 web test files/11 tests passed; lint passed with two existing PDF virtualization warnings.
 - Playwright auth screenshot matrix: 4/4 passed; generated artifact states unavailable without DB/API services.
 - Commit: pending.
+
+## Level 14 Pass 7 — Settings, auth, design lab
+- Added a development-only design lab for color tokens, Material tones, interaction feedback, and detected OS preferences.
+- Wrapped reset-password query-parameter handling in Suspense; optimized production build now completes and prerenders /reset-password.
+- Build emitted Better Auth database-schema connection errors during static collection because PostgreSQL is unavailable; static build still exited successfully. Auth DB/session behavior is unverified.
+- Playwright auth screenshot matrix passed 4/4.
+- Broader auth/settings/toast polish remains open.
+- Commit: pending.
