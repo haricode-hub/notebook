@@ -26,13 +26,13 @@ Output <promise>L6_COMPLETE</promise> when acceptance tests pass.
 ```
 
 ## Task checklist
-- [ ] artifact framework + repair retry
-- [ ] five recipes
-- [ ] Studio tiles + options UI + progress
-- [ ] artifact viewer with citations
-- [ ] exports (MD, PDF, DOCX)
-- [ ] add-studio-generator skill file
-- [ ] tests + e2e
+- [x] artifact framework + repair retry
+- [x] five recipes
+- [x] Studio tiles + options UI + progress
+- [x] artifact viewer with citations
+- [x] exports (MD, PDF, DOCX)
+- [x] add-studio-generator skill file
+- [x] tests + e2e
 
 ## Acceptance tests
 1. All five types generate for a 50-page notebook in under 90 s and pass schema validation.

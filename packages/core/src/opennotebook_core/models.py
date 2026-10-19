@@ -220,3 +220,36 @@ class Note(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class Artifact(Base):
+    __tablename__ = "artifacts"
+    __table_args__ = (
+        Index("ix_artifacts_notebook_user_created", "notebook_id", "user_id", "created_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    notebook_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("notebooks.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(Text, nullable=False)
+    recipe: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued")
+    stage: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
+    progress: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    options_json: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+    source_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    output_json: Mapped[dict[str, object] | None] = mapped_column(JSON)
+    citations_json: Mapped[list[dict[str, object]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    model_name: Mapped[str | None] = mapped_column(Text)
+    prompt_version: Mapped[str] = mapped_column(String(20), nullable=False, default="artifact-v1")
+    job_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("jobs.id", ondelete="SET NULL")
+    )
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

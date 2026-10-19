@@ -1,6 +1,268 @@
 {
   "components": {
     "schemas": {
+      "ArtifactCreate": {
+        "properties": {
+          "focus": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Focus",
+            "type": "string"
+          },
+          "language": {
+            "default": "English",
+            "maxLength": 50,
+            "minLength": 2,
+            "title": "Language",
+            "type": "string"
+          },
+          "length": {
+            "default": "default",
+            "enum": [
+              "short",
+              "default",
+              "long"
+            ],
+            "title": "Length",
+            "type": "string"
+          },
+          "model_override": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Model Override",
+            "type": "string"
+          },
+          "recipe": {
+            "title": "Recipe",
+            "type": "string"
+          },
+          "source_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Source Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "recipe"
+        ],
+        "title": "ArtifactCreate",
+        "type": "object"
+      },
+      "ArtifactDocument": {
+        "properties": {
+          "recipe": {
+            "title": "Recipe",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/ArtifactSection"
+            },
+            "minItems": 1,
+            "title": "Sections",
+            "type": "array"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipe",
+          "title",
+          "sections"
+        ],
+        "title": "ArtifactDocument",
+        "type": "object"
+      },
+      "ArtifactOptions": {
+        "properties": {
+          "focus": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Focus",
+            "type": "string"
+          },
+          "language": {
+            "default": "English",
+            "maxLength": 50,
+            "minLength": 2,
+            "title": "Language",
+            "type": "string"
+          },
+          "length": {
+            "default": "default",
+            "enum": [
+              "short",
+              "default",
+              "long"
+            ],
+            "title": "Length",
+            "type": "string"
+          },
+          "model_override": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Model Override",
+            "type": "string"
+          },
+          "source_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Source Ids",
+            "type": "array"
+          }
+        },
+        "title": "ArtifactOptions",
+        "type": "object"
+      },
+      "ArtifactOut": {
+        "properties": {
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/ChatCitation"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name"
+          },
+          "notebook_id": {
+            "title": "Notebook Id",
+            "type": "string"
+          },
+          "options": {
+            "$ref": "#/components/schemas/ArtifactOptions"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArtifactDocument"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "integer"
+          },
+          "prompt_version": {
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "recipe": {
+            "title": "Recipe",
+            "type": "string"
+          },
+          "source_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Ids",
+            "type": "array"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "notebook_id",
+          "recipe",
+          "status",
+          "stage",
+          "progress",
+          "source_ids",
+          "options",
+          "output",
+          "citations",
+          "model_name",
+          "prompt_version",
+          "error",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ArtifactOut",
+        "type": "object"
+      },
+      "ArtifactSection": {
+        "properties": {
+          "citation_refs": {
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Citation Refs",
+            "type": "array"
+          },
+          "heading": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Heading",
+            "type": "string"
+          },
+          "markdown": {
+            "minLength": 1,
+            "title": "Markdown",
+            "type": "string"
+          }
+        },
+        "required": [
+          "heading",
+          "markdown",
+          "citation_refs"
+        ],
+        "title": "ArtifactSection",
+        "type": "object"
+      },
       "Body_upload_source_notebooks__notebook_id__sources_upload_post": {
         "properties": {
           "file": {
@@ -552,6 +814,29 @@
           "embed"
         ],
         "title": "ReadinessBody",
+        "type": "object"
+      },
+      "RecipeOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "renderer_id": {
+            "title": "Renderer Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "renderer_id"
+        ],
+        "title": "RecipeOut",
         "type": "object"
       },
       "SettingsOut": {
@@ -1297,6 +1582,434 @@
         "summary": "Update Notebook",
         "tags": [
           "notebooks"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/artifacts": {
+      "get": {
+        "operationId": "list_artifacts_notebooks__notebook_id__artifacts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ArtifactOut"
+                  },
+                  "title": "Response List Artifacts Notebooks  Notebook Id  Artifacts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Artifacts",
+        "tags": [
+          "artifacts"
+        ]
+      },
+      "post": {
+        "operationId": "create_artifact_notebooks__notebook_id__artifacts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArtifactCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Artifact",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/artifacts/events": {
+      "get": {
+        "operationId": "artifact_events_notebooks__notebook_id__artifacts_events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Artifact Events",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/artifacts/recipes": {
+      "get": {
+        "operationId": "recipes_notebooks__notebook_id__artifacts_recipes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecipeOut"
+                  },
+                  "title": "Response Recipes Notebooks  Notebook Id  Artifacts Recipes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Recipes",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}": {
+      "delete": {
+        "operationId": "delete_artifact_notebooks__notebook_id__artifacts__artifact_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Artifact",
+        "tags": [
+          "artifacts"
+        ]
+      },
+      "get": {
+        "operationId": "get_artifact_notebooks__notebook_id__artifacts__artifact_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Artifact",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/export/{format}": {
+      "get": {
+        "operationId": "export_artifact_notebooks__notebook_id__artifacts__artifact_id__export__format__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "format",
+            "required": true,
+            "schema": {
+              "enum": [
+                "md",
+                "docx"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Artifact",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/regenerate": {
+      "post": {
+        "operationId": "regenerate_artifact_notebooks__notebook_id__artifacts__artifact_id__regenerate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Regenerate Artifact",
+        "tags": [
+          "artifacts"
         ]
       }
     },

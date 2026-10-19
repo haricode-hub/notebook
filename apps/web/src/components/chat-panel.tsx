@@ -3,9 +3,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Save, Send, Square, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import Markdown, { defaultUrlTransform } from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
+import { CitedMarkdown } from "@/components/cited-markdown";
 import { Button } from "@/components/ui/button";
 import { chatApi, noteApi, sourceApi, type ChatCitation, type ChatMessage } from "@/lib/api-client";
 
@@ -15,30 +14,9 @@ const starterQuestions = [
   "What should I study next?",
 ];
 
-function CitationChip({ citation, onOpen }: { citation: ChatCitation; onOpen: () => void }) {
-  const [open, setOpen] = useState(false);
-  return <span className="group relative inline-block align-baseline">
-    <button type="button" aria-label={`Source ${citation.n}: ${citation.source_name}`} onClick={onOpen} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} className="mx-0.5 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-800 hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-100">S{citation.n}</button>
-    <span role="note" className={`${open ? "block" : "hidden group-hover:block group-focus-within:block"} absolute bottom-full left-0 z-30 mb-2 w-64 rounded-lg border border-slate-200 bg-white p-3 text-left text-xs text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200`}>
-      <strong className="block truncate">{citation.source_name}{citation.page_start ? ` · page ${citation.page_start}` : ""}</strong>
-      <span className="mt-1 block max-h-32 overflow-y-auto">{citation.quote}</span>
-    </span>
-  </span>;
-}
-
 function Answer({ message, onOpenCitation, onSave }: { message: ChatMessage; onOpenCitation: (citation: ChatCitation, citations: ChatCitation[]) => void; onSave: () => void }) {
-  const citations = new Map(message.citations.map((citation) => [citation.n, citation]));
-  const markdown = message.content.replace(/\[S(\d+)\]/g, (marker, rawNumber: string) => citations.has(Number(rawNumber)) ? `[${marker}](cite:${rawNumber})` : marker);
   return <div className="space-y-2">
-    <div className="space-y-2 break-words text-sm leading-relaxed [&_ol]:ml-5 [&_ol]:list-decimal [&_p]:my-2 [&_table]:block [&_table]:overflow-x-auto [&_ul]:ml-5 [&_ul]:list-disc">
-      <Markdown remarkPlugins={[remarkGfm]} urlTransform={(url) => url.startsWith("cite:") ? url : defaultUrlTransform(url)} components={{ a: ({ href, children }) => {
-        if (href?.startsWith("cite:")) {
-          const citation = citations.get(Number(href.slice(5)));
-          return citation ? <CitationChip citation={citation} onOpen={() => onOpenCitation(citation, message.citations)} /> : <>{children}</>;
-        }
-        return <a href={href} target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline dark:text-indigo-400">{children}</a>;
-      } }}>{markdown}</Markdown>
-    </div>
+    <CitedMarkdown content={message.content} citations={message.citations} onOpenCitation={onOpenCitation} />
     <div className="flex items-center gap-2 text-xs text-slate-500">
       {message.model_name && <span className="rounded border px-1.5 py-0.5" aria-label={`Model ${message.model_name}`}>{message.model_name}</span>}
       {message.content && <button type="button" className="inline-flex items-center gap-1 hover:text-indigo-600" onClick={async () => { await navigator.clipboard.writeText(message.content); toast.success("Answer copied"); }}><Copy className="size-3" /> Copy</button>}
@@ -46,7 +24,6 @@ function Answer({ message, onOpenCitation, onSave }: { message: ChatMessage; onO
     </div>
   </div>;
 }
-
 export function ChatPanel({ notebookId, onOpenCitation, suggestedQuestion, onQuestionConsumed }: { notebookId: string; onOpenCitation: (citation: ChatCitation, citations: ChatCitation[]) => void; suggestedQuestion?: { id: number; text: string } | null; onQuestionConsumed?: () => void }) {
   const client = useQueryClient();
   const history = useQuery({ queryKey: ["chat", notebookId], queryFn: () => chatApi.history(notebookId), refetchOnWindowFocus: false });

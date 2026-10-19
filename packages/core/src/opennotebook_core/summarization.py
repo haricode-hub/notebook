@@ -174,13 +174,15 @@ class FakeSummaryLLM:
         yield Guide(summary=summary, topics=topics, questions=questions).model_dump_json()
 
 
-def configured_summary_llm(settings: Settings, row: UserSettings | None) -> tuple[SummaryLLM, str]:
+def configured_summary_llm(
+    settings: Settings, row: UserSettings | None, *, model_override: str = ""
+) -> tuple[SummaryLLM, str]:
     """Use the user's cheap model and private key, or the server's default key."""
     if settings.llm_provider == "fake":
         return FakeSummaryLLM(), "fake"
     provider = row.provider if row is not None else "openrouter"
     model = (row.cheap_model or row.chat_model) if row is not None else ""
-    model = model or settings.default_cheap_model or settings.default_chat_model
+    model = model_override or model or settings.default_cheap_model or settings.default_chat_model
     keys: dict[str, str] = {}
     if row is not None and row.encrypted_keys:
         if not settings.settings_encryption_key:

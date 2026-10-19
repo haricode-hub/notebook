@@ -75,6 +75,110 @@ export interface paths {
         patch: operations["update_notebook_notebooks__notebook_id__patch"];
         trace?: never;
     };
+    "/notebooks/{notebook_id}/artifacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Artifacts */
+        get: operations["list_artifacts_notebooks__notebook_id__artifacts_get"];
+        put?: never;
+        /** Create Artifact */
+        post: operations["create_artifact_notebooks__notebook_id__artifacts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/artifacts/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Artifact Events */
+        get: operations["artifact_events_notebooks__notebook_id__artifacts_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/artifacts/recipes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recipes */
+        get: operations["recipes_notebooks__notebook_id__artifacts_recipes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Artifact */
+        get: operations["get_artifact_notebooks__notebook_id__artifacts__artifact_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Artifact */
+        delete: operations["delete_artifact_notebooks__notebook_id__artifacts__artifact_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/export/{format}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Artifact */
+        get: operations["export_artifact_notebooks__notebook_id__artifacts__artifact_id__export__format__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Regenerate Artifact */
+        post: operations["regenerate_artifact_notebooks__notebook_id__artifacts__artifact_id__regenerate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notebooks/{notebook_id}/chat": {
         parameters: {
             query?: never;
@@ -427,6 +531,115 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ArtifactCreate */
+        ArtifactCreate: {
+            /**
+             * Focus
+             * @default
+             */
+            focus: string;
+            /**
+             * Language
+             * @default English
+             */
+            language: string;
+            /**
+             * Length
+             * @default default
+             * @enum {string}
+             */
+            length: "short" | "default" | "long";
+            /**
+             * Model Override
+             * @default
+             */
+            model_override: string;
+            /** Recipe */
+            recipe: string;
+            /** Source Ids */
+            source_ids?: string[];
+        };
+        /** ArtifactDocument */
+        ArtifactDocument: {
+            /** Recipe */
+            recipe: string;
+            /** Sections */
+            sections: components["schemas"]["ArtifactSection"][];
+            /** Title */
+            title: string;
+        };
+        /** ArtifactOptions */
+        ArtifactOptions: {
+            /**
+             * Focus
+             * @default
+             */
+            focus: string;
+            /**
+             * Language
+             * @default English
+             */
+            language: string;
+            /**
+             * Length
+             * @default default
+             * @enum {string}
+             */
+            length: "short" | "default" | "long";
+            /**
+             * Model Override
+             * @default
+             */
+            model_override: string;
+            /** Source Ids */
+            source_ids?: string[];
+        };
+        /** ArtifactOut */
+        ArtifactOut: {
+            /** Citations */
+            citations: components["schemas"]["ChatCitation"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Error */
+            error: string | null;
+            /** Id */
+            id: string;
+            /** Model Name */
+            model_name: string | null;
+            /** Notebook Id */
+            notebook_id: string;
+            options: components["schemas"]["ArtifactOptions"];
+            output: components["schemas"]["ArtifactDocument"] | null;
+            /** Progress */
+            progress: number;
+            /** Prompt Version */
+            prompt_version: string;
+            /** Recipe */
+            recipe: string;
+            /** Source Ids */
+            source_ids: string[];
+            /** Stage */
+            stage: string;
+            /** Status */
+            status: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** ArtifactSection */
+        ArtifactSection: {
+            /** Citation Refs */
+            citation_refs: number[];
+            /** Heading */
+            heading: string;
+            /** Markdown */
+            markdown: string;
+        };
         /** Body_upload_source_notebooks__notebook_id__sources_upload_post */
         Body_upload_source_notebooks__notebook_id__sources_upload_post: {
             /** File */
@@ -622,6 +835,15 @@ export interface components {
             redis: string;
             /** Status */
             status: string;
+        };
+        /** RecipeOut */
+        RecipeOut: {
+            /** Id */
+            id: string;
+            /** Renderer Id */
+            renderer_id: string;
+            /** Title */
+            title: string;
         };
         /** SettingsOut */
         SettingsOut: {
@@ -946,6 +1168,261 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotebookOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_artifacts_notebooks__notebook_id__artifacts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_artifact_notebooks__notebook_id__artifacts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArtifactCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    artifact_events_notebooks__notebook_id__artifacts_events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recipes_notebooks__notebook_id__artifacts_recipes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_artifact_notebooks__notebook_id__artifacts__artifact_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_artifact_notebooks__notebook_id__artifacts__artifact_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_artifact_notebooks__notebook_id__artifacts__artifact_id__export__format__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                artifact_id: string;
+                format: "md" | "docx";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    regenerate_artifact_notebooks__notebook_id__artifacts__artifact_id__regenerate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactOut"];
                 };
             };
             /** @description Validation Error */
