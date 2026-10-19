@@ -145,6 +145,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Audio */
+        get: operations["get_audio_notebooks__notebook_id__artifacts__artifact_id__audio_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Artifact */
+        post: operations["cancel_artifact_notebooks__notebook_id__artifacts__artifact_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notebooks/{notebook_id}/artifacts/{artifact_id}/export/{format}": {
         parameters: {
             query?: never;
@@ -621,6 +655,12 @@ export interface components {
             recipe: string;
             /** Source Ids */
             source_ids?: string[];
+            /**
+             * Tone
+             * @default conversational
+             * @enum {string}
+             */
+            tone: "conversational" | "curious" | "formal";
         };
         /** ArtifactDocument */
         ArtifactDocument: {
@@ -667,6 +707,12 @@ export interface components {
             question_count: number;
             /** Source Ids */
             source_ids?: string[];
+            /**
+             * Tone
+             * @default conversational
+             * @enum {string}
+             */
+            tone: "conversational" | "curious" | "formal";
         };
         /** ArtifactOut */
         ArtifactOut: {
@@ -687,7 +733,7 @@ export interface components {
             notebook_id: string;
             options: components["schemas"]["ArtifactOptions"];
             /** Output */
-            output: components["schemas"]["ArtifactDocument"] | components["schemas"]["MindMapArtifact"] | components["schemas"]["FlashcardsArtifact"] | components["schemas"]["QuizArtifact"] | null;
+            output: components["schemas"]["ArtifactDocument"] | components["schemas"]["MindMapArtifact"] | components["schemas"]["FlashcardsArtifact"] | components["schemas"]["QuizArtifact"] | components["schemas"]["AudioOverview"] | null;
             /** Progress */
             progress: number;
             /** Prompt Version */
@@ -714,6 +760,25 @@ export interface components {
             heading: string;
             /** Markdown */
             markdown: string;
+        };
+        /** AudioOverview */
+        AudioOverview: {
+            /** Duration Seconds */
+            duration_seconds: number;
+            /**
+             * Recipe
+             * @default audio_overview
+             * @constant
+             */
+            recipe: "audio_overview";
+            /** Storage Key */
+            storage_key: string;
+            /** Target Words */
+            target_words: number;
+            /** Title */
+            title: string;
+            /** Transcript */
+            transcript: components["schemas"]["TimedAudioLine"][];
         };
         /** Body_upload_source_notebooks__notebook_id__sources_upload_post */
         Body_upload_source_notebooks__notebook_id__sources_upload_post: {
@@ -1141,6 +1206,22 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** TimedAudioLine */
+        TimedAudioLine: {
+            /** Citation Refs */
+            citation_refs: number[];
+            /** End */
+            end: number;
+            /**
+             * Speaker
+             * @enum {string}
+             */
+            speaker: "Maya" | "Alex";
+            /** Start */
+            start: number;
+            /** Text */
+            text: string;
+        };
         /** URLSourceIn */
         URLSourceIn: {
             /** Url */
@@ -1547,6 +1628,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_audio_notebooks__notebook_id__artifacts__artifact_id__audio_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_artifact_notebooks__notebook_id__artifacts__artifact_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactOut"];
+                };
             };
             /** @description Validation Error */
             422: {

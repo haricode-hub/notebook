@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     gemini_api_key: str = ""
     openai_api_key: str = ""
+    openai_tts_model: str = "gpt-4o-mini-tts"
+    tts_provider: Literal["kokoro", "openai", "fake"] = "kokoro"
+    tts_url: str = "http://tts:8002"
+    tts_concurrency: int = Field(default=1, ge=1, le=2)
+    tts_model_cache: Path = Path("/models")
     anthropic_api_key: str = ""
     jwks_url: str = "http://localhost:3000/api/auth/jwks"
     jwt_issuer: str = "http://localhost:3000"

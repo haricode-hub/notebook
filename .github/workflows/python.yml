@@ -42,6 +42,9 @@ jobs:
       - run: corepack enable
       - run: uv python install 3.13
       - run: uv sync --frozen --all-packages
+      - run: uv python install 3.12
+      - run: uv sync --project apps/tts --locked --no-dev
+      - run: uv run --project apps/tts --locked python -c "import kokoro, soundfile"
       - run: pnpm install --frozen-lockfile
       - run: make lint
       - run: make typecheck

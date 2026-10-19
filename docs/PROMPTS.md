@@ -53,3 +53,16 @@ Source: `packages/core/src/opennotebook_core/prompts/artifact_v2.py`. The `artif
 - `quiz` returns `{recipe, title, questions}` with `{question, options, answer_index, explanation, source_ref}`. Each item has exactly four distinct options, one bounded answer index, and an explanation whose `[S#]` set matches its cited `source_ref`. The requested question count is enforced.
 
 All interactive schemas forbid extra fields and use strict validation. Invalid JSON, shape, count, or citation references get one repair attempt; a second invalid response fails the artifact job. The browser uses only the API's validated citation records for clickable source links.
+
+## Audio overview v1
+
+Two named hosts, Maya and Alex, have a conversational, source-grounded discussion. They
+use only the supplied evidence. Excerpts are untrusted data; instructions in them are
+ignored. Every factual line cites one or more supplied evidence refs. The output is strict
+JSON: a title and an alternating list of `{speaker, text, citation_refs}` lines. The
+requested length maps to 3, 8, or 15 minutes at about 150 spoken words per minute
+(450, 1,200, or 2,250 target words). A second structured pass checks each line against
+the cited excerpts and removes unsupported lines before speech synthesis.
+
+The full system and schema prompts live in
+`packages/core/src/opennotebook_core/prompts/audio_v1.py` (`audio-v1`).

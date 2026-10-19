@@ -27,13 +27,13 @@ Output <promise>L8_COMPLETE</promise> when acceptance tests pass.
 ```
 
 ## Task checklist
-- [ ] Python 3.13 TTS compatibility check (+ ADR if isolating)
-- [ ] TTSProvider + Kokoro + Fake
-- [ ] script generation + faithfulness pass
-- [ ] stitching + storage
-- [ ] player UI + synced transcript
-- [ ] concurrency + cancel
-- [ ] tests + e2e
+- [x] Python 3.13 TTS compatibility check (+ ADR if isolating)
+- [x] TTSProvider + Kokoro + OpenAI + Fake
+- [x] script generation + faithfulness pass
+- [x] stitching + storage
+- [x] player UI + synced transcript
+- [x] concurrency + cancel
+- [x] tests + e2e
 
 ## Acceptance tests
 1. Default overview for a 30-page notebook completes in under 6 minutes on the target server; MP3 within 10% of target duration.
