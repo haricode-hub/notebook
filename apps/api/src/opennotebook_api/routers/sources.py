@@ -47,6 +47,7 @@ class SourceOut(BaseModel):
     page_count: int | None
     embedding_model: str | None
     embedding_dim: int | None
+    ocr_pages: list[int] = Field(default_factory=list)
     created_at: datetime
 
 
@@ -311,9 +312,9 @@ async def upload_source(
     )
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     audio_types = {"mp3", "wav", "m4a", "flac", "ogg", "opus", "webm"}
-    if extension not in {"pdf", "docx", "pptx", "txt", "md", *audio_types}:
+    if extension not in {"pdf", "docx", "pptx", "txt", "md", "png", "jpg", "jpeg", *audio_types}:
         raise HTTPException(
-            415, "Supported files: PDF, DOCX, PPTX, TXT, MD, MP3, WAV, M4A, FLAC, OGG"
+            415, "Supported files: PDF, DOCX, PPTX, TXT, MD, PNG, JPG, MP3, WAV, M4A, FLAC, OGG"
         )
     kind = "audio" if extension in audio_types else extension
     limit = request.app.state.settings.upload_max_mb * 1024 * 1024
@@ -326,6 +327,14 @@ async def upload_source(
         raise HTTPException(415, "File is not a PDF")
     if kind in {"docx", "pptx"} and not data.startswith(b"PK"):
         raise HTTPException(415, "File is not an Office document")
+    if kind in {"png", "jpg", "jpeg"}:
+        valid_image = data.startswith(b"\x89PNG\r\n\x1a\n") or data.startswith(b"\xff\xd8\xff")
+        if (
+            not valid_image
+            or (kind == "png" and not data.startswith(b"\x89PNG"))
+            or (kind in {"jpg", "jpeg"} and not data.startswith(b"\xff\xd8\xff"))
+        ):
+            raise HTTPException(415, "File is not a valid PNG or JPEG image")
     if kind in {"docx", "pptx"}:
         try:
             with ZipFile(BytesIO(data)) as archive:
@@ -395,7 +404,9 @@ async def source_content(
         except ValueError as exc:
             raise HTTPException(503, "File URL signing is unavailable") from exc
     return SourceContentOut(
-        source=SourceOut.model_validate(source),
+        source=SourceOut.model_validate(source).model_copy(
+            update={"ocr_pages": source.metadata_json.get("ocr_pages", [])}
+        ),
         text=source.extracted_text or "",
         chunks=[SourceChunkOut.model_validate(chunk) for chunk in chunks],
         original_url=source.url,

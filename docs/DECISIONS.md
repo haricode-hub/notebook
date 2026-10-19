@@ -247,3 +247,21 @@ The worker now emits `eta_seconds` with each status event and embeds chunks in c
 ### Level 12 judge cost choice (2026-10-19)
 
 User direction changed the judge-model variable for subsequent Level 12 runs from `anthropic/claude-sonnet-4.5` to `deepseek/deepseek-v4-flash-0731`. OpenRouter's official model page lists the DeepSeek model at $0.03/M input and $0.13/M output, and it is a different model family from the Google Gemini answer model. See [OpenRouter model pricing](https://openrouter.ai/deepseek/deepseek-v4-flash-0731/). The earlier development results remain labeled with the Anthropic judge that actually produced them; they are not relabeled. No quality comparison between judges has been run. Future runs default to DeepSeek unless `EVAL_JUDGE_MODEL` explicitly overrides it.
+
+
+## ADR-018: OCR fallback for scanned pages and raster uploads
+
+**Status:** Implemented locally (2026-10-19); container runtime verification pending.
+
+Use Poppler `pdftoppm` at 180 DPI and Tesseract English `--psm 3` only when a PDF page has no extractable text. Raster PNG/JPEG uploads use the same Tesseract path. `ExtractedDocument.ocr_pages` carries page numbers; OCR blocks carry an explicit `OCR text (page N)` heading and preserve page/character offsets through chunking. The API exposes `ocr_pages` in source content and the viewer labels OCR-derived content. The worker image installs `poppler-utils` and `tesseract-ocr`; Python stays on 3.13 with no new Python runtime dependency.
+
+Variable/choice log: before, textless PDF pages produced no usable text and image uploads were rejected. After, local Windows Poppler/Tesseract convert them into indexed, offset-addressable text. A generated 20-page scanned PDF and a PNG test passed locally. No Linux container test, multilingual OCR test, deskew test, or performance bound for a 500-page scan was measured. English-only recognition and slow page-by-page OCR are known limits.
+
+
+## ADR-019: Server-side PDF artifact export
+
+**Status:** Implemented; Linux rendering test is pending a Linux runner.
+
+Use WeasyPrint 70.0 for a server-generated PDF endpoint on the API. The locked dependency resolved and installed under Python 3.13.5 on this host. The Windows import check failed because the host lacks `libgobject-2.0-0`; this is an expected native-library requirement. The Linux API image and GitHub Python workflow now install Pango, HarfBuzz, fontconfig, GDK Pixbuf, and ffi runtime libraries as specified by the [official WeasyPrint installation guide](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html). The UI offers server PDF and retains browser Print / PDF as fallback.
+
+The PDF renderer escapes titles, headings, prose, and source names before writing local HTML, and emits basic headings, lists, emphasis, and citation references. It does not fetch external resources. The Windows API test mocks the renderer to verify routing and MIME type; `tests/test_level12_pdf_export.py` performs a real PDF content check on Linux and skips on Windows. No Linux output has yet been measured.

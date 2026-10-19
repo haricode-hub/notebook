@@ -32,12 +32,16 @@ WORKDIR /app
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 
 FROM runtime AS api
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libffi8 libfontconfig1 libgdk-pixbuf-2.0-0 libgobject-2.0-0 \
+    libharfbuzz-subset0 libpango-1.0-0 libpangoft2-1.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=build-api /app /app
 EXPOSE 8000
 CMD ["sh", "-c", "alembic -c packages/core/alembic.ini upgrade head && uvicorn opennotebook_api.main:app --host 0.0.0.0 --port 8000 --workers 2"]
 
 FROM runtime AS worker
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg poppler-utils tesseract-ocr && rm -rf /var/lib/apt/lists/*
 COPY --from=build-worker /app /app
 CMD ["arq", "opennotebook_worker.main.WorkerSettings"]
 

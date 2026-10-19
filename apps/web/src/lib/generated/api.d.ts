@@ -1421,6 +1421,8 @@ export interface components {
             embedding_dim: number | null;
             /** Embedding Model */
             embedding_model: string | null;
+            /** OCR Pages */
+            ocr_pages: number[];
             /** Error */
             error: string | null;
             /** Id */

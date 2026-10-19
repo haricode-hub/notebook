@@ -2,6 +2,7 @@
 
 import os
 import re
+import subprocess
 import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -26,6 +27,7 @@ class ExtractedDocument:
     text: str
     blocks: tuple[Block, ...]
     page_count: int | None = None
+    ocr_pages: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -163,17 +165,102 @@ class PdfExtractor:
             reader = PdfReader(BytesIO(data), strict=False)
             if len(reader.pages) > 500:
                 raise ValueError("PDF exceeds the 500-page limit")
-            parts = [
-                (page.extract_text() or "", number, ())
-                for number, page in enumerate(reader.pages, 1)
-            ]
-            return _assemble(parts, len(reader.pages))
+            parts: list[tuple[str, int | None, tuple[str, ...]]] = []
+            ocr_pages: list[int] = []
+            with tempfile.TemporaryDirectory(prefix="notebook-pdf-ocr-") as folder:
+                input_path = os.path.join(folder, "source.pdf")
+                with open(input_path, "wb") as pdf_file:
+                    pdf_file.write(data)
+                for number, page in enumerate(reader.pages, 1):
+                    text = page.extract_text() or ""
+                    if not text.strip():
+                        text = _ocr_page(input_path, number, folder)
+                        if text.strip():
+                            ocr_pages.append(number)
+                    heading = (f"OCR text (page {number})",) if number in ocr_pages else ()
+                    parts.append((text, number, heading))
+            document = _assemble(parts, len(reader.pages))
+            return ExtractedDocument(
+                document.text, document.blocks, document.page_count, tuple(ocr_pages)
+            )
         except ValueError:
             raise
         except Exception as exc:
             raise ValueError(
                 "Could not read this PDF. Check that it is not corrupt or password-protected"
             ) from exc
+
+
+class ImageExtractor:
+    def extract(self, data: bytes) -> ExtractedDocument:
+        with tempfile.TemporaryDirectory(prefix="notebook-image-ocr-") as folder:
+            if data.startswith(b"\x89PNG\r\n\x1a\n"):
+                suffix = ".png"
+            elif data.startswith(b"\xff\xd8\xff"):
+                suffix = ".jpg"
+            else:
+                raise ValueError("Could not read this PNG or JPEG image")
+            image_path = os.path.join(folder, f"source{suffix}")
+            with open(image_path, "wb") as image_file:
+                image_file.write(data)
+            try:
+                result = subprocess.run(
+                    ["tesseract", image_path, "stdout", "-l", "eng", "--psm", "3"],
+                    check=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+            except FileNotFoundError as exc:
+                raise ValueError("Image OCR needs Tesseract installed") from exc
+            except subprocess.TimeoutExpired as exc:
+                raise ValueError("OCR timed out on the uploaded image") from exc
+            except subprocess.CalledProcessError as exc:
+                raise ValueError("OCR failed on the uploaded image") from exc
+            text = result.stdout.decode("utf-8", errors="replace").strip()
+            if not text:
+                raise ValueError("No readable text was found in this image")
+            return ExtractedDocument(
+                text, (Block(text, 0, len(text), 1, ("OCR text (page 1)",)),), 1, (1,)
+            )
+
+
+def _ocr_page(pdf_path: str, page: int, folder: str) -> str:
+    """Run bounded local Tesseract OCR for a scanned PDF page."""
+    prefix = os.path.join(folder, f"page-{page}")
+    try:
+        subprocess.run(
+            [
+                "pdftoppm",
+                "-f",
+                str(page),
+                "-l",
+                str(page),
+                "-singlefile",
+                "-r",
+                "180",
+                "-png",
+                pdf_path,
+                prefix,
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=30,
+        )
+        image_path = f"{prefix}.png"
+        result = subprocess.run(
+            ["tesseract", image_path, "stdout", "-l", "eng", "--psm", "3"],
+            check=True,
+            capture_output=True,
+            timeout=30,
+        )
+        return result.stdout.decode("utf-8", errors="replace").strip()
+    except FileNotFoundError as exc:
+        raise ValueError("Scanned PDF needs Poppler (pdftoppm) and Tesseract installed") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError(f"OCR timed out on PDF page {page}") from exc
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(f"OCR failed on PDF page {page}") from exc
 
 
 class DocxExtractor:
@@ -333,6 +420,9 @@ class AudioExtractor:
 
 EXTRACTORS: dict[str, Extractor] = {
     "pdf": PdfExtractor(),
+    "png": ImageExtractor(),
+    "jpg": ImageExtractor(),
+    "jpeg": ImageExtractor(),
     "docx": DocxExtractor(),
     "pptx": PptxExtractor(),
     "txt": TextExtractor(),

@@ -151,6 +151,7 @@ export function SourceViewer({ notebookId, selection, onClose, onNavigate, onAsk
         <div className="min-w-0 flex-1">
           {editing ? <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); void rename(); }}><Input aria-label="Source name" value={name} onChange={(event) => setName(event.target.value)} maxLength={255} autoFocus /><Button size="sm" disabled={saving || !name.trim()}>Save</Button></form> : <h2 className="truncate font-semibold">{data?.source.name ?? "Source"}</h2>}
           {citation && <p className="text-xs text-slate-500">Citation S{citation.n}{citation.page_start ? ` · page ${citation.page_start}` : ""}{citation.time_start != null ? ` · ${formatMediaTime(citation.time_start)}` : ""}</p>}
+          {data?.source.ocr_pages.length ? <p className="text-xs text-amber-700">OCR-derived text · pages {data.source.ocr_pages.join(", ")}</p> : null}
         </div>
         {data && <Button size="sm" variant="ghost" aria-label="Rename source" onClick={() => { setName(data.source.name); setEditing(!editing); }}><Pencil className="size-4" /></Button>}
         <Button size="sm" variant="ghost" aria-label="Close viewer" onClick={onClose}><X className="size-4" /></Button>
