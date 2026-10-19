@@ -4,3 +4,10 @@
 .dark { color-scheme: dark; }
 body { background: #f8fafc; color: #171717; font-family: Arial, Helvetica, sans-serif; }
 .dark body { background: #090f1b; color: #f1f5f9; }
+@media print {
+  body > *:not(#artifact-print-root) { display: none !important; }
+  #artifact-print-root { position: static !important; display: block !important; background: white !important; color: black !important; }
+  #artifact-print-root .artifact-toolbar { display: none !important; }
+  #artifact-print-root .artifact-document { overflow: visible !important; max-width: none !important; padding: 0 !important; }
+  #artifact-print-root section { break-inside: avoid; }
+}

@@ -3,12 +3,14 @@ import json
 from typing import Any
 
 from arq.connections import RedisSettings
+from opennotebook_core.artifacts import generate_artifact
 from opennotebook_core.chunking import chunk_document
 from opennotebook_core.config import get_settings
 from opennotebook_core.db import make_session_factory
 from opennotebook_core.embeddings import make_embedding
 from opennotebook_core.extractors import EXTRACTORS
 from opennotebook_core.models import (
+    Artifact,
     Chunk,
     Job,
     Notebook,
@@ -468,8 +470,126 @@ async def ping(ctx: dict[str, Any], job_id: str) -> str:
     return "pong"
 
 
+async def _artifact_stage(
+    ctx: dict[str, Any], artifact_id: str, stage: str, progress: int, error: str | None = None
+) -> None:
+    factory = ctx.get("session_factory") or make_session_factory(get_settings())
+    async with factory() as session:
+        artifact = await session.get(Artifact, artifact_id)
+        if artifact is None:
+            return
+        artifact.stage = stage
+        artifact.status = (
+            "failed" if stage == "failed" else "ready" if stage == "ready" else "running"
+        )
+        artifact.progress = progress
+        artifact.error = error
+        job = await session.get(Job, artifact.job_id) if artifact.job_id else None
+        if job is not None:
+            job.stage = stage
+            job.status = (
+                "failed" if stage == "failed" else "succeeded" if stage == "ready" else "running"
+            )
+            job.progress = progress
+            job.error = error
+        await session.commit()
+        owned = ctx.get("redis") is None
+        redis: Any = ctx.get("redis") or Redis.from_url(get_settings().redis_url)
+        try:
+            await redis.publish(
+                f"notebook:{artifact.notebook_id}:artifact-events",
+                json.dumps(
+                    {
+                        "artifact_id": artifact.id,
+                        "stage": stage,
+                        "progress": progress,
+                        "error": error,
+                    }
+                ),
+            )
+        finally:
+            if owned:
+                await redis.aclose()
+
+
+async def generate_text_artifact(ctx: dict[str, Any], artifact_id: str) -> str:
+    settings = ctx.get("settings") or get_settings()
+    factory = ctx.get("session_factory") or make_session_factory(settings)
+    try:
+        await _artifact_stage(ctx, artifact_id, "reading", 10)
+        async with factory() as session:
+            artifact = await session.get(Artifact, artifact_id)
+            if artifact is None:
+                return artifact_id
+            sources = list(
+                (
+                    await session.scalars(
+                        select(Source).where(
+                            Source.notebook_id == artifact.notebook_id,
+                            Source.user_id == artifact.user_id,
+                            Source.id.in_(artifact.source_ids),
+                            Source.selected.is_(True),
+                            Source.status == "ready",
+                        )
+                    )
+                ).all()
+            )
+            if len(sources) != len(artifact.source_ids):
+                raise ValueError("An artifact source is no longer selected or ready")
+            chunks = list(
+                (
+                    await session.scalars(
+                        select(Chunk)
+                        .where(
+                            Chunk.notebook_id == artifact.notebook_id,
+                            Chunk.source_id.in_(artifact.source_ids),
+                        )
+                        .order_by(Chunk.source_id, Chunk.ordinal)
+                    )
+                ).all()
+            )
+            row = await session.get(UserSettings, artifact.user_id)
+            llm, model = ctx.get("artifact_llm") or configured_summary_llm(
+                settings, row, model_override=str(artifact.options_json.get("model_override") or "")
+            )
+            recipe, options = artifact.recipe, artifact.options_json
+            source_names = {source.id: source.name for source in sources}
+        await _artifact_stage(ctx, artifact_id, "mapping", 30)
+        document, citations = await generate_artifact(
+            recipe,
+            chunks,
+            source_names,
+            options,
+            llm,
+            max_input_bytes=settings.artifact_map_max_bytes,
+            progress=lambda stage, value: _artifact_stage(ctx, artifact_id, stage, value),
+        )
+        await _artifact_stage(ctx, artifact_id, "saving", 90)
+        async with factory() as session:
+            artifact = await session.get(Artifact, artifact_id)
+            if artifact is None:
+                return artifact_id
+            artifact.output_json = document.model_dump()
+            artifact.citations_json = list(citations)
+            artifact.model_name = model
+            await session.commit()
+        await _artifact_stage(ctx, artifact_id, "ready", 100)
+    except Exception as exc:
+        await _artifact_stage(
+            ctx, artifact_id, "failed", 0, str(exc)[:500] or "Artifact generation failed"
+        )
+    return artifact_id
+
+
 class WorkerSettings:
-    functions = [ping, ingest_source, reindex_notebook, summarize_source, refresh_notebook_overview]
+    functions = [
+        ping,
+        ingest_source,
+        reindex_notebook,
+        summarize_source,
+        refresh_notebook_overview,
+        generate_text_artifact,
+    ]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     max_jobs = 2
     job_timeout = 3600

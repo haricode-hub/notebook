@@ -78,6 +78,7 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       DEFAULT_CHAT_MODEL: ${DEFAULT_CHAT_MODEL:-}
       DEFAULT_CHEAP_MODEL: ${DEFAULT_CHEAP_MODEL:-}
+      ARTIFACT_MAP_MAX_BYTES: ${ARTIFACT_MAP_MAX_BYTES:-10000}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -115,6 +116,7 @@ services:
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}
       DEFAULT_CHAT_MODEL: ${DEFAULT_CHAT_MODEL:-}
       DEFAULT_CHEAP_MODEL: ${DEFAULT_CHEAP_MODEL:-}
+      ARTIFACT_MAP_MAX_BYTES: ${ARTIFACT_MAP_MAX_BYTES:-10000}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
     depends_on:
       api: { condition: service_healthy }

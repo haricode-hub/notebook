@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     chat_rate_limit_per_minute: int = Field(default=30, ge=1)
     chat_rerank: bool = False
     summary_map_max_bytes: int = Field(default=6000, ge=1000, le=16000)
+    artifact_map_max_bytes: int = Field(default=10000, ge=2000, le=32000)
     upload_max_mb: int = Field(default=50, ge=1)
 
     @field_validator("embed_dim")

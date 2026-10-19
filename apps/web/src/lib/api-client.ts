@@ -90,6 +90,9 @@ export type Guide = components["schemas"]["GuideOut"];
 export type Note = components["schemas"]["NoteOut"];
 export type NoteIn = components["schemas"]["NoteIn"];
 export type NotePatch = components["schemas"]["NotePatch"];
+export type Artifact = components["schemas"]["ArtifactOut"];
+export type ArtifactCreate = components["schemas"]["ArtifactCreate"];
+export type ArtifactRecipe = components["schemas"]["RecipeOut"];
 export type ChatFinal = {
   message_id: string;
   content: string;
@@ -122,6 +125,25 @@ export const noteApi = {
   remove: (id: string, noteId: string) => apiFetch<void>(`/notebooks/${encodeURIComponent(id)}/notes/${encodeURIComponent(noteId)}`, { method: "DELETE" }),
   saveChat: (id: string, messageId: string) => apiFetch<Note>(`/notebooks/${encodeURIComponent(id)}/notes/from-chat/${encodeURIComponent(messageId)}`, { method: "POST" }),
   convert: (id: string, noteId: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/notes/${encodeURIComponent(noteId)}/convert-to-source`, { method: "POST" }),
+};
+
+export const artifactApi = {
+  recipes: (id: string) => apiFetch<ArtifactRecipe[]>(`/notebooks/${encodeURIComponent(id)}/artifacts/recipes`),
+  list: (id: string) => apiFetch<Artifact[]>(`/notebooks/${encodeURIComponent(id)}/artifacts`),
+  create: (id: string, body: ArtifactCreate) => apiFetch<Artifact>(`/notebooks/${encodeURIComponent(id)}/artifacts`, { method: "POST", body: JSON.stringify(body) }),
+  regenerate: (id: string, artifactId: string) => apiFetch<Artifact>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/regenerate`, { method: "POST" }),
+  remove: (id: string, artifactId: string) => apiFetch<void>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}`, { method: "DELETE" }),
+  async download(id: string, artifactId: string, format: "md" | "docx"): Promise<Blob> {
+    const path = `/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/export/${format}`;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const token = await getToken(attempt > 0);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+      if (response.status === 401 && attempt === 0) continue;
+      if (!response.ok) throw new Error(`Export failed (${response.status})`);
+      return response.blob();
+    }
+    throw new Error("Your session has expired. Please sign in again.");
+  },
 };
 
 export const chatApi = {

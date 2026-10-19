@@ -21,7 +21,7 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from opennotebook_api.deps.auth import JWKSVerifier
-from opennotebook_api.routers import chat, guides, notebooks, notes, sources
+from opennotebook_api.routers import artifacts, chat, guides, notebooks, notes, sources
 from opennotebook_api.routers import settings as settings_router
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
@@ -109,6 +109,7 @@ def create_app(
     app.include_router(chat.router)
     app.include_router(guides.router)
     app.include_router(notes.router)
+    app.include_router(artifacts.router)
     app.include_router(settings_router.router)
     app.add_middleware(
         CORSMiddleware,

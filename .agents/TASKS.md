@@ -60,6 +60,12 @@
 
 ## Level 6: Text study artifacts
 
+- [x] 6.1 Add versioned recipe registry, artifact schema, map-reduce generation, citation validation, and one repair retry
+- [x] 6.2 Add owned artifact CRUD/exports, queued worker stages, progress events, and regeneration
+- [x] 6.3 Build Studio tiles, options, cited viewer, live status, downloads, and print/PDF path
+- [x] 6.4 Document the add-studio-generator skill, prompts, and ADR-009
+- [x] 6.5 Pass all gates and browser journey; record report and commit
+
 ## Level 7: Interactive study artifacts
 
 ## Level 8: Audio overview
