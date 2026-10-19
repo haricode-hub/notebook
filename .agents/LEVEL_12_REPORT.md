@@ -6,7 +6,7 @@ Status: **INCOMPLETE — acceptance gates remain open.** Level 11 is also incomp
 
 | Gate | Command / evidence | Measured value | Result | Runner |
 |---|---|---:|---|---|
-| Real corpus and split | `evals/real/manifest.json`, `questions_dev.json`, `questions_heldout.json` | 12 public documents; 792 PDF pages; 48 dev + 12 held-out questions; 746 passages | Implemented; corpus has known coverage gaps below | Windows CPU |
+| Real corpus and split | `evals/real/docs/manifest.json`, `questions_dev.json`, `questions_heldout.json` | 12 public documents; 792 PDF pages; 48 dev + 12 held-out questions; 746 passages | Implemented; corpus has known coverage gaps below | Windows CPU |
 | Held-out isolation | eval commands used only `--split dev`; no held-out command issued | 12 questions untouched | Pass for isolation; final quality acceptance not measured | Windows workspace |
 | Real dev baseline, Sonnet judge | `evals/real/run.py --split dev` (hybrid, RRF k=60) | hit@8 45/45 (100%); MRR .9526; citation validity 47/48 (97.92%); precision 43/44 (97.73%); faithfulness 47/48 (97.92%); relevance 47/48; negative refusal 3/3 | Real dev result; fails 100% citation validity; not held-out acceptance | Windows CPU + Gemma2 FP32 + Gemini 3.1 Flash Lite + Claude Sonnet 4.5 judge |
 | Real dev judge comparison, DeepSeek | `evals/real/run.py --split dev`, result `evals/real/results/dev_20261019T170903Z.json` | hit@8 45/45; MRR .9526; citation validity 47/48; precision 33/44 (75%); faithfulness 33/48 (68.75%); relevance 33/48 (68.75%); refusal 0/3 | Complete raw run; judge failed the criterion on all three exact refusals, so quality metrics are uncalibrated and not accepted | Windows CPU + Gemma2 FP32 + Gemini 3.1 Flash Lite + DeepSeek V4 Flash judge |
