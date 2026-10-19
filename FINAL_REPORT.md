@@ -10,6 +10,8 @@ Levels 1–8 meet their recorded acceptance criteria. Level 3's live OpenRouter 
 
 **The project is not fully acceptance-complete yet.** Three runtime gates remain open: Level 0's 90-second clean-clone cold-build target, Level 9's discover/share browser and security e2e, and Level 10's Docker-backed scale runs and VPS rehearsal. The current session could not start Docker Engine; `k6` is also unavailable locally. These are recorded as unchecked in `.agents/TASKS.md` rather than reported as passed.
 
+For the consolidated status and evidence across Levels 0–10, see [the full report](docs/LEVELS_0_10_FULL_REPORT.md).
+
 ## Follow-up attempt (2026-10-19)
 
 The scale Compose files pass static validation with `docker compose -f docker-compose.yml -f docker-compose.scale.yml config -q`. Runtime validation is still blocked: Docker Desktop's `com.docker.service` is stopped, and Windows returned `Cannot open com.docker.service` when starting it, including an elevated attempt. The Docker daemon pipe is unavailable, and `k6` is not installed. No VPS hostname or deployment credentials are configured in this workspace.
