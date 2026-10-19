@@ -97,6 +97,8 @@ def artifact_messages(
                     "instruction": instruction,
                     "language": options.get("language", "English"),
                     "length": options.get("length", "default"),
+                    "assistant_persona": options.get("persona", "clear research assistant"),
+                    "response_length_preference": options.get("response_length", "medium"),
                     "focus": options.get("focus", ""),
                     "question_count": options.get("question_count", 10),
                     "difficulty": options.get("difficulty", "medium"),
