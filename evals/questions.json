@@ -1,17 +1,182 @@
 [
-  {"question": "How many kilowatts did the Helios array produce at noon?", "expected_fact": "28 kilowatts", "source": "solar", "paragraph": 0},
-  {"question": "How much energy can the lithium battery store?", "expected_fact": "96 kilowatt-hours", "source": "solar", "paragraph": 1},
-  {"question": "How many degrees did the rainwater loop cool the panels?", "expected_fact": "6 degrees Celsius", "source": "solar", "paragraph": 2},
-  {"question": "When did technicians inspect the inverters?", "expected_fact": "every Tuesday morning", "source": "solar", "paragraph": 3},
-  {"question": "Where was the Helios pilot site located?", "expected_fact": "Mira Island", "source": "solar", "paragraph": 4},
-  {"question": "By what percent did mangrove roots reduce shoreline erosion?", "expected_fact": "37 percent", "source": "wetlands", "paragraph": 0},
-  {"question": "How many red mangrove seedlings were planted?", "expected_fact": "1,200", "source": "wetlands", "paragraph": 1},
-  {"question": "What happened to juvenile fish counts after the second growing season?", "expected_fact": "doubled", "source": "wetlands", "paragraph": 2},
-  {"question": "What salinity did the water remain near?", "expected_fact": "18 parts per thousand", "source": "wetlands", "paragraph": 3},
-  {"question": "When did volunteers collect litter?", "expected_fact": "first Saturday", "source": "wetlands", "paragraph": 4},
-  {"question": "What press did the archive acquire in 1894?", "expected_fact": "Albion press", "source": "printing", "paragraph": 0},
-  {"question": "What paper did archivists use for old posters?", "expected_fact": "cotton rag paper", "source": "printing", "paragraph": 1},
-  {"question": "How many distinct pamphlets were in the first catalog?", "expected_fact": "430", "source": "printing", "paragraph": 2},
-  {"question": "What was blue ink mixed from?", "expected_fact": "Prussian blue pigment and linseed oil", "source": "printing", "paragraph": 3},
-  {"question": "Where did the archive move in 1926?", "expected_fact": "Harbor Street", "source": "printing", "paragraph": 4}
+    {
+        "question":  "How many kilowatts did the Helios array produce at noon?",
+        "expected_fact":  "28 kilowatts",
+        "source":  "solar",
+        "paragraph":  0
+    },
+    {
+        "question":  "How much energy can the lithium battery store?",
+        "expected_fact":  "96 kilowatt-hours",
+        "source":  "solar",
+        "paragraph":  1
+    },
+    {
+        "question":  "How many degrees did the rainwater loop cool the panels?",
+        "expected_fact":  "6 degrees Celsius",
+        "source":  "solar",
+        "paragraph":  2
+    },
+    {
+        "question":  "When did technicians inspect the inverters?",
+        "expected_fact":  "every Tuesday morning",
+        "source":  "solar",
+        "paragraph":  3
+    },
+    {
+        "question":  "Where was the Helios pilot site located?",
+        "expected_fact":  "Mira Island",
+        "source":  "solar",
+        "paragraph":  4
+    },
+    {
+        "question":  "By what percent did mangrove roots reduce shoreline erosion?",
+        "expected_fact":  "37 percent",
+        "source":  "wetlands",
+        "paragraph":  0
+    },
+    {
+        "question":  "How many red mangrove seedlings were planted?",
+        "expected_fact":  "1,200",
+        "source":  "wetlands",
+        "paragraph":  1
+    },
+    {
+        "question":  "What happened to juvenile fish counts after the second growing season?",
+        "expected_fact":  "doubled",
+        "source":  "wetlands",
+        "paragraph":  2
+    },
+    {
+        "question":  "What salinity did the water remain near?",
+        "expected_fact":  "18 parts per thousand",
+        "source":  "wetlands",
+        "paragraph":  3
+    },
+    {
+        "question":  "When did volunteers collect litter?",
+        "expected_fact":  "first Saturday",
+        "source":  "wetlands",
+        "paragraph":  4
+    },
+    {
+        "question":  "What press did the archive acquire in 1894?",
+        "expected_fact":  "Albion press",
+        "source":  "printing",
+        "paragraph":  0
+    },
+    {
+        "question":  "What paper did archivists use for old posters?",
+        "expected_fact":  "cotton rag paper",
+        "source":  "printing",
+        "paragraph":  1
+    },
+    {
+        "question":  "How many distinct pamphlets were in the first catalog?",
+        "expected_fact":  "430",
+        "source":  "printing",
+        "paragraph":  2
+    },
+    {
+        "question":  "What was blue ink mixed from?",
+        "expected_fact":  "Prussian blue pigment and linseed oil",
+        "source":  "printing",
+        "paragraph":  3
+    },
+    {
+        "question":  "Where did the archive move in 1926?",
+        "expected_fact":  "Harbor Street",
+        "source":  "printing",
+        "paragraph":  4
+    },
+    {
+        "question":  "How many megawatt-hours can North Ridge store?",
+        "expected_fact":  "240 megawatt-hours",
+        "source":  "batteries",
+        "paragraph":  0
+    },
+    {
+        "question":  "What is the routine discharge limit?",
+        "expected_fact":  "80 percent",
+        "source":  "batteries",
+        "paragraph":  1
+    },
+    {
+        "question":  "What was the hottest rack temperature?",
+        "expected_fact":  "31 degrees Celsius",
+        "source":  "batteries",
+        "paragraph":  2
+    },
+    {
+        "question":  "When does the system balance cells?",
+        "expected_fact":  "Thursday at 02:00",
+        "source":  "batteries",
+        "paragraph":  3
+    },
+    {
+        "question":  "When did the installation enter service?",
+        "expected_fact":  "March 2024",
+        "source":  "batteries",
+        "paragraph":  4
+    },
+    {
+        "question":  "How many coral fragments were attached?",
+        "expected_fact":  "640 coral fragments",
+        "source":  "coral",
+        "paragraph":  0
+    },
+    {
+        "question":  "What was coral survival after twelve months?",
+        "expected_fact":  "82 percent",
+        "source":  "coral",
+        "paragraph":  1
+    },
+    {
+        "question":  "Which coral type does the nursery focus on?",
+        "expected_fact":  "branching elkhorn coral",
+        "source":  "coral",
+        "paragraph":  2
+    },
+    {
+        "question":  "How often were water temperatures recorded?",
+        "expected_fact":  "every fifteen minutes",
+        "source":  "coral",
+        "paragraph":  3
+    },
+    {
+        "question":  "How far is the site from Pelican Cay?",
+        "expected_fact":  "400 meters east",
+        "source":  "coral",
+        "paragraph":  4
+    },
+    {
+        "question":  "What is the telescope mirror size?",
+        "expected_fact":  "1.8 meter",
+        "source":  "observatory",
+        "paragraph":  0
+    },
+    {
+        "question":  "When was the spectrograph upgraded?",
+        "expected_fact":  "September 2022",
+        "source":  "observatory",
+        "paragraph":  1
+    },
+    {
+        "question":  "What lamp is used for calibration?",
+        "expected_fact":  "neon lamp",
+        "source":  "observatory",
+        "paragraph":  2
+    },
+    {
+        "question":  "Where does the weather station measure wind?",
+        "expected_fact":  "eastern dome",
+        "source":  "observatory",
+        "paragraph":  3
+    },
+    {
+        "question":  "When are public viewing sessions held?",
+        "expected_fact":  "Friday evenings",
+        "source":  "observatory",
+        "paragraph":  4
+    }
 ]
