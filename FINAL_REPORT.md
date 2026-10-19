@@ -52,4 +52,4 @@ The local Docker limitation is environmental and does not establish that those r
 
 ## Source of truth
 
-Detailed task checkboxes and dated execution notes remain in [`.agents/TASKS.md`](.agents/TASKS.md) and [`.agents/PROGRESS.md`](.agents/PROGRESS.md). Level-specific evidence is in the corresponding `.agents/LEVEL_*_REPORT.md` files, and scaling procedures are in [`docs/SCALING.md`](docs/SCALING.md).
+Detailed task checkboxes and dated execution notes remain in [`.agents/TASKS.md`](.agents/TASKS.md) and [`.agents/PROGRESS.md`](.agents/PROGRESS.md). The standalone [Level 10 report](.agents/LEVEL_10_REPORT.md) captures its four passes and remaining gates; other level-specific evidence is in the corresponding `.agents/LEVEL_*_REPORT.md` files. Scaling procedures are in [`docs/SCALING.md`](docs/SCALING.md).
