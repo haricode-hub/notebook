@@ -155,20 +155,40 @@ async def chat(provider: LiteLLMProvider, model: str, messages: list[dict[str, s
 
 
 async def judge(model: str, messages: list[dict[str, str]], key: str) -> dict[str, Any]:
-    response = await litellm.acompletion(
-        model=f"openrouter/{model.removeprefix('openrouter/')}",
-        api_key=key,
-        messages=messages,
-        response_format={"type": "json_object"},
-        temperature=0,
-        max_tokens=512,
-        timeout=90,
-    )
-    raw = response.choices[0].message.content or "{}"
-    match = re.search(r"\{.*\}", raw, flags=re.S)
-    if not match:
-        raise ValueError("judge returned no JSON object")
-    return json.loads(match.group())
+    request_messages = list(messages)
+    for attempt in range(2):
+        response = await litellm.acompletion(
+            model=f"openrouter/{model.removeprefix('openrouter/')}",
+            api_key=key,
+            messages=request_messages,
+            response_format={"type": "json_object"},
+            temperature=0,
+            max_tokens=512,
+            timeout=90,
+        )
+        raw = response.choices[0].message.content or "{}"
+        match = re.search(r"\{.*\}", raw, flags=re.S)
+        try:
+            parsed = json.loads(match.group()) if match else None
+        except json.JSONDecodeError:
+            parsed = None
+        if isinstance(parsed, dict):
+            return parsed
+        if attempt == 0:
+            request_messages.extend(
+                [
+                    {"role": "assistant", "content": raw},
+                    {
+                        "role": "user",
+                        "content": (
+                            "Repair your previous response. Return exactly one valid JSON object "
+                            'with boolean keys "faithful", "relevant", '
+                            '"citations_support_claims", and "refused". Do not add prose.'
+                        ),
+                    },
+                ]
+            )
+    raise ValueError("judge returned invalid JSON after one repair retry")
 
 
 async def main(split: str) -> int:
