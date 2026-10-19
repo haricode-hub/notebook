@@ -168,6 +168,7 @@ async def test_artifact_api_worker_selection_failure_retry_and_exports(
     level1_app: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     app, keys, _, engine = level1_app
+    monkeypatch.setattr(artifacts_router, "pdf_export", lambda _document, _citations: b"%PDF-test")
     async with engine.begin() as connection:
         await connection.execute(text("PRAGMA foreign_keys=ON"))
     queue = QueueFake()
@@ -254,6 +255,9 @@ async def test_artifact_api_worker_selection_failure_retry_and_exports(
         assert md.status_code == 200 and "[S1] Evidence.txt" in md.text
         docx = await client.get(f"{path}/{artifact_id}/export/docx", headers=owner)
         assert docx.status_code == 200
+        pdf = await client.get(f"{path}/{artifact_id}/export/pdf", headers=owner)
+        assert pdf.status_code == 200 and pdf.headers["content-type"] == "application/pdf"
+        assert pdf.content.startswith(b"%PDF-")
         opened = Document(BytesIO(docx.content))
         assert "BLUEBIRD-42" in "\n".join(paragraph.text for paragraph in opened.paragraphs)
         assert (await client.delete(f"{path}/{artifact_id}", headers=owner)).status_code == 204

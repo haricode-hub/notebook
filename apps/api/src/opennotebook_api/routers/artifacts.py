@@ -17,6 +17,7 @@ from opennotebook_core.artifacts import (
     QuizArtifact,
     docx_export,
     markdown_export,
+    pdf_export,
 )
 from opennotebook_core.audio import AudioOverview
 from opennotebook_core.models import Artifact, FlashcardProgress, Job, QuizAttempt, Source
@@ -368,7 +369,7 @@ async def cancel_artifact(
 
 @router.get("/{artifact_id}/export/{format}")
 async def export_artifact(
-    notebook_id: str, artifact_id: str, format: Literal["md", "docx"], user: User, db: Db
+    notebook_id: str, artifact_id: str, format: Literal["md", "docx", "pdf"], user: User, db: Db
 ) -> Response:
     artifact = await _owned_artifact(db, notebook_id, user.id, artifact_id)
     if artifact.status != "ready" or artifact.output_json is None:
@@ -383,9 +384,15 @@ async def export_artifact(
     if format == "md":
         data = markdown_export(document, citations).encode()
         media_type = "text/markdown; charset=utf-8"
-    else:
+    elif format == "docx":
         data = docx_export(document, citations)
         media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        try:
+            data = pdf_export(document, citations)
+        except OSError as exc:
+            raise HTTPException(503, "PDF export is unavailable in this runtime") from exc
+        media_type = "application/pdf"
     filename = f"{artifact.recipe}-{artifact.id[:8]}.{format}"
     return Response(
         data,

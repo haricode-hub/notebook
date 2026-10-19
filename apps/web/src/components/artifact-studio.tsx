@@ -57,7 +57,7 @@ function useArtifactEvents(notebookId: string) {
   }, [client, notebookId]);
 }
 
-async function saveExport(notebookId: string, artifact: Artifact, format: "md" | "docx") {
+async function saveExport(notebookId: string, artifact: Artifact, format: "md" | "docx" | "pdf") {
   const blob = await artifactApi.download(notebookId, artifact.id, format);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -76,7 +76,7 @@ function ArtifactViewer({ notebookId, artifact, onClose, onOpenCitation, onAskQu
   onChanged: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
-  const exportAs = async (format: "md" | "docx") => {
+  const exportAs = async (format: "md" | "docx" | "pdf") => {
     try { await saveExport(notebookId, artifact, format); }
     catch (error) { toast.error(error instanceof Error ? error.message : "Could not export artifact"); }
   };
@@ -86,6 +86,7 @@ function ArtifactViewer({ notebookId, artifact, onClose, onOpenCitation, onAskQu
       <div className="flex flex-wrap gap-1">
         {!(["mindmap", "flashcards", "quiz"].includes(artifact.recipe)) && <><Button size="sm" variant="outline" onClick={() => void exportAs("md")}><Download className="size-3" /> Markdown</Button>
         <Button size="sm" variant="outline" onClick={() => void exportAs("docx")}><Download className="size-3" /> DOCX</Button></>}
+        {!( ["mindmap", "flashcards", "quiz"].includes(artifact.recipe)) && <Button size="sm" variant="outline" onClick={() => void exportAs("pdf")}><Download className="size-3" /> Server PDF</Button>}
         <Button size="sm" variant="outline" onClick={() => window.print()}><Download className="size-3" /> Print / PDF</Button>
         <Button size="sm" variant="outline" disabled={busy} onClick={async () => { setBusy(true); try { await artifactApi.regenerate(notebookId, artifact.id); await onChanged(); onClose(); toast.success("Regenerating artifact"); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not regenerate"); } finally { setBusy(false); } }}><RotateCcw className="size-3" /> Regenerate</Button>
         <Button size="sm" variant="ghost" aria-label="Close artifact" onClick={onClose}><X className="size-4" /></Button>

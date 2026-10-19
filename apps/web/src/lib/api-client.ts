@@ -172,7 +172,7 @@ export const artifactApi = {
   reviewFlashcard: (id: string, artifactId: string, cardIndex: number, known: boolean) => apiFetch<{ card_index: number; box: number; due_at: string; last_result: string | null }>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/flashcards/${cardIndex}/review`, { method: "POST", body: JSON.stringify({ known }) }),
   quizAttempts: (id: string, artifactId: string) => apiFetch<{ id: string; score: number; total: number; answers: number[]; wrong_indices: number[]; created_at: string }[]>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/quiz/attempts`),
   submitQuiz: (id: string, artifactId: string, answers: number[]) => apiFetch<{ id: string; score: number; total: number; answers: number[]; wrong_indices: number[]; created_at: string }>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/quiz/attempts`, { method: "POST", body: JSON.stringify({ answers }) }),
-  async download(id: string, artifactId: string, format: "md" | "docx"): Promise<Blob> {
+  async download(id: string, artifactId: string, format: "md" | "docx" | "pdf"): Promise<Blob> {
     const path = `/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/export/${format}`;
     for (let attempt = 0; attempt < 2; attempt++) {
       const token = await getToken(attempt > 0);

@@ -20,6 +20,7 @@ dependencies = [
     "aiohttp>=3.14.5",
     "cryptography>=50.0.2",
     "boto3>=1.43.114",
+    "weasyprint>=68.0",
 ]
 
 [build-system]

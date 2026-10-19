@@ -1,6 +1,7 @@
 """Reusable source-grounded artifact recipe registry and generator."""
 
 import asyncio
+import html
 import json
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -445,3 +446,52 @@ def docx_export(document: ArtifactDocument, citations: list[Citation]) -> bytes:
     buffer = BytesIO()
     output.save(buffer)
     return buffer.getvalue()
+
+
+def pdf_export(document: ArtifactDocument, citations: list[Citation]) -> bytes:
+    """Render a safe printable PDF through WeasyPrint in the Linux API image."""
+    from weasyprint import HTML
+
+    def render_markdown(markdown: str) -> str:
+        blocks: list[str] = []
+        for paragraph in markdown.split("\n\n"):
+            lines = paragraph.splitlines()
+            heading = re.match(r"^(#{1,6})\s+(.+)$", lines[0]) if lines else None
+            if heading:
+                level = len(heading.group(1))
+                blocks.append(f"<h{level}>{html.escape(heading.group(2))}</h{level}>")
+            elif lines and all(re.match(r"^\s*[-*]\s+", line) for line in lines):
+                items = []
+                for line in lines:
+                    item = re.sub(r"^\s*[-*]\s+", "", line)
+                    items.append(f"<li>{html.escape(item)}</li>")
+                blocks.append(f"<ul>{''.join(items)}</ul>")
+            elif paragraph.strip():
+                escaped = html.escape(paragraph).replace("\n", "<br>")
+                escaped = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
+                escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
+                blocks.append(f"<p>{escaped}</p>")
+        return "\n".join(blocks)
+
+    sections = "\n".join(
+        "<section><h2>"
+        + html.escape(section.heading)
+        + "</h2>"
+        + render_markdown(section.markdown)
+        + "</section>"
+        for section in document.sections
+    )
+    sources = []
+    for citation in citations:
+        page = f", page {citation['page_start']}" if citation["page_start"] else ""
+        sources.append(
+            f"<li>[S{citation['n']}] {html.escape(citation['source_name'])}{html.escape(page)}</li>"
+        )
+    markup = f"""<!doctype html><html><head><meta charset="utf-8"><style>
+        @page {{ size: A4; margin: 18mm 16mm; }}
+        body {{ color: #172033; font: 11pt/1.55 sans-serif; }}
+        h1 {{ font-size: 24pt; }} h2 {{ margin-top: 1.8em; border-bottom: 1px solid #ccd; }}
+        section {{ break-inside: avoid; }} code {{ font-family: monospace; }}
+        </style></head><body><h1>{html.escape(document.title)}</h1>{sections}
+        <h2>Sources</h2><ul>{"".join(sources)}</ul></body></html>"""
+    return HTML(string=markup).write_pdf()
