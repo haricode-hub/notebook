@@ -402,8 +402,26 @@
             "type": "integer"
           },
           "chunk_id": {
-            "title": "Chunk Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Id"
+          },
+          "media_item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Item Id"
           },
           "n": {
             "title": "N",
@@ -3360,6 +3378,60 @@
         "summary": "Export Notebook",
         "tags": [
           "sharing"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/media/{media_item_id}/content": {
+      "get": {
+        "operationId": "media_content_notebooks__notebook_id__media__media_item_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "media_item_id",
+            "required": true,
+            "schema": {
+              "title": "Media Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Media Content",
+        "tags": [
+          "sources"
         ]
       }
     },

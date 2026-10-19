@@ -37,9 +37,9 @@ Output <promise>L9_COMPLETE</promise> when acceptance tests pass.
 - [x] discover + SearchProvider
 - [x] share tokens + public route + read-only router
 - [x] export ZIP
-- [ ] embed service media endpoint (flagged)
-- [ ] figure extraction + media_items + per-modality RRF
-- [ ] figure citations in chat/viewer
+- [x] embed service media endpoint (flagged)
+- [x] figure extraction + media_items + per-modality RRF
+- [x] figure citations in chat/viewer
 - [ ] ADR-006 + tests + e2e
 
 ## Acceptance tests

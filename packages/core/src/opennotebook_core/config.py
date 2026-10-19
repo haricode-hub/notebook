@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     embed_dim: int = 768
     embed_batch_size: int = Field(default=8, ge=1, le=128)
     embed_concurrency: int = Field(default=2, ge=1, le=8)
+    multimodal_enabled: bool = False
+    multimodal_image_enabled: bool = True
+    multimodal_audio_enabled: bool = False
+    multimodal_image_max_soft_tokens: Literal[70, 140, 280, 560, 1120] = 70
     llm_provider: Literal["openrouter", "gemini", "openai", "anthropic", "ollama", "fake"] = (
         "openrouter"
     )

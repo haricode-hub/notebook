@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import hashlib
 import math
 from typing import Literal, Protocol
@@ -73,6 +74,49 @@ class HttpEmbeddingProvider:
                         if attempt == 2:
                             raise
                         await asyncio.sleep(2**attempt)
+                    except (httpx.HTTPError, ValueError, KeyError):
+                        if attempt == 2:
+                            raise
+                        await asyncio.sleep(2**attempt)
+        finally:
+            if self.client is None:
+                await client.aclose()
+        return vectors
+
+    async def embed_images(
+        self, images: list[bytes], anchors: list[str], dim: int
+    ) -> list[list[float]]:
+        if len(images) != len(anchors):
+            raise ValueError("image and anchor batches must have the same length")
+        vectors: list[list[float]] = []
+        client = self.client or httpx.AsyncClient(timeout=httpx.Timeout(120, connect=5))
+        try:
+            for offset in range(0, len(images), min(16, self.batch_size)):
+                batch_images = images[offset : offset + min(16, self.batch_size)]
+                batch_anchors = anchors[offset : offset + min(16, self.batch_size)]
+                payload = {
+                    "items": [
+                        {
+                            "modality": "image",
+                            "media_base64": base64.b64encode(image).decode("ascii"),
+                            "text": anchor,
+                        }
+                        for image, anchor in zip(batch_images, batch_anchors, strict=True)
+                    ],
+                    "dim": dim,
+                }
+                for attempt in range(3):
+                    try:
+                        response = await client.post(f"{self.base_url}/embed-media", json=payload)
+                        response.raise_for_status()
+                        batch_vectors = response.json()["vectors"]
+                        if len(batch_vectors) != len(batch_images) or any(
+                            len(vector) != dim or not all(math.isfinite(value) for value in vector)
+                            for vector in batch_vectors
+                        ):
+                            raise ValueError("invalid media embedding response")
+                        vectors.extend(batch_vectors)
+                        break
                     except (httpx.HTTPError, ValueError, KeyError):
                         if attempt == 2:
                             raise

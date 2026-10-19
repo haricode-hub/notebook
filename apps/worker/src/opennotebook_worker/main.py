@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import tempfile
+import uuid
 from typing import Any
 
 from arq.connections import RedisSettings
@@ -23,6 +24,7 @@ from opennotebook_core.embeddings import make_embedding
 from opennotebook_core.extractors import (
     EXTRACTORS,
     AudioExtractor,
+    extract_figures,
     extract_youtube_transcript,
     parse_youtube_id,
 )
@@ -30,6 +32,7 @@ from opennotebook_core.models import (
     Artifact,
     Chunk,
     Job,
+    MediaItem,
     Notebook,
     NotebookOverview,
     Source,
@@ -110,6 +113,7 @@ async def ingest_source(
     fetcher = ctx.get("fetcher") or fetch_public_url
     try:
         source = await _stage(ctx, source_id, job_id, "fetching", 5)
+        source_data: bytes | None = None
         transcript_source: str | None = None
         if source.kind in {"web", "youtube"}:
             if not source.url:
@@ -156,12 +160,14 @@ async def ingest_source(
                     transcript_source = "whisper"
             else:
                 data = await fetcher(source.url)
+                source_data = data
                 await _stage(ctx, source_id, job_id, "extracting", 20)
                 document = await asyncio.to_thread(EXTRACTORS[source.kind].extract, data)
         else:
             if not source.storage_key:
                 raise ValueError("Source file is missing")
             data = await storage.get(source.storage_key)
+            source_data = data
             await _stage(ctx, source_id, job_id, "extracting", 20)
             if source.kind == "audio":
                 suffix = os.path.splitext(source.name)[1]
@@ -197,6 +203,26 @@ async def ingest_source(
         )
         if len(vectors) != len(spans):
             raise ValueError("Embedding service returned the wrong number of vectors")
+        figures = (
+            extract_figures(source.kind, source_data)
+            if settings.multimodal_enabled
+            and settings.multimodal_image_enabled
+            and source_data is not None
+            and source.kind in {"pdf", "pptx"}
+            else []
+        )
+        figure_vectors: list[list[float]] = []
+        if figures:
+            embed_media = getattr(embedding, "embed_images", None)
+            if embed_media is None:
+                raise ValueError("Multimodal image embedding requires the gemma2 embed service")
+            figure_vectors = await embed_media(
+                [figure.data for figure in figures],
+                [figure.text_anchor for figure in figures],
+                settings.embed_dim,
+            )
+            if len(figure_vectors) != len(figures):
+                raise ValueError("Embedding service returned the wrong number of figure vectors")
         await _stage(ctx, source_id, job_id, "indexing", 90)
         async with factory() as session:
             record = await session.get(Source, source_id)
@@ -223,6 +249,7 @@ async def ingest_source(
                         "Embedding model or dimension changed. Re-index this notebook first"
                     )
             await session.execute(delete(Chunk).where(Chunk.source_id == source_id))
+            await session.execute(delete(MediaItem).where(MediaItem.source_id == source_id))
             dialect = session.bind.dialect.name if session.bind else "postgresql"
             for ordinal, (span, vector) in enumerate(zip(spans, vectors, strict=True)):
                 chunk = Chunk(
@@ -243,6 +270,24 @@ async def ingest_source(
                 if dialect == "postgresql":
                     chunk.tsv = func.to_tsvector("english", span.text)
                 session.add(chunk)
+            for figure, vector in zip(figures, figure_vectors, strict=True):
+                media_id = str(uuid.uuid4())
+                extension = "jpg" if figure.mime_type == "image/jpeg" else "png"
+                key = f"media/{source_id}/{media_id}.{extension}"
+                await storage.put(key, figure.data)
+                session.add(
+                    MediaItem(
+                        id=media_id,
+                        source_id=source_id,
+                        notebook_id=record.notebook_id,
+                        storage_key=key,
+                        text_anchor=figure.text_anchor,
+                        page=figure.page,
+                        bbox=figure.bbox,
+                        modality="image",
+                        embedding=vector,
+                    )
+                )
             record.extracted_text = document.text
             if transcript_source is not None:
                 record.metadata_json = {

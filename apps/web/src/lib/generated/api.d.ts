@@ -335,6 +335,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notebooks/{notebook_id}/media/{media_item_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Media Content */
+        get: operations["media_content_notebooks__notebook_id__media__media_item_id__content_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notebooks/{notebook_id}/notes": {
         parameters: {
             query?: never;
@@ -911,7 +928,9 @@ export interface components {
             /** Char Start */
             char_start: number;
             /** Chunk Id */
-            chunk_id: string;
+            chunk_id: string | null;
+            /** Media Item Id */
+            media_item_id?: string | null;
             /** N */
             n: number;
             /** Page Start */
@@ -2253,6 +2272,38 @@ export interface operations {
             header?: never;
             path: {
                 notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    media_content_notebooks__notebook_id__media__media_item_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                media_item_id: string;
             };
             cookie?: never;
         };

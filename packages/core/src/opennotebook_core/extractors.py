@@ -28,6 +28,69 @@ class ExtractedDocument:
     page_count: int | None = None
 
 
+@dataclass(frozen=True)
+class ExtractedFigure:
+    data: bytes
+    page: int
+    text_anchor: str
+    bbox: dict[str, float] | None = None
+    mime_type: str = "image/png"
+
+
+def extract_figures(kind: str, data: bytes) -> list[ExtractedFigure]:
+    """Extract bounded image assets and human-readable anchors from PDFs/PPTX."""
+    figures: list[ExtractedFigure] = []
+    if kind == "pdf":
+        from pypdf import PdfReader
+
+        reader = PdfReader(BytesIO(data), strict=False)
+        for page_no, page in enumerate(reader.pages, 1):
+            anchor = (page.extract_text() or "").strip()[:2000]
+            for image in page.images:
+                content = bytes(image.data)
+                if content and len(content) <= 8 * 1024 * 1024:
+                    suffix = os.path.splitext(str(image.name))[1].lower()
+                    mime = "image/jpeg" if suffix in {".jpg", ".jpeg"} else "image/png"
+                    figures.append(
+                        ExtractedFigure(content, page_no, anchor or "Figure", mime_type=mime)
+                    )
+                if len(figures) >= 100:
+                    return figures
+    elif kind == "pptx":
+        from pptx import Presentation
+        from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+        deck = Presentation(BytesIO(data))
+        for page_no, slide in enumerate(deck.slides, 1):
+            text = " ".join(
+                shape.text.strip()
+                for shape in slide.shapes
+                if shape.has_text_frame and shape.text.strip()
+            )
+            for shape in slide.shapes:
+                if shape.shape_type != MSO_SHAPE_TYPE.PICTURE:
+                    continue
+                image = shape.image
+                content = image.blob
+                if not content or len(content) > 8 * 1024 * 1024:
+                    continue
+                bbox = {
+                    "x": float(shape.left / deck.slide_width),
+                    "y": float(shape.top / deck.slide_height),
+                    "width": float(shape.width / deck.slide_width),
+                    "height": float(shape.height / deck.slide_height),
+                }
+                mime = (
+                    image.content_type if image.content_type.startswith("image/") else "image/png"
+                )
+                figures.append(
+                    ExtractedFigure(content, page_no, text[:2000] or "Figure", bbox, mime)
+                )
+                if len(figures) >= 100:
+                    return figures
+    return figures
+
+
 class Extractor(Protocol):
     def extract(self, data: bytes) -> ExtractedDocument: ...
 

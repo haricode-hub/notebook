@@ -141,6 +141,35 @@ class Chunk(Base):
     metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
 
 
+class MediaItem(Base):
+    __tablename__ = "media_items"
+    __table_args__ = (
+        Index("ix_media_items_notebook_source", "notebook_id", "source_id"),
+        Index(
+            "ix_media_items_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    source_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("sources.id", ondelete="CASCADE"), nullable=False
+    )
+    notebook_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("notebooks.id", ondelete="CASCADE"), nullable=False
+    )
+    storage_key: Mapped[str] = mapped_column(Text, nullable=False)
+    text_anchor: Mapped[str] = mapped_column(Text, nullable=False)
+    page: Mapped[int | None] = mapped_column(Integer)
+    bbox: Mapped[dict[str, float] | None] = mapped_column(JSON)
+    modality: Mapped[str] = mapped_column(String(16), nullable=False, default="image")
+    embedding: Mapped[list[float]] = mapped_column(
+        Vector(int(os.getenv("EMBED_DIM", "768"))).with_variant(JSON(), "sqlite"), nullable=False
+    )
+
+
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
     __table_args__ = (

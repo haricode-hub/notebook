@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from opennotebook_core.discovery import DuckDuckGoSearch
 from opennotebook_core.extractors import parse_youtube_id
-from opennotebook_core.models import Chunk, Job, Notebook, Source
+from opennotebook_core.models import Chunk, Job, MediaItem, Notebook, Source
 from opennotebook_core.queue import schedule_overview
 from opennotebook_core.safe_fetch import UnsafeURL, validate_url
 from opennotebook_core.storage import make_storage, verify_file_token
@@ -375,6 +375,7 @@ async def source_content(
             )
         ).all()
     )
+
     file_url = None
     expires_at = None
     if source.storage_key:
@@ -397,6 +398,28 @@ async def source_content(
         file_url=file_url,
         expires_at=expires_at,
     )
+
+
+@router.get("/media/{media_item_id}/content")
+async def media_content(
+    notebook_id: str, media_item_id: str, request: Request, user: User, db: Db
+) -> Response:
+    await owned_notebook(db, user.id, notebook_id)
+    item = await db.scalar(
+        select(MediaItem).where(
+            MediaItem.id == media_item_id,
+            MediaItem.notebook_id == notebook_id,
+            MediaItem.modality == "image",
+        )
+    )
+    if item is None:
+        raise HTTPException(404, "Figure not found")
+    await _owned_source(db, notebook_id, user.id, item.source_id)
+    data = await make_storage(request.app.state.settings).get(item.storage_key)
+    media_type = (
+        "image/jpeg" if item.storage_key.lower().endswith((".jpg", ".jpeg")) else "image/png"
+    )
+    return Response(data, media_type=media_type, headers={"Cache-Control": "private, no-store"})
 
 
 files_router = APIRouter(tags=["sources"])

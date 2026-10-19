@@ -38,7 +38,7 @@ class ChatIn(BaseModel):
 
 class ChatCitation(BaseModel):
     n: int
-    chunk_id: str
+    chunk_id: str | None
     source_id: str
     page_start: int | None
     time_start: float | None = None
@@ -47,6 +47,7 @@ class ChatCitation(BaseModel):
     char_end: int
     source_name: str
     quote: str
+    media_item_id: str | None = None
 
 
 class ChatMessageOut(BaseModel):
@@ -193,6 +194,7 @@ async def chat_stream(
         condensed,
         dim=config.embed_dim,
         context_window=window,
+        multimodal_enabled=config.multimodal_enabled and config.multimodal_image_enabled,
     )
     prompt = build_chat_messages(
         selection,
@@ -216,7 +218,7 @@ async def chat_stream(
         parts: list[str] = []
         stream: AsyncIterator[str] | None = None
         try:
-            if selection.chunks:
+            if selection.chunks or selection.media_items:
                 stream = request.app.state.llm_factory(selected_config).stream(prompt)
                 async for token in stream:
                     parts.append(token)
@@ -225,7 +227,7 @@ async def chat_stream(
                 parts.append(REFUSAL)
                 yield _frame("token", {"text": REFUSAL})
             answer, citations = validate_citations("".join(parts), selection)
-            if not selection.chunks:
+            if not selection.chunks and not selection.media_items:
                 answer, citations = REFUSAL, []
             async with request.app.state.session_factory() as session:
                 assistant = ChatMessage(
