@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import zipfile
 from collections.abc import AsyncIterator
 from io import BytesIO
 from typing import Any
@@ -301,7 +302,17 @@ async def test_worker_idempotency_failure_and_retry() -> None:
         assert source.extracted_text[chunks[0].char_start : chunks[0].char_end] == chunks[0].text
         assert source.embedding_model == "fake" and source.embedding_dim == 768
     stages = [json.loads(message)["stage"] for message in redis.messages]
-    assert stages[-6:] == ["fetching", "extracting", "chunking", "embedding", "indexing", "ready"]
+    stage_transitions = [
+        stage for index, stage in enumerate(stages) if index == 0 or stage != stages[index - 1]
+    ]
+    assert stage_transitions[-6:] == [
+        "fetching",
+        "extracting",
+        "chunking",
+        "embedding",
+        "indexing",
+        "ready",
+    ]
     await engine.dispose()
 
 
@@ -476,6 +487,34 @@ async def test_upload_rejects_oversize_and_wrong_file_content(level1_app: Any) -
             files={"file": ("fake.pdf", b"not a PDF", "application/pdf")},
         )
         assert wrong_pdf.status_code == 415
+        wrong_office = await client.post(
+            path,
+            headers=headers,
+            files={
+                "file": (
+                    "fake.docx",
+                    b"PK-not-a-zip",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
+        )
+        assert wrong_office.status_code == 415
+
+        zip_bomb = BytesIO()
+        with zipfile.ZipFile(zip_bomb, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("word/document.xml", "A" * (201 * 1024 * 1024))
+        rejected_bomb = await client.post(
+            path,
+            headers=headers,
+            files={
+                "file": (
+                    "expanded.docx",
+                    zip_bomb.getvalue(),
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
+        )
+        assert rejected_bomb.status_code == 413
 
 
 @pytest.mark.asyncio

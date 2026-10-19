@@ -248,6 +248,24 @@ The worker now emits `eta_seconds` with each status event and embeds chunks in c
 
 User direction changed the judge-model variable for subsequent Level 12 runs from `anthropic/claude-sonnet-4.5` to `deepseek/deepseek-v4-flash-0731`. OpenRouter's official model page lists the DeepSeek model at $0.03/M input and $0.13/M output, and it is a different model family from the Google Gemini answer model. See [OpenRouter model pricing](https://openrouter.ai/deepseek/deepseek-v4-flash-0731/). The earlier development results remain labeled with the Anthropic judge that actually produced them; they are not relabeled. No quality comparison between judges has been run. Future runs default to DeepSeek unless `EVAL_JUDGE_MODEL` explicitly overrides it.
 
+### Judge model experiment: DeepSeek V4 Flash vs Claude Sonnet 4.5 (2026-10-19)
+
+Only the judge model changed. Both runs used the same 48 development questions, dataset and corpus hashes, real Gemma 2 FP32 vectors, Gemini 3.1 Flash Lite answers, hybrid RRF k=60, top 8, and strict citation prompt. Held-out was not run. Sonnet's recorded dev result was hit@8 45/45, MRR 0.9526, citation validity 47/48, citation precision 43/44, faithfulness 47/48, relevance 47/48, and negative refusal 3/3. The DeepSeek run completed all 48 questions and produced hit@8 45/45, MRR 0.9526, citation validity 47/48, citation precision 33/44 (75.00%), faithfulness 33/48 (68.75%), relevance 33/48 (68.75%), and negative refusal 0/3. Its saved artifact is `evals/real/results/dev_20261019T170903Z.json` (ignored local output).
+
+This is a judge comparison, not evidence that answer quality changed: answer model, prompt, and retrieval configuration were held constant. DeepSeek's judgments marked all three exact canonical refusals as incorrect, so its refusal result is demonstrably inconsistent with the configured criterion. Keep the user-requested low-cost DeepSeek default for now, but treat its faithfulness, relevance, citation precision, and refusal numbers as an uncalibrated judge signal. Do not use them to claim Level 12 quality acceptance. Cost rates are published list prices; actual token usage and invoice cost were not captured, so no measured cost total is claimed. The failed first attempt stopped at 11/48 on a non-JSON judge response; the runner now retries once with a constrained JSON repair instruction and resumes from its checkpoint.
+
+## ADR-020: Level 12 security regression coverage
+
+**Status:** Implemented locally (2026-10-19); browser/CI runtime confirmation pending.
+
+Keep user-provided Markdown rendered with `react-markdown` and no raw HTML plugin. Chat and artifact citations share the tested `CitedMarkdown` renderer; shared notes use a dedicated tested `SharedMarkdown` renderer. Add regressions for hostile inline HTML, script/event attributes, unsafe links, and hostile citation source names. Add an upload regression that verifies an Office ZIP with 201 MiB expanded content is rejected before extraction, along with extension/signature mismatch. Existing Level 2 tests cover oversize uploads and Level 9 tests cover SSRF redirects/private addresses and revoked shares.
+
+Measured locally: cited Markdown XSS tests 2 passed; shared Markdown XSS test 1 passed; upload oversize, malformed PDF/Office signatures, and 201 MiB Office expansion bomb test passed; existing chat prompt-injection and audio faithfulness-injection tests passed. These are Windows unit/component results. Full browser XSS coverage for the Tiptap editor and the deployed public share route, broad file fuzzing beyond the specified payloads, and a live CSP browser check remain unverified.
+
+### Level 12 Pass 8: persona and response-length wiring (2026-10-19)
+
+Variable: notebook persona/response length propagation to chat and artifact prompts. Before, chat accepted style values in the prompt helper but the artifact worker called generation without notebook preferences. After, the worker supplies the persisted notebook persona and response-length options; both chat and artifact prompt builders serialize those values into their system/user requests. FakeLLM tests confirm short/patient-tutor and long/skeptical-professor requests differ, and the artifact worker passes the saved values through. This verifies setting-to-prompt wiring, not a live model's rendered length or style; no real-output comparison was run.
+
 
 ## ADR-018: OCR fallback for scanned pages and raster uploads
 
