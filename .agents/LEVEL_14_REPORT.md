@@ -21,7 +21,7 @@ Status: **PARTIAL — Pass 3 desktop panel physics and passes 4–8 are open; th
 | Level 11.2 prerequisite (e2e in CI) | Inspect `.github/workflows` and `rg -n 'playwright|e2e' .github/workflows` | No Playwright e2e workflow found; Level 11.2 remains unchecked | BLOCKED | Local |
 | Foundations unit suite | `corepack pnpm --filter web test` | 5 files, 11 tests passed | PASS | Local; deterministic |
 | TypeScript | `corepack pnpm --filter web typecheck` | exit 0 | PASS | Local |
-| ESLint | `corepack pnpm --filter web lint` | exit 0; 3 existing warnings in chat-panel, pdf-original, source-viewer | PASS with warnings | Local |
+| ESLint | `corepack pnpm --filter web lint` | exit 0; 2 pre-existing warnings in pdf-original and source-viewer | PASS with warnings | Local |
 | Auth screenshots, Pass 1 | `LEVEL14_SCREENSHOT_STAGE=before-pass1/after-pass1 corepack pnpm --filter web exec playwright test e2e/level14-visual.spec.ts --grep 'auth baseline'` | 4 screenshots per checkpoint, each passed at 1440×1000 / 390×844, light / dark | PASS | Local; auth UI only |
 | Auth screenshots and interaction, Pass 2 | `LEVEL14_SCREENSHOT_STAGE=after-pass2 corepack pnpm --filter web exec playwright test e2e/level14-visual.spec.ts` | 5 tests passed; pointerdown response **5.30 ms**, sampled scale **0.970**; target >=44 px and keyboard focus visible | PASS | Local; auth UI only |
 | Undo API and delayed purge | `.venv/Scripts/python.exe -m pytest tests/test_level14_soft_delete.py -q -p no:cacheprovider` | 3 passed: owner-only restore, expired restore 410, expired notebook + file purged while recent notebook + file remained | PASS | Local; SQLite + MemoryStorage (FAKE storage) |
@@ -32,12 +32,12 @@ Status: **PARTIAL — Pass 3 desktop panel physics and passes 4–8 are open; th
 | Undo and purge | Not implemented | No API or lifecycle measurement | OPEN | — |
 | Existing signed-in end-to-end journeys | Requires DB/API/worker services; Docker daemon access denied | Not run | BLOCKED | Local |
 
-Screenshot files are in [`docs/levels/level14/screenshots`](../../docs/levels/level14/screenshots). The 20 PNGs total 415,430 bytes. Before-Pass-1 images use the committed baseline stylesheet; completed checkpoints have screenshots at all four required viewport/theme combinations. Pass 3 screenshots cover the auth UI; the local sign-in flow is available without API/DB services.
+Screenshot files are in [`docs/levels/level14/screenshots`](../../docs/levels/level14/screenshots). The screenshot set contains 28 PNGs across captured checkpoints; Pass 4 before/after screenshots show auth only, not the signed-in chat. Before-Pass-1 images use the committed baseline stylesheet; completed checkpoints have screenshots at all four required viewport/theme combinations. Pass 3 screenshots cover the auth UI; the local sign-in flow is available without API/DB services.
 
 ## Known weaknesses and open work
 
 - Level 11 task 11.2 is a stated Level 14 prerequisite and is not complete. Its CI workflow must be closed in the correct level before Level 14 can be declared complete.
-- Passes 4–8 remain open: chat/source/artifact transitions, settings/auth polish, design lab, reduced preference emulation, axe, long-frame/CLS/INP checks, visual regression, full e2e, and full journey tests.
+- Pass 4 chat composer, edge fades, and streaming scroll behavior are implemented; citation click transitions and signed-in visual evidence remain open. Passes 5–8 remain open: viewer transitions, Studio polish, settings/auth and design lab, reduced preference validation, axe, long-frame/CLS/INP, visual regression, and full journeys.
 - The Motion-driven mobile sheet is implemented, but desktop panel rubber-band/momentum snap is still missing. Motion is now imported by the workspace route; the 60 KB gzipped motion-layer budget has not been measured.
 - Local auth screenshots produce a hydration warning because the installed Chrome environment injects `style="caret-color:transparent"` into form inputs. The page still rendered and all screenshot assertions passed; a clean browser profile is needed to distinguish extension injection from app behavior.
 - The existing `/reset-password` page currently fails production prerender due to `useSearchParams()` outside Suspense. This surfaced during Level 14 build verification and is queued for the auth/settings pass.

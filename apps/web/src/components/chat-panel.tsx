@@ -2,10 +2,12 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Save, Send, Square, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CitedMarkdown } from "@/components/cited-markdown";
 import { Button } from "@/components/ui/button";
+import { Material } from "@/components/ui/material";
+import { useMotionPrefs } from "@/design/use-motion-prefs";
 import { chatApi, noteApi, sourceApi, type ChatCitation, type ChatMessage } from "@/lib/api-client";
 
 const starterQuestions = [
@@ -30,23 +32,37 @@ export function ChatPanel({ notebookId, onOpenCitation, suggestedQuestion, onQue
   const sources = useQuery({ queryKey: ["sources", notebookId], queryFn: () => sourceApi.list(notebookId) });
   const [localMessages, setLocalMessages] = useState<ChatMessage[] | null>(null);
   const messages = useMemo(() => localMessages ?? history.data ?? [], [localMessages, history.data]);
-  const setMessages = (update: ChatMessage[] | ((current: ChatMessage[]) => ChatMessage[])) => {
+  const setMessages = useCallback((update: ChatMessage[] | ((current: ChatMessage[]) => ChatMessage[])) => {
     setLocalMessages((current) => {
       const previous = current ?? history.data ?? [];
       return typeof update === "function" ? update(previous) : update;
     });
-  };
+  }, [history.data]);
   const [question, setQuestion] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [followups, setFollowups] = useState<string[]>([]);
   const controller = useRef<AbortController | null>(null);
-  const bottom = useRef<HTMLDivElement>(null);
+  const scrollPanel = useRef<HTMLDivElement>(null);
+  const composer = useRef<HTMLTextAreaElement>(null);
+  const followTail = useRef(true);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+  const { reducedMotion } = useMotionPrefs();
   const requestNumber = useRef(0);
   const seenQuestion = useRef(0);
-  useEffect(() => { bottom.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => {
+    const viewport = scrollPanel.current;
+    if (!viewport) return;
+    if (followTail.current) viewport.scrollTo({ top: viewport.scrollHeight, behavior: "auto" });
+  }, [messages]);
+  useEffect(() => {
+    const input = composer.current;
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
+  }, [question]);
   useEffect(() => () => controller.current?.abort(), []);
 
-  const send = async (value = question) => {
+  const send = useCallback(async (value = question) => {
     const asked = value.trim();
     if (!asked || streaming) return;
     const abort = new AbortController();
@@ -54,6 +70,7 @@ export function ChatPanel({ notebookId, onOpenCitation, suggestedQuestion, onQue
     setStreaming(true);
     setQuestion("");
     setFollowups([]);
+    setShowJumpToLatest(!followTail.current);
     requestNumber.current += 1;
     const stamp = requestNumber.current;
     const userId = `pending-user-${stamp}`;
@@ -78,7 +95,7 @@ export function ChatPanel({ notebookId, onOpenCitation, suggestedQuestion, onQue
       controller.current = null;
       setStreaming(false);
     }
-  };
+  }, [client, notebookId, question, setMessages, streaming]);
 
   useEffect(() => {
     if (suggestedQuestion && suggestedQuestion.id !== seenQuestion.current) {
@@ -99,12 +116,43 @@ export function ChatPanel({ notebookId, onOpenCitation, suggestedQuestion, onQue
   };
 
   const readyCount = sources.data?.filter((source) => source.selected && source.status === "ready").length ?? 0;
+  const jumpToLatest = () => {
+    followTail.current = true;
+    setShowJumpToLatest(false);
+    const viewport = scrollPanel.current;
+    if (viewport) viewport.scrollTo({ top: viewport.scrollHeight, behavior: reducedMotion ? "auto" : "smooth" });
+  };
+
   return <section className="flex h-full min-h-0 flex-col" aria-label="Chat">
-    <div className="flex items-center justify-between border-b border-slate-200 p-3 dark:border-slate-800"><div><h2 className="font-semibold">Chat</h2><p className="text-xs text-slate-500">{readyCount} ready {readyCount === 1 ? "source" : "sources"} selected</p></div><Button size="sm" variant="ghost" aria-label="Clear chat" onClick={() => void clear()} disabled={messages.length === 0 || streaming}><Trash2 className="size-4" /></Button></div>
-    <div className="min-h-0 flex-1 overflow-y-auto p-4" aria-live="polite">
-      {history.isPending ? <div className="space-y-3" aria-label="Loading chat">{[1, 2, 3].map((item) => <div key={item} className="h-16 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />)}</div> : messages.length === 0 ? <div className="flex h-full flex-col items-center justify-center gap-4 text-center"><div className="text-3xl">✧</div><p className="font-medium">Ask about your sources</p><p className="max-w-sm text-sm text-slate-500">Answers use only selected sources and show their citations.</p><div className="grid gap-2">{starterQuestions.map((item) => <Button key={item} size="sm" variant="outline" onClick={() => void send(item)}>{item}</Button>)}</div></div> : <div className="space-y-5">{messages.map((message) => <article key={message.id} className={message.role === "user" ? "ml-auto max-w-[90%] rounded-xl bg-indigo-50 p-3 text-sm dark:bg-indigo-950" : "max-w-full rounded-xl border border-slate-200 p-3 dark:border-slate-800"}>{message.role === "user" ? message.content : message.content ? <Answer message={message} onOpenCitation={onOpenCitation} onSave={() => void saveAnswer(message)} /> : <p className="animate-pulse text-sm text-slate-500">Finding an answer…</p>}</article>)}<div ref={bottom} /></div>}
-      {followups.length > 0 && !streaming && <div className="mt-4 flex flex-wrap gap-2">{followups.map((item) => <Button key={item} size="sm" variant="outline" onClick={() => void send(item)}>{item}</Button>)}</div>}
+    <div
+      ref={scrollPanel}
+      className="scroll-chrome relative min-h-0 flex-1 overflow-y-auto"
+      onScroll={(event) => {
+        const viewport = event.currentTarget;
+        const nearBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 80;
+        followTail.current = nearBottom;
+        if (nearBottom) setShowJumpToLatest(false);
+        else if (streaming) setShowJumpToLatest(true);
+      }}
+    >
+      <div className="flex min-h-full flex-col">
+        <Material tone="thin" className="sticky top-0 z-20 flex items-center justify-between rounded-b-xl border-b border-slate-200/60 px-4 py-2 dark:border-slate-700/60">
+          <div><h2 className="font-semibold">Chat</h2><p className="text-xs text-slate-600 dark:text-slate-300">{readyCount} ready {readyCount === 1 ? "source" : "sources"} selected</p></div>
+          <Button size="sm" variant="ghost" aria-label="Clear chat" onClick={() => void clear()} disabled={messages.length === 0 || streaming}><Trash2 className="size-4" /></Button>
+        </Material>
+        <div className="flex-1 p-4" aria-live="polite">
+          {history.isPending ? <div className="space-y-3" aria-label="Loading chat">{[1, 2, 3].map((item) => <div key={item} className="h-16 rounded-lg bg-slate-100 dark:bg-slate-800" />)}</div> : messages.length === 0 ? <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center"><div className="text-3xl" aria-hidden="true">?</div><p className="font-medium">Ask about your sources</p><p className="max-w-sm text-sm text-slate-600 dark:text-slate-300">Answers use only selected sources and show their citations.</p><div className="grid gap-2">{starterQuestions.map((item) => <Button key={item} size="sm" variant="outline" onClick={() => void send(item)}>{item}</Button>)}</div></div> : <div className="space-y-5">{messages.map((message) => <article key={message.id} className={message.role === "user" ? "ml-auto max-w-[90%] rounded-xl bg-indigo-50 p-3 text-sm dark:bg-indigo-950" : "max-w-full rounded-xl border border-slate-200 p-3 dark:border-slate-800"}>{message.role === "user" ? message.content : message.content ? <Answer message={message} onOpenCitation={onOpenCitation} onSave={() => void saveAnswer(message)} /> : <p className="min-h-10 text-sm text-slate-600 dark:text-slate-300">Finding an answer...</p>}</article>)}</div>}
+          {followups.length > 0 && !streaming && <div className="followup-fade mt-4 flex gap-2 overflow-x-auto py-1">{followups.map((item) => <Button key={item} size="sm" variant="outline" className="shrink-0" onClick={() => void send(item)}>{item}</Button>)}</div>}
+        </div>
+        {showJumpToLatest && <div className="sticky bottom-20 z-10 flex justify-center"><Button size="sm" variant="secondary" onClick={jumpToLatest}>Jump to latest</Button></div>}
+        <Material tone="regular" className="sticky bottom-0 z-20 rounded-t-xl border-t border-slate-200/60 p-3 dark:border-slate-700/60">
+          <form onSubmit={(event) => { event.preventDefault(); void send(); }}>
+            <label htmlFor="chat-question" className="sr-only">Ask your sources</label>
+            <textarea ref={composer} id="chat-question" aria-label="Ask your sources" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} placeholder="Ask your sources..." maxLength={4000} rows={1} className="min-h-11 max-h-44 w-full resize-none overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900" />
+            <div className="mt-2 flex justify-end">{streaming ? <Button type="button" variant="outline" onClick={() => { controller.current?.abort(); setStreaming(false); }}><Square className="size-3" /> Stop</Button> : <Button type="submit" disabled={!question.trim()}><Send className="size-4" /> Send</Button>}</div>
+          </form>
+        </Material>
+      </div>
     </div>
-    <form className="border-t border-slate-200 p-3 dark:border-slate-800" onSubmit={(event) => { event.preventDefault(); void send(); }}><label htmlFor="chat-question" className="sr-only">Ask your sources</label><textarea id="chat-question" aria-label="Ask your sources" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} placeholder="Ask your sources…" maxLength={4000} rows={2} className="w-full resize-none rounded-lg border border-slate-300 bg-white p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900" /><div className="mt-2 flex justify-end">{streaming ? <Button type="button" variant="outline" onClick={() => { controller.current?.abort(); setStreaming(false); }}><Square className="size-3" /> Stop</Button> : <Button type="submit" disabled={!question.trim()}><Send className="size-4" /> Send</Button>}</div></form>
   </section>;
 }

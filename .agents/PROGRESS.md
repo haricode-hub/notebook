@@ -53,3 +53,10 @@
 2026-10-20: Level 14 Pass 2 added shared pointerdown press styles, reduced-motion opacity feedback, 44 px minimum button targets, and focus indicators. The focused Playwright suite passed 5/5; measured pointerdown-to-presented-scale was 5.30 ms (scale 0.970). Captured four auth screenshots for the after-Pass-2 checkpoint. Web unit suite: 11 passed; ESLint exited 0 with 3 pre-existing warnings. `next build` compiled code but failed prerender on `/reset-password` because its `useSearchParams()` is outside Suspense; fix remains open for the auth pass. Level 11.2 and all backend/full-screen gates remain open.
 
 2026-10-20: Level 14 Pass 3 added the Motion-driven mobile Sources/Studio sheet with drag constraints, elastic resistance, release velocity and accessible bottom tabs; notebooks now soft-delete, hide immediately, restore only for the owner during the 30-second grace, and purge with their stored files on a 15-second worker sweep. `tests/test_level14_soft_delete.py`: 3 passed; focused Ruff and mypy passed; web typecheck passed, web unit tests 11 passed, ESLint exited 0 with the same 3 warnings. Four auth screenshots were captured at 1440x1000 and 390x844, light/dark. Desktop panel rubber-band/momentum snap and full workspace browser journeys remain open; the Docker stack could not run here.
+
+## Level 14 Pass 4 — Chat panel
+- Updated composer to grow up to 180px and keeps Enter/Shift+Enter behavior; added sticky material header/composer and scroll-edge fades.
+- Streaming no longer auto-scrolls when the reader is above the latest message; added a jump-to-latest action and removed the pulsing placeholder.
+- Focused checks: web typecheck passed; 5 files/11 unit tests passed; ESLint passed with two existing TanStack Virtual warnings in PDF components.
+- Captured four before and four after auth-page screenshots at 1440x1000/390x844 in light/dark. Signed-in workspace screenshots and chat citation journey are blocked because DB/API services are unavailable.
+- Commit: pending.

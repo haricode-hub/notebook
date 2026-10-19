@@ -18,6 +18,8 @@ button:not(:disabled):active, [role="button"]:active, .pressable:active { transf
 .material-thin { background: hsl(var(--surface) / var(--material-thin-alpha)); -webkit-backdrop-filter: blur(var(--material-thin-blur)) saturate(var(--material-saturation)); backdrop-filter: blur(var(--material-thin-blur)) saturate(var(--material-saturation)); }
 .material-regular { background: hsl(var(--surface) / var(--material-regular-alpha)); }
 .material-thick { background: hsl(var(--surface) / var(--material-thick-alpha)); -webkit-backdrop-filter: blur(var(--material-thick-blur)) saturate(var(--material-saturation)); backdrop-filter: blur(var(--material-thick-blur)) saturate(var(--material-saturation)); }
+.scroll-chrome { mask-image: linear-gradient(to bottom, transparent 0, black 1rem, black calc(100% - 1rem), transparent 100%); }
+.followup-fade { mask-image: linear-gradient(to right, transparent 0, black 1rem, black calc(100% - 1rem), transparent 100%); }
 @media (prefers-reduced-transparency: reduce) { .material-surface { -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; } }
 @media (prefers-contrast: more) { .material-surface { -webkit-backdrop-filter: none; backdrop-filter: none; border: 1px solid hsl(var(--border)); box-shadow: none; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } button:not(:disabled):active, [role="button"]:active, .pressable:active { transform: none; opacity: 0.82; } }
