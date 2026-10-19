@@ -9,6 +9,7 @@ coverage/
 .coverage
 .pytest_cache/
 .pytest-tmp/
+/.pytest-*/
 .mypy_cache/
 .ruff_cache/
 __pycache__/

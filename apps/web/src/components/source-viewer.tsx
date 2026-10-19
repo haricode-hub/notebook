@@ -21,6 +21,7 @@ export type ViewerSelection = {
   sourceId: string;
   citations: ChatCitation[];
   index: number;
+  initialTab?: "guide";
 };
 
 function TextOriginal({ content, citation }: { content: SourceContent; citation?: ChatCitation }) {
@@ -56,11 +57,12 @@ function TextOriginal({ content, citation }: { content: SourceContent; citation?
   </div>;
 }
 
-export function SourceViewer({ notebookId, selection, onClose, onNavigate }: {
+export function SourceViewer({ notebookId, selection, onClose, onNavigate, onAskQuestion }: {
   notebookId: string;
   selection: ViewerSelection;
   onClose: () => void;
   onNavigate: (index: number) => void;
+  onAskQuestion: (question: string) => void;
 }) {
   const citation = selection.citations[selection.index];
   const sourceId = citation?.source_id ?? selection.sourceId;
@@ -70,7 +72,13 @@ export function SourceViewer({ notebookId, selection, onClose, onNavigate }: {
     queryFn: () => sourceApi.content(notebookId, sourceId),
     staleTime: 240_000,
   });
-  const [tab, setTab] = useState<"original" | "text">("original");
+  const [tab, setTab] = useState<"original" | "text" | "guide">(selection.initialTab ?? "original");
+  const guide = useQuery({
+    queryKey: ["guide", notebookId, sourceId],
+    queryFn: () => sourceApi.guide(notebookId, sourceId),
+    enabled: tab === "guide",
+    refetchInterval: (query) => query.state.data?.status === "ready" ? false : 3000,
+  });
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -119,12 +127,12 @@ export function SourceViewer({ notebookId, selection, onClose, onNavigate }: {
       </nav>}
       {isPending ? <div className="m-4 h-36 animate-pulse rounded bg-slate-200 dark:bg-slate-800" aria-label="Loading source" /> : isError || !data ? <p className="p-4 text-red-600" role="alert">Could not load this source.</p> : <>
         <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-800">
-          {data.source.kind === "pdf" && <div role="tablist" aria-label="Source views" className="flex gap-1"><Button size="sm" variant={tab === "original" ? "default" : "outline"} role="tab" aria-selected={tab === "original"} onClick={() => setTab("original")}>Original</Button><Button size="sm" variant={tab === "text" ? "default" : "outline"} role="tab" aria-selected={tab === "text"} onClick={() => setTab("text")}>Text</Button></div>}
+          <div role="tablist" aria-label="Source views" className="flex gap-1"><Button size="sm" variant={tab === "original" ? "default" : "outline"} role="tab" aria-selected={tab === "original"} onClick={() => setTab("original")}>{data.source.kind === "pdf" ? "Original" : "Text"}</Button>{data.source.kind === "pdf" && <Button size="sm" variant={tab === "text" ? "default" : "outline"} role="tab" aria-selected={tab === "text"} onClick={() => setTab("text")}>Text</Button>}<Button size="sm" variant={tab === "guide" ? "default" : "outline"} role="tab" aria-selected={tab === "guide"} onClick={() => setTab("guide")}>Guide</Button></div>
           {data.original_url && <a href={data.original_url} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1 text-sm text-indigo-600 underline">Original website <ExternalLink className="size-3" /></a>}
           <details className="relative ml-auto text-sm"><summary className="cursor-pointer rounded px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800">Details</summary><div className="absolute right-0 z-20 mt-1 w-60 rounded border bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-900"><p>Type: {data.source.kind.toUpperCase()}</p><p>Status: {data.source.status}</p>{data.source.page_count && <p>Pages: {data.source.page_count}</p>}<p>Added: {new Date(data.source.created_at).toLocaleDateString()}</p></div></details>
         </div>
-        <div className="min-h-0 flex-1" role="tabpanel" aria-label={data.source.kind === "pdf" && tab === "original" ? "Original PDF" : "Source text"}>
-          {data.source.kind === "pdf" && tab === "original" && data.file_url ? <PdfOriginal key={sourceId} content={data} citation={citation} onShowText={() => setTab("text")} /> : <TextOriginal content={data} citation={citation} />}
+        <div className="min-h-0 flex-1" role="tabpanel" aria-label={tab === "guide" ? "Source guide" : data.source.kind === "pdf" && tab === "original" ? "Original PDF" : "Source text"}>
+          {tab === "guide" ? <div className="h-full space-y-5 overflow-y-auto p-5 text-sm">{guide.data?.status === "ready" ? <><section><h3 className="font-semibold">Summary</h3><p className="mt-2 leading-relaxed">{guide.data.summary}</p></section><section><h3 className="font-semibold">Key topics</h3><ul className="mt-2 flex flex-wrap gap-2">{guide.data.topics.map((topic) => <li key={topic} className="rounded bg-indigo-50 px-2 py-1 dark:bg-indigo-950">{topic}</li>)}</ul></section><section><h3 className="font-semibold">Suggested questions</h3><div className="mt-2 space-y-2">{guide.data.questions.map((question) => <Button key={question} variant="outline" className="h-auto w-full justify-start whitespace-normal text-left" onClick={() => { onAskQuestion(question); onClose(); }}>{question}</Button>)}</div></section></> : <p role="status" className="text-slate-500">{guide.data?.error ?? "Generating a guide for this source…"}</p>}</div> : data.source.kind === "pdf" && tab === "original" && data.file_url ? <PdfOriginal key={sourceId} content={data} citation={citation} onShowText={() => setTab("text")} /> : <TextOriginal content={data} citation={citation} />}
         </div>
       </>}
     </aside>

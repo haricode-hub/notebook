@@ -86,6 +86,10 @@ export type Source = components["schemas"]["SourceOut"];
 export type SourceContent = components["schemas"]["SourceContentOut"];
 export type ChatMessage = components["schemas"]["ChatMessageOut"];
 export type ChatCitation = components["schemas"]["ChatCitation"];
+export type Guide = components["schemas"]["GuideOut"];
+export type Note = components["schemas"]["NoteOut"];
+export type NoteIn = components["schemas"]["NoteIn"];
+export type NotePatch = components["schemas"]["NotePatch"];
 export type ChatFinal = {
   message_id: string;
   content: string;
@@ -97,6 +101,7 @@ export type ChatFinal = {
 export const sourceApi = {
   list: (id: string) => apiFetch<Source[]>(`/notebooks/${encodeURIComponent(id)}/sources`),
   content: (id: string, sourceId: string) => apiFetch<SourceContent>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}/content`),
+  guide: (id: string, sourceId: string) => apiFetch<Guide>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}/guide`),
   rename: (id: string, sourceId: string, name: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}`, { method: "PATCH", body: JSON.stringify({ name }) }),
   text: (id: string, name: string, text: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/text`, { method: "POST", body: JSON.stringify({ name, text }) }),
   url: (id: string, url: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/url`, { method: "POST", body: JSON.stringify({ url }) }),
@@ -104,6 +109,19 @@ export const sourceApi = {
   select: (id: string, sourceId: string, selected: boolean) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}`, { method: "PATCH", body: JSON.stringify({ selected }) }),
   remove: (id: string, sourceId: string) => apiFetch<void>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" }),
   reindex: (id: string) => apiFetch<{ status: string }>(`/notebooks/${encodeURIComponent(id)}/reindex`, { method: "POST" }),
+};
+
+export const guideApi = {
+  overview: (id: string) => apiFetch<Guide | null>(`/notebooks/${encodeURIComponent(id)}/overview`),
+};
+
+export const noteApi = {
+  list: (id: string) => apiFetch<Note[]>(`/notebooks/${encodeURIComponent(id)}/notes`),
+  create: (id: string, body: NoteIn) => apiFetch<Note>(`/notebooks/${encodeURIComponent(id)}/notes`, { method: "POST", body: JSON.stringify(body) }),
+  update: (id: string, noteId: string, body: NotePatch) => apiFetch<Note>(`/notebooks/${encodeURIComponent(id)}/notes/${encodeURIComponent(noteId)}`, { method: "PATCH", body: JSON.stringify(body) }),
+  remove: (id: string, noteId: string) => apiFetch<void>(`/notebooks/${encodeURIComponent(id)}/notes/${encodeURIComponent(noteId)}`, { method: "DELETE" }),
+  saveChat: (id: string, messageId: string) => apiFetch<Note>(`/notebooks/${encodeURIComponent(id)}/notes/from-chat/${encodeURIComponent(messageId)}`, { method: "POST" }),
+  convert: (id: string, noteId: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/notes/${encodeURIComponent(noteId)}/convert-to-source`, { method: "POST" }),
 };
 
 export const chatApi = {

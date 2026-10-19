@@ -1,5 +1,6 @@
 """Owned source creation, lifecycle, and live progress."""
 
+import logging
 import re
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -14,6 +15,7 @@ from arq.connections import ArqRedis, RedisSettings
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response, StreamingResponse
 from opennotebook_core.models import Chunk, Job, Notebook, Source
+from opennotebook_core.queue import schedule_overview
 from opennotebook_core.safe_fetch import UnsafeURL, validate_url
 from opennotebook_core.storage import make_storage, verify_file_token
 from pydantic import BaseModel, ConfigDict, Field
@@ -376,6 +378,15 @@ async def delete_source(
     await db.commit()
     if key:
         await make_storage(request.app.state.settings).delete(key)
+    pool: ArqRedis | None = None
+    try:
+        pool = await create_pool(RedisSettings.from_dsn(request.app.state.settings.redis_url))
+        await schedule_overview(pool, db, notebook_id, user.id)
+    except Exception:
+        logging.getLogger("opennotebook.api.sources").warning("overview_refresh_queue_unavailable")
+    finally:
+        if pool is not None:
+            await pool.aclose()
 
 
 @router.post("/reindex", status_code=202)

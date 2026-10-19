@@ -68,11 +68,16 @@ test("twenty evaluation passages resolve in PDF and Text views", async ({ page }
       if (await viewer.getByRole("note").count()) return "fallback";
       return "loading";
     };
-    await expect.poll(state, { timeout: 10_000 }).not.toBe("loading");
-    if (await state() === "highlight") {
-      pdfHits++;
-    } else {
+    let highlighted = false;
+    try {
+      await expect.poll(state, { timeout: 8_000 }).toBe("highlight");
+      highlighted = true;
+    } catch {
+      // PDF.js may briefly show the fallback before all text items arrive.
       await expect(viewer.getByRole("note")).toContainText("could not be located");
+    }
+    if (highlighted) {
+      pdfHits++;
     }
     if (index < 19) await page.keyboard.press("ArrowRight");
   }

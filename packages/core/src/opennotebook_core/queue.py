@@ -5,7 +5,7 @@ from arq import create_pool
 from arq.connections import ArqRedis, RedisSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from opennotebook_core.models import Job
+from opennotebook_core.models import Job, Source
 
 
 class JobQueue(Protocol):
@@ -35,3 +35,43 @@ class ArqQueue:
             if self.pool is None:
                 await pool.aclose()
         return job_id
+
+
+async def enqueue_source_guide(pool: ArqRedis, session: AsyncSession, source: Source) -> str:
+    job_id = str(uuid4())
+    session.add(
+        Job(
+            id=job_id,
+            user_id=source.user_id,
+            kind="summarize_source",
+            status="queued",
+            stage="queued",
+            progress=0,
+        )
+    )
+    await session.commit()
+    await pool.enqueue_job("summarize_source", source.id, job_id, _job_id=job_id)
+    return job_id
+
+
+async def schedule_overview(
+    pool: ArqRedis, session: AsyncSession, notebook_id: str, user_id: str
+) -> str:
+    """Only the final change in a 30-second burst may generate an overview."""
+    job_id = str(uuid4())
+    session.add(
+        Job(
+            id=job_id,
+            user_id=user_id,
+            kind="refresh_notebook_overview",
+            status="queued",
+            stage="debouncing",
+            progress=0,
+        )
+    )
+    await session.commit()
+    await pool.set(f"overview-generation:{notebook_id}", job_id, ex=600)
+    await pool.enqueue_job(
+        "refresh_notebook_overview", notebook_id, job_id, _job_id=job_id, _defer_by=30
+    )
+    return job_id

@@ -11,20 +11,17 @@ import { Button } from "@/components/ui/button";
 import { SourcesPanel } from "@/components/sources-panel";
 import { ChatPanel } from "@/components/chat-panel";
 import { SourceViewer, type ViewerSelection } from "@/components/source-viewer";
+import { StudioPanel } from "@/components/studio-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { notebookApi, type ChatCitation, type NotebookUpdate } from "@/lib/api-client";
 
 type Tab = "Sources" | "Chat" | "Studio";
 
-function EmptyPanel({ title, description }: { title: Tab; description: string }) {
-  return <div className="flex h-full flex-col items-center justify-center px-6 text-center"><div className="mb-4 rounded-2xl bg-indigo-50 px-4 py-3 text-2xl dark:bg-indigo-950">{title === "Sources" ? "◫" : title === "Chat" ? "✧" : "◈"}</div><h2 className="text-lg font-semibold">{title}</h2><p className="mt-2 max-w-xs text-sm text-slate-500">{description}</p></div>;
-}
-
 const panels: { title: Tab; description: string }[] = [
   { title: "Sources", description: "Add a file, website, or text to start researching." },
   { title: "Chat", description: "Ask questions grounded in your sources." },
-  { title: "Studio", description: "Study guides and other artifacts will appear here in later levels." },
+  { title: "Studio", description: "Read your overview and create notes." },
 ];
 
 export default function WorkspacePage() {
@@ -34,7 +31,11 @@ export default function WorkspacePage() {
   const [tab, setTab] = useState<Tab>("Sources");
   const [viewer, setViewer] = useState<ViewerSelection | null>(null);
   const openSource = (sourceId: string) => setViewer({ sourceId, citations: [], index: 0 });
+  const openGuide = (sourceId: string) => setViewer({ sourceId, citations: [], index: 0, initialTab: "guide" });
   const openCitation = (citation: ChatCitation, citations: ChatCitation[]) => setViewer({ sourceId: citation.source_id, citations, index: Math.max(0, citations.findIndex((item) => item.chunk_id === citation.chunk_id && item.n === citation.n)) });
+  const [suggestedQuestion, setSuggestedQuestion] = useState<{ id: number; text: string } | null>(null);
+  const suggestionNumber = useRef(0);
+  const askQuestion = (text: string) => { suggestionNumber.current += 1; setSuggestedQuestion({ id: suggestionNumber.current, text }); setTab("Chat"); };
   const [desktop, setDesktop] = useState(false);
   useEffect(() => {
     const media = window.matchMedia("(min-width: 768px)");
@@ -63,16 +64,16 @@ export default function WorkspacePage() {
       <Button type="submit" className="self-end" disabled={save.isPending}>Save</Button>
     </form>}
     <div className="flex border-b border-slate-200 md:hidden dark:border-slate-800" role="tablist" aria-label="Workspace panels">{panels.map((panel) => <button key={panel.title} type="button" role="tab" aria-selected={tab === panel.title} onClick={() => setTab(panel.title)} className={`flex-1 px-4 py-3 text-sm ${tab === panel.title ? "border-b-2 border-indigo-600 font-semibold text-indigo-600" : "text-slate-500"}`}>{panel.title}</button>)}</div>
-    <div className="min-h-0 flex-1 md:hidden">{tab === "Sources" ? (!desktop && <SourcesPanel notebookId={id} onOpenSource={openSource} />) : tab === "Chat" ? (!desktop && <ChatPanel notebookId={id} onOpenCitation={openCitation} />) : <EmptyPanel {...panels[2]} />}</div>
+    <div className="min-h-0 flex-1 md:hidden">{tab === "Sources" ? (!desktop && <SourcesPanel notebookId={id} onOpenSource={openSource} onOpenGuide={openGuide} />) : tab === "Chat" ? (!desktop && <ChatPanel notebookId={id} onOpenCitation={openCitation} suggestedQuestion={suggestedQuestion} onQuestionConsumed={() => setSuggestedQuestion(null)} />) : <StudioPanel notebookId={id} onAskQuestion={askQuestion} onOpenCitation={openCitation} />}</div>
     <div className="hidden min-h-0 flex-1 md:flex">
     <Group orientation="horizontal" className="min-h-0 flex-1" id="workspace-panels">
-      <Panel id="sources" panelRef={sourcesRef} defaultSize="25%" minSize="15%" collapsible collapsedSize="0%">{desktop && <SourcesPanel notebookId={id} onOpenSource={openSource} />}</Panel>
+      <Panel id="sources" panelRef={sourcesRef} defaultSize="25%" minSize="15%" collapsible collapsedSize="0%">{desktop && <SourcesPanel notebookId={id} onOpenSource={openSource} onOpenGuide={openGuide} />}</Panel>
       <Separator className="w-1 bg-slate-200 transition-colors hover:bg-indigo-400 dark:bg-slate-800" />
-      <Panel id="chat" defaultSize="50%" minSize="25%">{desktop && <ChatPanel notebookId={id} onOpenCitation={openCitation} />}</Panel>
+      <Panel id="chat" defaultSize="50%" minSize="25%">{desktop && <ChatPanel notebookId={id} onOpenCitation={openCitation} suggestedQuestion={suggestedQuestion} onQuestionConsumed={() => setSuggestedQuestion(null)} />}</Panel>
       <Separator className="w-1 bg-slate-200 transition-colors hover:bg-indigo-400 dark:bg-slate-800" />
-      <Panel id="studio" panelRef={studioRef} defaultSize="25%" minSize="15%" collapsible collapsedSize="0%"><EmptyPanel {...panels[2]} /></Panel>
+      <Panel id="studio" panelRef={studioRef} defaultSize="25%" minSize="15%" collapsible collapsedSize="0%"><StudioPanel notebookId={id} onAskQuestion={askQuestion} onOpenCitation={openCitation} /></Panel>
     </Group>
     </div>
-    {viewer && <SourceViewer notebookId={id} selection={viewer} onClose={() => setViewer(null)} onNavigate={(index) => setViewer((current) => current && ({ ...current, index }))} />}
+    {viewer && <SourceViewer notebookId={id} selection={viewer} onClose={() => setViewer(null)} onNavigate={(index) => setViewer((current) => current && ({ ...current, index }))} onAskQuestion={askQuestion} />}
   </main>;
 }

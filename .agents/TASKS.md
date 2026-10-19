@@ -52,6 +52,12 @@
 
 ## Level 5: Source guides and notes
 
+- [x] 5.1 Add versioned, token-budgeted map-reduce guides and content/model cache
+- [x] 5.2 Queue source guides and debounced notebook overviews
+- [x] 5.3 Add owned notes CRUD, saved chat citations, and conversion to sources
+- [x] 5.4 Build guide, overview, and client-only Tiptap Studio UI with Markdown export
+- [x] 5.5 Pass unit, integration, browser, and live timing checks; record report and commit
+
 ## Level 6: Text study artifacts
 
 ## Level 7: Interactive study artifacts

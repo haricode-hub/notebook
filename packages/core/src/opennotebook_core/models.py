@@ -145,3 +145,78 @@ class ChatMessage(Base):
     )
     model_name: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SourceGuide(Base):
+    __tablename__ = "source_guides"
+
+    source_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("sources.id", ondelete="CASCADE"), primary_key=True
+    )
+    notebook_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued")
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    topics: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    questions: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    model_name: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    error: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class NotebookOverview(Base):
+    __tablename__ = "notebook_overviews"
+
+    notebook_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("notebooks.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="queued")
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    topics: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    questions: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    model_name: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    error: Mapped[str | None] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class SummaryCache(Base):
+    __tablename__ = "summary_cache"
+
+    cache_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    topics: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    questions: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    model_name: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Note(Base):
+    __tablename__ = "notes"
+    __table_args__ = (Index("ix_notes_notebook_user_pinned", "notebook_id", "user_id", "pinned"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    notebook_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("notebooks.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    content_markdown: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    citations_json: Mapped[list[dict[str, object]]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
+    pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    converted_source_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("sources.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
