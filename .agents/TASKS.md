@@ -138,3 +138,14 @@
 - [ ] 13.8 Add Google Drive import or explicitly defer
 - [ ] 13.9 Add UI localization and chat output language
 - [ ] 13.10 Add notebook collaboration or explicitly defer
+
+## Level 14: Apple-style UI overhaul
+
+- [ ] 14.1 Install/read requested design skills, record ADR-015, and verify prerequisite 11.2 (skill read; Level 11.2 remains open)
+- [x] 14.2 Add design tokens, preference hook, springs, and Material fallbacks
+- [ ] 14.3 Add global press feedback, visible focus, and 44 px targets
+- [ ] 14.4 Workspace panels, mobile sheet, soft delete, undo and delayed purge
+- [ ] 14.5 Chat composer, streaming stability, and citation transitions
+- [ ] 14.6 Studio and artifact interaction polish
+- [ ] 14.7 Auth/settings/toast polish and development-only design lab
+- [ ] 14.8 Accessibility, performance, Playwright visual evidence, and report
