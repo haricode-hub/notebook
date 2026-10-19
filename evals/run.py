@@ -18,18 +18,46 @@ from sqlalchemy.pool import StaticPool
 ROOT = Path(__file__).resolve().parent
 MARKER_RE = re.compile(r"\[S\d+\]")
 CONTENT_WORDS = {
-    "about", "after", "also", "among", "because", "been", "before", "being",
-    "does", "during", "from", "have", "into", "near", "over", "that", "their",
-    "them", "then", "there", "these", "they", "this", "through", "under", "very",
-    "were", "what", "when", "where", "which", "while", "with", "would",
+    "about",
+    "after",
+    "also",
+    "among",
+    "because",
+    "been",
+    "before",
+    "being",
+    "does",
+    "during",
+    "from",
+    "have",
+    "into",
+    "near",
+    "over",
+    "that",
+    "their",
+    "them",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "through",
+    "under",
+    "very",
+    "were",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "with",
+    "would",
 }
 
 
 def claims_supported_by_citations(answer: str, evidence: list[str]) -> bool:
     """Conservative lexical support check: every answer sentence must map to its citations."""
-    cited_words = {
-        word for text in evidence for word in re.findall(r"[a-z0-9]+", text.casefold())
-    }
+    cited_words = {word for text in evidence for word in re.findall(r"[a-z0-9]+", text.casefold())}
     claims = [
         claim.strip()
         for claim in re.split(r"(?<=[.!?])\s+", MARKER_RE.sub("", answer))
@@ -107,9 +135,7 @@ class EvalMetrics:
         return self.relevant_answers / self.total
 
 
-async def run_evals(
-    *, rrf_k: int = 60, llm_provider: LLMProvider | None = None
-) -> EvalMetrics:
+async def run_evals(*, rrf_k: int = 60, llm_provider: LLMProvider | None = None) -> EvalMetrics:
     cases = json.loads((ROOT / "questions.json").read_text(encoding="utf-8"))
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool)
     fake = EvalEmbedding()
@@ -204,9 +230,7 @@ async def run_evals(
                 # Every answer sentence must have >=75% content-word support in
                 # the passages it cites. This is an offline proxy, not an LLM judge.
                 cited_text = [
-                    lookup[citation["n"]].text
-                    for citation in citations
-                    if citation["n"] in lookup
+                    lookup[citation["n"]].text for citation in citations if citation["n"] in lookup
                 ]
                 faithful += claims_supported_by_citations(answer, cited_text)
                 relevant += case["expected_fact"].casefold() in answer.casefold()
@@ -217,13 +241,11 @@ async def run_evals(
 
 if __name__ == "__main__":
     metrics = asyncio.run(run_evals())
+    print("FAKE OFFLINE EVAL: deterministic token vectors + GroundedFakeLLM; not Level 12 evidence")
     print(f"hit-rate@8: {metrics.hits}/{metrics.total} = {metrics.hit_rate_at_8:.1%}")
     print(f"citation validity: {metrics.valid_citations}/{metrics.total}")
     print(f"citation validity percent: {metrics.citation_validity:.1%}")
-    print(
-        f"faithfulness: {metrics.faithful_answers}/{metrics.total} = "
-        f"{metrics.faithfulness:.1%}"
-    )
+    print(f"faithfulness: {metrics.faithful_answers}/{metrics.total} = {metrics.faithfulness:.1%}")
     print(
         f"answer relevance: {metrics.relevant_answers}/{metrics.total} = "
         f"{metrics.answer_relevance:.1%}"

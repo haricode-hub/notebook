@@ -1,0 +1,47 @@
+name: Real RAG regression
+on:
+  schedule:
+    - cron: "35 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  heldout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      EMBED_BACKEND: gemma2
+      LLM_PROVIDER: openrouter
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      EVAL_CHAT_MODEL: ${{ vars.EVAL_CHAT_MODEL }}
+      EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL }}
+      LITELLM_LOCAL_MODEL_COST_MAP: "True"
+      HF_HOME: ${{ runner.temp }}/hf-cache
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          enable-cache: true
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/hf-cache
+          key: embeddinggemma-2-text-fp32-v1
+      - run: uv python install 3.13
+      - run: uv sync --frozen --all-packages
+      - name: Require configured real models and key
+        run: |
+          test -n "$OPENROUTER_API_KEY"
+          test -n "$EVAL_CHAT_MODEL"
+          test -n "$EVAL_JUDGE_MODEL"
+      - name: Run held-out real-stack evaluation
+        run: uv run --frozen --all-packages python evals/real/run.py --split heldout
+      - name: Enforce quality thresholds
+        shell: bash
+        run: |
+          result=$(ls -t evals/real/results/heldout_*.json | head -n 1)
+          uv run --frozen --all-packages python evals/real/check_thresholds.py "$result"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-rag-heldout-${{ github.run_id }}
+          path: evals/real/results/
+          if-no-files-found: ignore

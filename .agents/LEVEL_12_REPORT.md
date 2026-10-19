@@ -1,0 +1,36 @@
+# Level 12: Real Quality and Reliability
+
+Status: **IN PROGRESS**. The Level 11 prerequisite is not complete: task 11.2 and later runtime gates remain unchecked in `.agents/TASKS.md`. Work is proceeding because the user explicitly requested Level 12. No Level 11 or Level 12 acceptance gate is inferred from earlier level notes.
+
+`AGENTS_ADDENDUM.md` was not present at the repository root when checked. The provided Level 12 spec and the status/gap analysis were read.
+
+## Results
+
+| Gate | Command / evidence | Measured value | Status | Runner |
+|---|---|---:|---|---|
+| Real corpus + question set | `evals/real/docs/manifest.json`, `questions_dev.json`, `questions_heldout.json` | 12 public documents; 792 PDF pages; 48 dev + 12 held-out questions | Implemented; source content validation pending | Windows workspace |
+| Held-out isolation | `evals/real/test_run.py` | Separate files; harness requires explicit `--split`; no tuning has run | In progress | Windows workspace |
+| Real dev baseline | `evals/real/run.py --split dev` | 44/45 positive hit@8; MRR 0.9315; citation validity 40/48 (83.33%); citation precision 36/37 (97.30%); faithfulness 45/48 (93.75%); negative refusal 3/3 | Measured; dev only | Windows CPU + live OpenRouter |
+| Level 11 prerequisite | `.agents/TASKS.md` | Task 11.2 and runtime gates unchecked | Open | Repository state |
+
+The development baseline completed with real EmbeddingGemma 2 vectors, a live Google chat model, and a live Anthropic judge. This is a development result only; it is not the held-out acceptance result. Existing offline/fake evaluation results are not Level 12 evidence.
+
+## Known weaknesses discovered
+
+- Level 11 CI e2e and multiple earlier runtime acceptance gates remain open, including Level 0 cold-build timing, Level 9 Pass C, and Level 10 scale/VPS checks.
+- The local `.env` selects the fake embedding backend. A real-model evaluation must explicitly select the Gemma backend and load the official checkpoint; the new runner rejects fake mode.
+- `anthropic/claude-sonnet-4` returned OpenRouter 404 (“No endpoints found”); this produced no score. The official OpenRouter catalog lists `anthropic/claude-sonnet-4.5`, which is the current separate-family judge candidate for the retry.
+- The corpus now includes PDF and HTML publications, a NASA slide deck, a NIST webinar transcript, a numeric lakes assessment, and an authentic prompt-injection paper. It still lacks a scanned PDF and a separate web article source.
+- The corpus includes historical NIST SP 800-61 Rev. 2; its own cover marks it withdrawn and superseded by Rev. 3. Questions against it are version-specific, but it is not current incident-response guidance.
+- The current app PDF extractor has no OCR fallback; scanned-page citation mapping remains unverified.
+- Live OpenRouter, Kokoro, YouTube, Whisper, Linux PDF export, and upload-security measurements have not run in this pass.
+
+## Pass log
+
+### Pass 1 — eval set, harness, baseline
+
+- Added a source manifest with URLs, rights notes, sizes, and SHA-256 checksums for 12 sources, including six NIST PDFs, NIST HTML, EPA/NASA reports, a transcript, slides, and the instruction-hierarchy injection paper.
+- Added 60 questions in disjoint development and held-out files (48/12). Development includes multi-source, negative, transcript, and injection-content questions; held-out includes unseen numeric/tabular questions. Tuning is restricted to development data; held-out results will be run once after tuning.
+- Added a real-stack harness with real text-only FP32 EmbeddingGemma 2, a real OpenRouter answer model, and an explicit different-family judge. It refuses fake mode and writes full per-question results.
+- Development baseline completed with 746 passages, real text-only FP32 EmbeddingGemma 2, `google/gemini-3.1-flash-lite`, and different-family `anthropic/claude-sonnet-4.5` judge. Question SHA-256: `62af05cfece3cef78e88175c972c10ed9e7d849767780dbe153d4a04afbb51ba`; corpus manifest SHA-256: `e063e2bc5d7c9a24c048ec4a696f09294058343aff8849a4b62e76d9e8e0331c`. Detailed per-question output is in the ignored local file `evals/real/results/dev_20261019T160655Z.json`.
+- The main baseline defect was citation syntax: the model combined markers as `[S1, S2]`, which the production citation parser cannot validate. The next dev-only experiment changes only the prompt's citation-format instruction; held-out remains unused.

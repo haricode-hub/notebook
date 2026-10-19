@@ -1,0 +1,134 @@
+[
+  {
+    "id": "nist-ai-rmf",
+    "filename": "nist_ai_rmf_1_0.pdf",
+    "title": "NIST AI Risk Management Framework 1.0",
+    "url": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.100-1.pdf",
+    "format": "pdf",
+    "pages": 48,
+    "bytes": 1946127,
+    "sha256": "7576edb531d9848825814ee88e28b1795d3a84b435b4b797d3670eafdc4a89f1",
+    "rights": "NIST public-domain U.S. government work"
+  },
+  {
+    "id": "nist-genai",
+    "filename": "nist_genai_profile.pdf",
+    "title": "Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile",
+    "url": "https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf",
+    "format": "pdf",
+    "pages": 64,
+    "bytes": 1174643,
+    "sha256": "6e73620ab6b64e90ef2c04bf0e0d6246185a2f4b1b13cab0df494496cff89b6a",
+    "rights": "NIST public-domain U.S. government work"
+  },
+  {
+    "id": "nist-zero-trust",
+    "filename": "nist_zero_trust_800_207.pdf",
+    "title": "Zero Trust Architecture (SP 800-207)",
+    "url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-207.pdf",
+    "format": "pdf",
+    "pages": 59,
+    "bytes": 966908,
+    "sha256": "0290d6ece24874287316f4bf430fef770aa4ec08a2227c8f2c1e5b2ff975e03d",
+    "rights": "NIST public-domain U.S. government work"
+  },
+  {
+    "id": "nist-incident",
+    "filename": "nist_incident_handling_800_61r2.pdf",
+    "title": "Computer Security Incident Handling Guide (SP 800-61 Rev. 2)",
+    "url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-61r2.pdf",
+    "format": "pdf",
+    "pages": 80,
+    "bytes": 1744473,
+    "sha256": "b1c5ead0632dcfb979c59d8c462b094ad2465ddaf62d5c246289d6d9b4419df1",
+    "rights": "NIST public-domain U.S. government work"
+  },
+  {
+    "id": "nist-ot",
+    "filename": "nist_ot_security_800_82r3.pdf",
+    "title": "Guide to Operational Technology Security (SP 800-82 Rev. 3)",
+    "url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-82r3.pdf",
+    "format": "pdf",
+    "pages": 316,
+    "bytes": 8584345,
+    "sha256": "608f554514d381853e24e0b33123b7080fbd757826f460032690aade63394616",
+    "rights": "NIST public-domain U.S. government work"
+  },
+  {
+    "id": "nist-ssdf",
+    "filename": "nist_secure_software_800_218.pdf",
+    "title": "Secure Software Development Framework (SP 800-218)",
+    "url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-218.pdf",
+    "format": "pdf",
+    "pages": 36,
+    "bytes": 739891,
+    "sha256": "617746e553a9e2da49bfbd4eef0dfc3094758a39b869314e4173ac36605cde22",
+    "rights": "NIST public-domain U.S. government work"
+  },
+  {
+    "id": "nist-cui",
+    "filename": "nist_cui_800_171r3.html",
+    "title": "Protecting Controlled Unclassified Information (SP 800-171 Rev. 3)",
+    "url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/800-171r3/NIST.SP.800-171r3.html",
+    "format": "html",
+    "pages": null,
+    "bytes": 1219983,
+    "sha256": "09b70b4fb624c1be98be4f859b0b2ff449674067c1dc1bb69ed6b174c59ddf0f",
+    "rights": "NIST public-domain U.S. government work"
+  },
+  {
+    "id": "epa-lakes",
+    "filename": "epa_national_lakes_assessment_2009.pdf",
+    "title": "National Lakes Assessment 2007: A Collaborative Survey of the Nation?s Lakes",
+    "url": "https://www.epa.gov/national-aquatic-resource-surveys/national-lakes-assessment-2007-report",
+    "format": "pdf",
+    "pages": 118,
+    "bytes": 8343089,
+    "sha256": "a38ce75da93be5eccbc615c06b97592946acff1a54a33da5f37cd5c61f155cf8",
+    "rights": "U.S. government publication; source URL recorded"
+  },
+  {
+    "id": "nasa-sarasota",
+    "filename": "nasa_sarasota_heat_2024.pdf",
+    "title": "Sarasota Urban Heat Island Study (NASA DEVELOP)",
+    "url": "https://ntrs.nasa.gov/citations/20240005534",
+    "format": "pdf",
+    "pages": 29,
+    "bytes": 3192766,
+    "sha256": "156b5d118a60edaa065386caec5839f4bfd0bd92294bdb76e1934c0c88598fd3",
+    "rights": "NASA government technical report; source URL recorded"
+  },
+  {
+    "id": "nist-iot-transcript",
+    "filename": "nist_iot_webinar_transcript.pdf",
+    "title": "Trusted IoT Onboarding: Updates to Draft NIST SP 1800-36 Webinar Q&A Session",
+    "url": "https://www.nccoe.nist.gov/sites/default/files/2024-10/iot-onboarding-webinar-july-10-2024-transcript.pdf",
+    "format": "pdf",
+    "pages": 6,
+    "bytes": 218704,
+    "sha256": "479064fff025ff12e9ecb231bb8fbc27b5c8c1c78d009b95a7df4d2318684c73",
+    "rights": "NIST public-domain U.S. government work"
+  },
+  {
+    "id": "nasa-sarasota-slides",
+    "filename": "nasa_sarasota_climate_slides.pdf",
+    "title": "Sarasota Climate: Monitoring Heat and Assessing Heat Vulnerability (Spring 2024 slides)",
+    "url": "https://ntrs.nasa.gov/citations/20240003266",
+    "format": "pdf",
+    "pages": 23,
+    "bytes": 3353003,
+    "sha256": "d6dc56354b98541532c02c730fcd8f90e0d195a9a3f9e8539c8e9b5abee5fb16",
+    "rights": "NASA public technical presentation"
+  },
+  {
+    "id": "instruction-hierarchy",
+    "filename": "instruction_hierarchy_prompt_injection.pdf",
+    "title": "The Instruction Hierarchy: Training LLMs to Prioritize Privileged Instructions",
+    "url": "https://arxiv.org/abs/2404.13208",
+    "format": "pdf",
+    "pages": 13,
+    "bytes": 488381,
+    "sha256": "fbc2d65e913e75b8f0ae74e83e3443c36a727636d1038a071a2f10d8be63dac4",
+    "rights": "Public research paper, arXiv version 1; attribution retained"
+  }
+]

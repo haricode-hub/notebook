@@ -1,0 +1,106 @@
+[
+  {
+    "id": "d06",
+    "question": "Which function addresses prioritizing and acting on AI risks?",
+    "expected_fact": "Manage prioritizes and acts on AI risks",
+    "source_ids": [
+      "nist-ai-rmf"
+    ],
+    "negative": false
+  },
+  {
+    "id": "d12",
+    "question": "What is the profile intended to help organizations do?",
+    "expected_fact": "Identify, assess, and manage generative AI risks",
+    "source_ids": [
+      "nist-genai"
+    ],
+    "negative": false
+  },
+  {
+    "id": "d18",
+    "question": "What should be protected according to the zero trust resource focus?",
+    "expected_fact": "Individual resources rather than network segments",
+    "source_ids": [
+      "nist-zero-trust"
+    ],
+    "negative": false
+  },
+  {
+    "id": "d24",
+    "question": "What are incident response plans intended to provide?",
+    "expected_fact": "A roadmap for implementing incident response capability and handling incidents",
+    "source_ids": [
+      "nist-incident"
+    ],
+    "negative": false
+  },
+  {
+    "id": "d30",
+    "question": "What is the title-level purpose of NIST SP 800-82 Rev. 3?",
+    "expected_fact": "Guide to Operational Technology Security",
+    "source_ids": [
+      "nist-ot"
+    ],
+    "negative": false
+  },
+  {
+    "id": "d36",
+    "question": "What is the SSDF intended to provide organizations and software producers?",
+    "expected_fact": "A common vocabulary and set of secure development practices",
+    "source_ids": [
+      "nist-ssdf"
+    ],
+    "negative": false
+  },
+  {
+    "id": "d40",
+    "question": "What is the purpose of NIST SP 800-171 Rev. 3?",
+    "expected_fact": "Protect the confidentiality of CUI in nonfederal systems",
+    "source_ids": [
+      "nist-cui"
+    ],
+    "negative": false
+  },
+  {
+    "id": "d44",
+    "question": "What study period and age-group share are shown on the Sarasota slide deck?s study-area slide?",
+    "expected_fact": "Summer 2019?2023 and 40% of residents aged 65 or older",
+    "source_ids": [
+      "nasa-sarasota-slides"
+    ],
+    "negative": false
+  },
+  {
+    "id": "d48",
+    "question": "In the 2007 National Lakes Assessment, what shares of lakes were rated good, fair, and poor for biological condition?",
+    "expected_fact": "56 percent good, 21 percent fair, and 22 percent poor",
+    "source_ids": [
+      "epa-lakes"
+    ],
+    "negative": false
+  },
+  {
+    "id": "d52",
+    "question": "What is one kind of intervention considered in the Sarasota heat study?",
+    "expected_fact": "Heat mitigation strategies",
+    "source_ids": [
+      "nasa-sarasota"
+    ],
+    "negative": false
+  },
+  {
+    "id": "d56",
+    "question": "What percentage reduction in incident response time does NIST guarantee by using its guide?",
+    "expected_fact": "Not stated in the supplied sources",
+    "source_ids": [],
+    "negative": true
+  },
+  {
+    "id": "d60",
+    "question": "What is the precise 2026 population of Sarasota stated by the NASA heat report?",
+    "expected_fact": "Not stated in the supplied sources",
+    "source_ids": [],
+    "negative": true
+  }
+]

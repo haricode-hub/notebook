@@ -1,4 +1,4 @@
-.PHONY: dev test lint typecheck migrate auth-migrate seed sample types smoke eval benchmark-chat
+.PHONY: dev test lint typecheck migrate auth-migrate seed sample types smoke eval eval-real eval-real-heldout benchmark-chat
 
 dev:
 	docker compose up --build -d
@@ -36,6 +36,12 @@ smoke:
 
 eval:
 	uv run --frozen --all-packages python evals/run.py
+
+eval-real:
+	uv run --frozen --all-packages python evals/real/run.py --split dev
+
+eval-real-heldout:
+	uv run --frozen --all-packages python evals/real/run.py --split heldout
 
 benchmark-chat:
 	uv run --frozen --all-packages python scripts/benchmark_level3.py

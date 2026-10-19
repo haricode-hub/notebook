@@ -173,6 +173,18 @@ This decision does not change Level 0's existing 90-second cold-build acceptance
 
 Add `scripts/dev.ps1` as a Windows PowerShell equivalent for the Makefile targets and `scripts/loop.ps1` as a one-task-per-invocation Codex runner. Neither script bypasses approvals or modifies test/runtime thresholds.
 
+## ADR-017: Real-stack RAG evaluation data and runner
+
+**Status:** Accepted for Level 12 implementation (2026-10-19).
+
+Keep the real-stack evaluation separate from the synthetic offline `evals/run.py`. The Level 12 runner loads the official `google/embeddinggemma-2` text encoder in FP32, uses the configured real OpenRouter answer model, and requires a configured judge from a different model family. It refuses a fake embedding/LLM configuration. Corpus checksums and attribution are stored in `evals/real/docs/manifest.json`.
+
+The 60-question set is split into separate files: 48 development and 12 held-out questions. Retrieval/prompt experiments use development only. Held-out evaluation is run only after tuning and by the nightly workflow. This ADR records a measurement method; it does not alter the Level 12 acceptance thresholds or any other acceptance criterion. A measured baseline will be added to the Level 12 report only after both real models complete the run.
+
+Initial corpus caveat: current sources include six NIST PDFs, one NIST HTML publication, an EPA lakes report, a NASA Sarasota technical report and slide deck, a NIST webinar transcript, and an instruction-hierarchy research paper (792 PDF pages). The corpus still lacks a scanned PDF and a standalone web article; those remain explicit gaps for subsequent Level 12 passes.
+
+Pass 1 model configuration check (2026-10-19): judge model variable changed from `anthropic/claude-sonnet-4` to `anthropic/claude-sonnet-4.5`. OpenRouter returned HTTP 404 / “No endpoints found” for the former after the answer model produced the first response; no eval result or metric was written. The latter is listed in the current official [OpenRouter catalog](https://openrouter.ai/anthropic/claude-sonnet-4.5) and belongs to a different family than the configured Google answer model. The retry is pending; no baseline number is claimed yet.
+
 ### Level 9 multimodal extension to ADR-006 (2026-10-19)
 
 The official [EmbeddingGemma 2 model card and usage guide](https://huggingface.co/google/embeddinggemma-2/blob/c3f2237ce16fe33d1bb9dab8692c29c79865bdeb/embedding_gemma2_documentation.md) documents Sentence Transformers inputs as per-sample dictionaries such as `{"image": image, "text": caption}` (and `{"audio": "path/to/audio.wav"}`). The processor accepts 70, 140, 280, 560, or 1120 visual soft tokens per image; the default is 280. Our first implementation uses 70 to limit latency and keeps the audio tower disabled. The card documents `vision_config=None` and `audio_config=None` passed via `config_kwargs`; leaving vision configured while setting audio to `None` loads text+vision and skips the audio tower. The service accepts image+text items through `/embed-media`; it also accepts WAV audio bytes as a temporary file path when the audio tower is enabled. The model card documents audio as a path/URL or a 1-D float array sampled at 16 kHz. The caller must supply suitable 16 kHz mono WAV; Level 9 indexes extracted figures and existing Whisper transcript chunks, not raw audio windows.

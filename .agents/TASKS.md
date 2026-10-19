@@ -113,3 +113,15 @@
 - [ ] 11.5 Add and run Linux scale acceptance for Compose, k6, axe, EXPLAIN, recovery, admin, fallback, and backup/restore
 - [ ] 11.6 Complete VPS runbook and rehearsal if a target is available
 - [ ] 11.7 Complete report, branch/tag, type/lint, and loop-prompt hygiene
+
+## Level 12: Real Quality and Reliability
+
+- [ ] 12.1 Build 10–12 document real corpus, 60+ questions, and isolated held-out split
+- [ ] 12.2 Implement a real EmbeddingGemma + real chat eval harness, baseline, and nightly regression workflow
+- [ ] 12.3 Run one-variable retrieval experiments on development data and log each in ADRs
+- [ ] 12.4 Measure dense-PDF stages and add user-visible ingestion ETA
+- [ ] 12.5 Add OCR for scanned PDFs and image uploads with citation mapping
+- [ ] 12.6 Measure live Kokoro, YouTube transcript/fallback, and CPU Whisper behavior
+- [ ] 12.7 Add and test Linux server-side PDF export
+- [ ] 12.8 Add XSS, prompt-injection, SSRF, and upload-fuzz regressions and fixes
+- [ ] 12.9 Verify persona and response-length settings change chat and artifact outputs
