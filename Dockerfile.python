@@ -37,6 +37,7 @@ EXPOSE 8000
 CMD ["sh", "-c", "alembic -c packages/core/alembic.ini upgrade head && uvicorn opennotebook_api.main:app --host 0.0.0.0 --port 8000 --workers 2"]
 
 FROM runtime AS worker
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 COPY --from=build-worker /app /app
 CMD ["arq", "opennotebook_worker.main.WorkerSettings"]
 

@@ -109,7 +109,9 @@ def sample_chunk(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("recipe", list(RECIPES_REGISTRY))
+@pytest.mark.parametrize(
+    "recipe", [recipe for recipe in RECIPES_REGISTRY if recipe != "audio_overview"]
+)
 async def test_each_recipe_accepts_grounded_fixture(recipe: str) -> None:
     spy = ScriptedLLM([fixture_document(recipe)])
     document, citations = await generate_artifact(
@@ -143,6 +145,8 @@ async def test_invalid_json_gets_exactly_one_repair_and_fabricated_refs_fail() -
 async def test_map_reduce_fifty_pages_all_recipes_under_ninety_seconds() -> None:
     chunks = [sample_chunk(number) for number in range(1, 51)]
     for recipe in RECIPES_REGISTRY:
+        if recipe == "audio_overview":
+            continue
         start = time.perf_counter()
         document, citations = await generate_artifact(
             recipe,
@@ -200,7 +204,7 @@ async def test_artifact_api_worker_selection_failure_retry_and_exports(
         owner, other = auth(keys.token("owner")), auth(keys.token("other"))
         path = f"/notebooks/{notebook_id}/artifacts"
         recipes = await client.get(f"{path}/recipes", headers=owner)
-        assert recipes.status_code == 200 and len(recipes.json()) == 8
+        assert recipes.status_code == 200 and len(recipes.json()) == 9
         assert (await client.get(path, headers=other)).status_code == 404
         rejected = await client.post(
             path, headers=owner, json={"recipe": "study_guide", "source_ids": ["unselected"]}

@@ -133,6 +133,18 @@ export const artifactApi = {
   create: (id: string, body: ArtifactCreate) => apiFetch<Artifact>(`/notebooks/${encodeURIComponent(id)}/artifacts`, { method: "POST", body: JSON.stringify(body) }),
   regenerate: (id: string, artifactId: string) => apiFetch<Artifact>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/regenerate`, { method: "POST" }),
   remove: (id: string, artifactId: string) => apiFetch<void>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}`, { method: "DELETE" }),
+  cancel: (id: string, artifactId: string) => apiFetch<Artifact>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/cancel`, { method: "POST" }),
+  async downloadAudio(id: string, artifactId: string): Promise<Blob> {
+    const path = `/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/audio`;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const token = await getToken(attempt > 0);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+      if (response.status === 401 && attempt === 0) continue;
+      if (!response.ok) throw new Error(`Audio download failed (${response.status})`);
+      return response.blob();
+    }
+    throw new Error("Your session has expired. Please sign in again.");
+  },
   flashcardProgress: (id: string, artifactId: string) => apiFetch<{ card_index: number; box: number; due_at: string; last_result: string | null }[]>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/flashcards/progress`),
   reviewFlashcard: (id: string, artifactId: string, cardIndex: number, known: boolean) => apiFetch<{ card_index: number; box: number; due_at: string; last_result: string | null }>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/flashcards/${cardIndex}/review`, { method: "POST", body: JSON.stringify({ known }) }),
   quizAttempts: (id: string, artifactId: string) => apiFetch<{ id: string; score: number; total: number; answers: number[]; wrong_indices: number[]; created_at: string }[]>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/quiz/attempts`),
@@ -148,6 +160,10 @@ export const artifactApi = {
     }
     throw new Error("Your session has expired. Please sign in again.");
   },
+};
+
+export const audioApi = {
+  download: (id: string, artifactId: string) => artifactApi.downloadAudio(id, artifactId),
 };
 
 export const chatApi = {

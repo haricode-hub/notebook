@@ -11,6 +11,7 @@ from typing import Literal, Protocol, cast
 from docx import Document
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from opennotebook_core.audio import AudioOverview
 from opennotebook_core.models import Chunk
 from opennotebook_core.prompts.artifact_v2 import RECIPES, artifact_messages, map_messages
 from opennotebook_core.prompts.chat_v1 import MARKER, Citation
@@ -129,6 +130,13 @@ class ArtifactRecipe:
 RECIPES_REGISTRY: dict[str, ArtifactRecipe] = {
     key: ArtifactRecipe(key, title, instruction) for key, (title, instruction) in RECIPES.items()
 }
+RECIPES_REGISTRY["audio_overview"] = ArtifactRecipe(
+    "audio_overview",
+    "Audio overview",
+    "Create a grounded two-host conversation.",
+    "audio_player_v1",
+    AudioOverview,
+)
 for _id, _schema, _title, _renderer in (
     ("mindmap", MindMapArtifact, "Mind map", "mindmap_v1"),
     ("flashcards", FlashcardsArtifact, "Flashcards", "flashcards_v1"),
@@ -142,7 +150,9 @@ for _id, _schema, _title, _renderer in (
         _schema,
     )
 
-GeneratedArtifact = ArtifactDocument | MindMapArtifact | FlashcardsArtifact | QuizArtifact
+GeneratedArtifact = (
+    ArtifactDocument | MindMapArtifact | FlashcardsArtifact | QuizArtifact | AudioOverview
+)
 
 
 class ArtifactLLM(Protocol):

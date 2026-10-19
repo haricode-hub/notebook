@@ -1,18 +1,19 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, FileText, RotateCcw, Trash2, X } from "lucide-react";
+import { Ban, Download, FileText, RotateCcw, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { CitedMarkdown } from "@/components/cited-markdown";
 import { Button } from "@/components/ui/button";
+import { AudioPlayer } from "@/components/audio-player";
 import { Input } from "@/components/ui/input";
 import { artifactApi, getToken, sourceApi, type Artifact, type ChatCitation } from "@/lib/api-client";
 
 const labels: Record<string, string> = {
-  briefing: "Briefing doc", study_guide: "Study guide", faq: "FAQ", timeline: "Timeline", report: "Custom report", mindmap: "Mind map", flashcards: "Flashcards", quiz: "Quiz",
+  briefing: "Briefing doc", study_guide: "Study guide", faq: "FAQ", timeline: "Timeline", report: "Custom report", mindmap: "Mind map", flashcards: "Flashcards", quiz: "Quiz", audio_overview: "Audio overview",
 };
 const MindMapView = dynamic(() => import("@/components/mindmap-view"), { ssr: false });
 const FlashcardsView = dynamic(() => import("@/components/flashcards-view"), { ssr: false });
@@ -99,6 +100,7 @@ function ArtifactViewer({ notebookId, artifact, onClose, onOpenCitation, onAskQu
       {artifact.recipe === "mindmap" && artifact.output && "root" in artifact.output && <MindMapView root={artifact.output.root} citations={artifact.citations} onOpenCitation={(citation, citations) => { onClose(); onOpenCitation(citation, citations); }} onAskQuestion={(question) => { onClose(); onAskQuestion(question); }} />}
       {artifact.recipe === "flashcards" && artifact.output && "cards" in artifact.output && <FlashcardsView notebookId={notebookId} artifactId={artifact.id} cards={artifact.output.cards} citations={artifact.citations} />}
       {artifact.recipe === "quiz" && artifact.output && "questions" in artifact.output && <QuizView notebookId={notebookId} artifactId={artifact.id} questions={artifact.output.questions} citations={artifact.citations} onOpenCitation={(citation, citations) => { onClose(); onOpenCitation(citation, citations); }} />}
+      {artifact.recipe === "audio_overview" && artifact.output && "transcript" in artifact.output && <AudioPlayer notebookId={notebookId} artifactId={artifact.id} transcript={artifact.output.transcript} citations={artifact.citations} onOpenCitation={(citation, citations) => { onClose(); onOpenCitation(citation, citations); }} />}
       <h2 className="mb-2 text-xl font-semibold">Sources</h2>
       <div className="flex flex-wrap gap-2">{artifact.citations.map((citation) => <button type="button" key={citation.n} className="rounded border px-2 py-1 text-sm" onClick={() => { onClose(); onOpenCitation(citation, artifact.citations); }}>[S{citation.n}] {citation.source_name}{citation.page_start ? `, p. ${citation.page_start}` : ""}</button>)}</div>
     </article>
@@ -118,6 +120,7 @@ export function ArtifactStudio({ notebookId, onOpenCitation, onAskQuestion }: {
   const [recipe, setRecipe] = useState<string | null>(null);
   const [sourceIds, setSourceIds] = useState<string[]>([]);
   const [language, setLanguage] = useState("English");
+  const [tone, setTone] = useState<"conversational" | "curious" | "formal">("conversational");
   const [length, setLength] = useState<"short" | "default" | "long">("default");
   const [focus, setFocus] = useState("");
   const [questionCount, setQuestionCount] = useState(10);
@@ -132,7 +135,7 @@ export function ArtifactStudio({ notebookId, onOpenCitation, onAskQuestion }: {
     if (!recipe || !sourceIds.length) return;
     setCreating(true);
     try {
-      await artifactApi.create(notebookId, { recipe, source_ids: sourceIds, language, length, focus, model_override: modelOverride, question_count: questionCount, difficulty });
+      await artifactApi.create(notebookId, { recipe, source_ids: sourceIds, language, tone, length, focus, model_override: modelOverride, question_count: questionCount, difficulty });
       setRecipe(null);
       await refresh();
       toast.success("Artifact queued");
@@ -149,11 +152,12 @@ export function ArtifactStudio({ notebookId, onOpenCitation, onAskQuestion }: {
       <div className="flex items-start justify-between gap-2"><button type="button" disabled={artifact.status !== "ready"} onClick={() => setViewId(artifact.id)} className="text-left text-sm font-medium hover:text-indigo-600 disabled:cursor-default">{artifact.output?.title ?? labels[artifact.recipe] ?? artifact.recipe}</button><span className="text-xs text-slate-500">{artifact.status}</span></div>
       {artifact.status === "running" || artifact.status === "queued" ? <div className="mt-2"><div className="mb-1 text-xs text-slate-500">{artifact.stage} · {artifact.progress}%</div><div className="h-1.5 rounded bg-slate-200"><div className="h-full rounded bg-indigo-500" style={{ width: `${artifact.progress}%` }} /></div></div> : null}
       {artifact.error && <p className="mt-1 text-xs text-red-600">{artifact.error}</p>}
-      <div className="mt-1 flex gap-1">{artifact.status === "failed" && <Button size="sm" variant="outline" onClick={async () => { try { await artifactApi.regenerate(notebookId, artifact.id); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not retry"); } }}>Retry</Button>}{["ready", "failed"].includes(artifact.status) && <Button size="sm" variant="ghost" aria-label={`Delete ${artifact.recipe} artifact`} onClick={async () => { try { await artifactApi.remove(notebookId, artifact.id); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not delete"); } }}><Trash2 className="size-3" /></Button>}</div>
+      <div className="mt-1 flex gap-1">{artifact.status === "failed" && <Button size="sm" variant="outline" onClick={async () => { try { await artifactApi.regenerate(notebookId, artifact.id); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not retry"); } }}>Retry</Button>}{artifact.recipe === "audio_overview" && ["queued", "running"].includes(artifact.status) && <Button size="sm" variant="outline" onClick={async () => { try { await artifactApi.cancel(notebookId, artifact.id); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not cancel audio"); } }}><Ban className="size-3" /> Cancel</Button>}{["ready", "failed", "cancelled"].includes(artifact.status) && <Button size="sm" variant="ghost" aria-label={`Delete ${artifact.recipe} artifact`} onClick={async () => { try { await artifactApi.remove(notebookId, artifact.id); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not delete"); } }}><Trash2 className="size-3" /></Button>}</div>
     </li>)}</ul></div> : null}
     {recipe && createPortal(<div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Generate artifact"><div className="w-full max-w-lg space-y-3 rounded-xl bg-white p-5 shadow-xl dark:bg-slate-900"><div className="flex justify-between"><h2 className="text-lg font-semibold">Generate {labels[recipe]}</h2><Button size="sm" variant="ghost" aria-label="Close options" onClick={() => setRecipe(null)}><X className="size-4" /></Button></div>
       <fieldset><legend className="mb-1 text-sm font-medium">Sources</legend><div className="max-h-32 space-y-1 overflow-y-auto">{readySources.map((source) => <label key={source.id} className="flex gap-2 text-sm"><input type="checkbox" checked={sourceIds.includes(source.id)} onChange={(event) => setSourceIds((current) => event.target.checked ? [...current, source.id] : current.filter((id) => id !== source.id))} />{source.name}</label>)}</div></fieldset>
-      <label className="block text-sm">Language<Input value={language} onChange={(event) => setLanguage(event.target.value)} maxLength={50} /></label>
+      {recipe === "audio_overview" ? <label className="block text-sm">Language<select aria-label="Language" className="mt-1 w-full rounded border p-2 dark:bg-slate-900" value={language} onChange={(event) => setLanguage(event.target.value)}><option>English</option><option>British English</option><option>Spanish</option><option>French</option><option>Hindi</option></select></label> : <label className="block text-sm">Language<Input value={language} onChange={(event) => setLanguage(event.target.value)} maxLength={50} /></label>}
+      {recipe === "audio_overview" && <label className="block text-sm">Tone<select aria-label="Audio tone" className="mt-1 w-full rounded border p-2 dark:bg-slate-900" value={tone} onChange={(event) => setTone(event.target.value as typeof tone)}><option value="conversational">Conversational</option><option value="curious">Curious</option><option value="formal">Formal</option></select></label>}
       <label className="block text-sm">Length<select className="mt-1 w-full rounded border p-2 dark:bg-slate-900" value={length} onChange={(event) => setLength(event.target.value as typeof length)}><option value="short">Short</option><option value="default">Default</option><option value="long">Long</option></select></label>
       {recipe === "quiz" && <><label className="block text-sm">Question count<select className="mt-1 w-full rounded border p-2 dark:bg-slate-900" value={questionCount} onChange={(event) => setQuestionCount(Number(event.target.value))}>{[5, 10, 15, 20].map((count) => <option key={count} value={count}>{count}</option>)}</select></label><label className="block text-sm">Difficulty<select className="mt-1 w-full rounded border p-2 dark:bg-slate-900" value={difficulty} onChange={(event) => setDifficulty(event.target.value as typeof difficulty)}><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select></label></>}
       <label className="block text-sm">Focus (optional)<textarea className="mt-1 w-full rounded border p-2 dark:bg-slate-900" value={focus} onChange={(event) => setFocus(event.target.value)} maxLength={2000} rows={2} /></label>

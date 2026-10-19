@@ -4,6 +4,16 @@ from typing import Any
 
 from arq.connections import RedisSettings
 from opennotebook_core.artifacts import generate_artifact
+from opennotebook_core.audio import (
+    AudioJobCancelled,
+    AudioLLM,
+    AudioOverview,
+    FakeLLMForAudio,
+    TimedAudioLine,
+    generate_script,
+    run_with_semaphore,
+    word_count,
+)
 from opennotebook_core.chunking import chunk_document
 from opennotebook_core.config import get_settings
 from opennotebook_core.db import make_session_factory
@@ -24,8 +34,9 @@ from opennotebook_core.queue import enqueue_source_guide, schedule_overview
 from opennotebook_core.safe_fetch import fetch_public_url
 from opennotebook_core.storage import make_storage
 from opennotebook_core.summarization import cache_key, configured_summary_llm, summarize_text
+from opennotebook_core.tts import make_tts_provider, mp3_duration, stitch_mp3
 from redis.asyncio import Redis
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -478,9 +489,17 @@ async def _artifact_stage(
         artifact = await session.get(Artifact, artifact_id)
         if artifact is None:
             return
+        if artifact.status == "cancelled" and stage != "cancelled":
+            return
         artifact.stage = stage
         artifact.status = (
-            "failed" if stage == "failed" else "ready" if stage == "ready" else "running"
+            "failed"
+            if stage == "failed"
+            else "ready"
+            if stage == "ready"
+            else "cancelled"
+            if stage == "cancelled"
+            else "running"
         )
         artifact.progress = progress
         artifact.error = error
@@ -488,7 +507,13 @@ async def _artifact_stage(
         if job is not None:
             job.stage = stage
             job.status = (
-                "failed" if stage == "failed" else "succeeded" if stage == "ready" else "running"
+                "failed"
+                if stage == "failed"
+                else "succeeded"
+                if stage == "ready"
+                else "cancelled"
+                if stage == "cancelled"
+                else "running"
             )
             job.progress = progress
             job.error = error
@@ -581,6 +606,261 @@ async def generate_text_artifact(ctx: dict[str, Any], artifact_id: str) -> str:
     return artifact_id
 
 
+async def generate_audio_overview(ctx: dict[str, Any], artifact_id: str) -> str:
+    """Outline, script, check support, synthesize, stitch and store a podcast overview."""
+    settings = ctx.get("settings") or get_settings()
+    factory = ctx.get("session_factory") or make_session_factory(settings)
+    storage = ctx.get("storage") or make_storage(settings)
+    redis: Any = ctx.get("redis") or Redis.from_url(settings.redis_url)
+    owns_redis = ctx.get("redis") is None
+    try:
+        async with factory() as session:
+            artifact = await session.get(Artifact, artifact_id)
+            if artifact is None:
+                return artifact_id
+            sources = list(
+                (
+                    await session.scalars(
+                        select(Source).where(
+                            Source.notebook_id == artifact.notebook_id,
+                            Source.user_id == artifact.user_id,
+                            Source.id.in_(artifact.source_ids),
+                            Source.selected.is_(True),
+                            Source.status == "ready",
+                        )
+                    )
+                ).all()
+            )
+            if len(sources) != len(artifact.source_ids):
+                raise ValueError("An audio source is no longer selected or ready")
+            chunks = list(
+                (
+                    await session.scalars(
+                        select(Chunk)
+                        .where(
+                            Chunk.notebook_id == artifact.notebook_id,
+                            Chunk.source_id.in_(artifact.source_ids),
+                        )
+                        .order_by(Chunk.source_id, Chunk.ordinal)
+                    )
+                ).all()
+            )
+            row = await session.get(UserSettings, artifact.user_id)
+            configured_audio_llm = ctx.get("audio_llm")
+            llm: AudioLLM
+            if configured_audio_llm is None:
+                if settings.llm_provider == "fake":
+                    llm, model = FakeLLMForAudio(), "fake"
+                else:
+                    llm, model = configured_summary_llm(
+                        settings,
+                        row,
+                        model_override=str(artifact.options_json.get("model_override") or ""),
+                    )
+            elif isinstance(configured_audio_llm, tuple):
+                llm, model = configured_audio_llm
+            else:
+                llm, model = configured_audio_llm, "fake"
+            source_names = {source.id: source.name for source in sources}
+            notebook_id = artifact.notebook_id
+            options = dict(artifact.options_json)
+            evidence = [
+                {
+                    "ref": index,
+                    "source": source_names.get(chunk.source_id, "Source"),
+                    "page": chunk.page_start,
+                    "text": chunk.text[:1800],
+                }
+                for index, chunk in enumerate(chunks[:40], 1)
+            ]
+        if not evidence:
+            raise ValueError("No indexed source text is available for this audio overview")
+
+        async def cancelled() -> bool:
+            return bool(await redis.get(f"audio:cancel:{artifact_id}"))
+
+        async def stage(name: str, progress: int) -> bool:
+            if await cancelled():
+                await _artifact_stage(ctx, artifact_id, "cancelled", progress, "Cancelled by user")
+                return False
+            await _artifact_stage(ctx, artifact_id, name, progress)
+            return True
+
+        if not await stage("outline", 10):
+            return artifact_id
+
+        async def generation_progress(name: str) -> bool:
+            return await stage(name, 25 if name == "script" else 40)
+
+        try:
+            script, lines, target_words = await generate_script(
+                llm, evidence, options, progress=generation_progress
+            )
+        except AudioJobCancelled:
+            return artifact_id
+        # generate_script runs the line-level support pass and drops every unsupported line.
+        if not await stage("tts", 45):
+            return artifact_id
+        tts = ctx.get("tts_provider") or make_tts_provider(
+            settings.tts_provider,
+            base_url=settings.tts_url,
+            api_key=settings.openai_api_key,
+            model=settings.openai_tts_model,
+        )
+
+        async def synthesize() -> list[bytes]:
+            segments: list[bytes] = []
+            total = len(lines)
+            for index, line in enumerate(lines):
+                if await cancelled():
+                    break
+                if settings.tts_provider == "openai":
+                    voice = "nova" if line.speaker == "Maya" else "onyx"
+                else:
+                    language = str(options.get("language", "English"))
+                    voices = {
+                        "English": ("af_heart", "am_michael"),
+                        "British English": ("bf_alice", "bm_fable"),
+                        "Spanish": ("ef_dora", "em_alex"),
+                        "French": ("ff_siwis", "fm_alex"),
+                        "Hindi": ("hf_alpha", "hm_omega"),
+                    }
+                    if language not in voices:
+                        raise ValueError("Choose a language supported by the audio service")
+                    voice = voices[language][0 if line.speaker == "Maya" else 1]
+                segments.append(
+                    await tts.synthesize(line.text, voice, str(options.get("language", "English")))
+                )
+                await _artifact_stage(ctx, artifact_id, "tts", 45 + int(30 * (index + 1) / total))
+            return segments
+
+        segments = await run_with_semaphore(
+            redis, synthesize, slots=settings.tts_concurrency, timeout=1800
+        )
+        if await cancelled():
+            await _artifact_stage(ctx, artifact_id, "cancelled", 75, "Cancelled by user")
+            return artifact_id
+        if not segments:
+            raise ValueError("Text-to-speech returned no audio")
+        if not await stage("stitch", 82):
+            return artifact_id
+        spoken_words = word_count(lines)
+        expected_seconds = spoken_words / 150 * 60
+        mp3 = await asyncio.to_thread(stitch_mp3, segments, expected_seconds=expected_seconds)
+        duration = await asyncio.to_thread(mp3_duration, mp3)
+        if abs(duration - expected_seconds) > expected_seconds * 0.10:
+            raise ValueError("Stitched MP3 duration is outside the requested speech length")
+        if not await stage("store", 94):
+            return artifact_id
+        key = f"audio/{artifact.user_id if artifact else 'unknown'}/{artifact_id}.mp3"
+        await storage.put(key, mp3)
+        citations = [
+            {
+                "n": ref,
+                "chunk_id": chunks[ref - 1].id,
+                "source_id": chunks[ref - 1].source_id,
+                "page_start": chunks[ref - 1].page_start,
+                "char_start": chunks[ref - 1].char_start,
+                "char_end": chunks[ref - 1].char_end,
+                "source_name": source_names.get(chunks[ref - 1].source_id, "Source"),
+                "quote": chunks[ref - 1].text[:500],
+            }
+            for ref in sorted({ref for line in lines for ref in line.citation_refs})
+        ]
+        elapsed = 0.0
+        transcript: list[TimedAudioLine] = []
+        for line in lines:
+            line_duration = len(line.text.split()) / 150 * 60
+            transcript.append(
+                TimedAudioLine(
+                    speaker=line.speaker,
+                    text=line.text,
+                    citation_refs=line.citation_refs,
+                    start=elapsed,
+                    end=elapsed + line_duration,
+                )
+            )
+            elapsed += line_duration
+        output = AudioOverview(
+            title=script.title,
+            transcript=transcript,
+            duration_seconds=duration,
+            target_words=target_words,
+            storage_key=key,
+        )
+        await _artifact_stage(ctx, artifact_id, "saving", 98)
+        async with factory() as session:
+            artifact = await session.get(Artifact, artifact_id)
+            if artifact is None:
+                await storage.delete(key)
+                return artifact_id
+            was_cancelled = await cancelled()
+            if not was_cancelled:
+                finalized = await session.execute(
+                    update(Artifact)
+                    .where(
+                        Artifact.id == artifact_id,
+                        Artifact.status.in_(["queued", "running"]),
+                    )
+                    .values(
+                        output_json=output.model_dump(),
+                        citations_json=citations,
+                        model_name=model,
+                        status="ready",
+                        stage="ready",
+                        progress=100,
+                        error=None,
+                    )
+                )
+                was_cancelled = bool(getattr(finalized, "rowcount", 0) != 1)
+            if was_cancelled:
+                await session.execute(
+                    update(Artifact)
+                    .where(
+                        Artifact.id == artifact_id,
+                        Artifact.status.in_(["queued", "running"]),
+                    )
+                    .values(
+                        status="cancelled",
+                        stage="cancelled",
+                        progress=0,
+                        error="Cancelled by user",
+                        output_json=None,
+                        citations_json=[],
+                    )
+                )
+                await storage.delete(key)
+            else:
+                job = await session.get(Job, artifact.job_id) if artifact.job_id else None
+                if job is not None:
+                    job.status = "succeeded"
+                    job.stage = "ready"
+                    job.progress = 100
+                    job.error = None
+            await session.commit()
+        await redis.publish(
+            f"notebook:{notebook_id}:artifact-events",
+            json.dumps(
+                {
+                    "artifact_id": artifact_id,
+                    "stage": "cancelled" if was_cancelled else "ready",
+                    "progress": 0 if was_cancelled else 100,
+                    "error": "Cancelled by user" if was_cancelled else None,
+                }
+            ),
+        )
+    except AudioJobCancelled:
+        await _artifact_stage(ctx, artifact_id, "cancelled", 0, "Cancelled by user")
+    except Exception as exc:
+        await _artifact_stage(
+            ctx, artifact_id, "failed", 0, str(exc)[:500] or "Audio generation failed"
+        )
+    finally:
+        if owns_redis:
+            await redis.aclose()
+    return artifact_id
+
+
 class WorkerSettings:
     functions = [
         ping,
@@ -589,6 +869,7 @@ class WorkerSettings:
         summarize_source,
         refresh_notebook_overview,
         generate_text_artifact,
+        generate_audio_overview,
     ]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     max_jobs = 2

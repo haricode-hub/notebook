@@ -100,3 +100,15 @@ browser; the API stores only the validated tree and references.
 **References:** [React Flow quick start](https://reactflow.dev/learn),
 [React Flow component](https://reactflow.dev/api-reference/react-flow),
 [React Flow SSR/SSG guidance](https://reactflow.dev/learn/advanced-use/ssr-ssg-configuration).
+
+## ADR-011: Isolated Python 3.12 Kokoro TTS service
+
+**Status:** Accepted for Level 8 (2026-10-19).
+
+**Context:** The core API, worker, embed service, and shared packages use Python 3.13. The official Kokoro PyPI project currently declares `Requires-Python: >=3.10,<3.13`; a Python 3.13 environment cannot install it. The 3.13 resolver/install check was attempted and the package constraint confirmed from [PyPI metadata](https://pypi.org/project/kokoro/). Kokoro's official package usage calls `KPipeline`, writes 24 kHz audio, and lists English voice IDs such as `af_heart`; its [package documentation](https://pypi.org/project/kokoro/) is the implementation reference.
+
+**Decision:** Keep Kokoro in a small `apps/tts` FastAPI service isolated on Python 3.12, with its own `pyproject.toml` and `uv.lock`. The Python 3.13 worker calls it through `KokoroProvider` over HTTP. OpenAI speech uses the official `/v1/audio/speech` endpoint with WAV response format ([OpenAI TTS guide](https://developers.openai.com/api/docs/guides/text-to-speech)). `FakeTTS` creates a small beep WAV for offline tests. ffmpeg lives in the worker runtime and TTS image; final MP3s are stored using `StorageBackend`.
+
+**Consequences:** Compose adds one TTS service and a persistent Hugging Face model cache volume. Kokoro downloads its model the first time it synthesizes audio; later calls reuse the cached model. The shared application remains on Python 3.13. `TTS_PROVIDER=fake` supports deterministic UI and worker tests; `openai` requires `OPENAI_API_KEY`.
+
+The TTS lock uses the official PyTorch CPU wheel index for Linux/Windows; this removed all NVIDIA CUDA and Triton packages that the default Linux PyPI resolver selected. The image uses CPU inference, consistent with the no-GPU deployment target.

@@ -60,6 +60,16 @@
             "maxItems": 50,
             "title": "Source Ids",
             "type": "array"
+          },
+          "tone": {
+            "default": "conversational",
+            "enum": [
+              "conversational",
+              "curious",
+              "formal"
+            ],
+            "title": "Tone",
+            "type": "string"
           }
         },
         "required": [
@@ -153,6 +163,16 @@
             "maxItems": 50,
             "title": "Source Ids",
             "type": "array"
+          },
+          "tone": {
+            "default": "conversational",
+            "enum": [
+              "conversational",
+              "curious",
+              "formal"
+            ],
+            "title": "Tone",
+            "type": "string"
           }
         },
         "title": "ArtifactOptions",
@@ -218,6 +238,9 @@
               },
               {
                 "$ref": "#/components/schemas/QuizArtifact"
+              },
+              {
+                "$ref": "#/components/schemas/AudioOverview"
               },
               {
                 "type": "null"
@@ -306,6 +329,52 @@
           "citation_refs"
         ],
         "title": "ArtifactSection",
+        "type": "object"
+      },
+      "AudioOverview": {
+        "additionalProperties": false,
+        "properties": {
+          "duration_seconds": {
+            "exclusiveMinimum": 0.0,
+            "title": "Duration Seconds",
+            "type": "number"
+          },
+          "recipe": {
+            "const": "audio_overview",
+            "default": "audio_overview",
+            "title": "Recipe",
+            "type": "string"
+          },
+          "storage_key": {
+            "minLength": 1,
+            "title": "Storage Key",
+            "type": "string"
+          },
+          "target_words": {
+            "exclusiveMinimum": 0.0,
+            "title": "Target Words",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "transcript": {
+            "items": {
+              "$ref": "#/components/schemas/TimedAudioLine"
+            },
+            "title": "Transcript",
+            "type": "array"
+          }
+        },
+        "required": [
+          "title",
+          "transcript",
+          "duration_seconds",
+          "target_words",
+          "storage_key"
+        ],
+        "title": "AudioOverview",
         "type": "object"
       },
       "Body_upload_source_notebooks__notebook_id__sources_upload_post": {
@@ -1598,6 +1667,49 @@
         "title": "TextSourceIn",
         "type": "object"
       },
+      "TimedAudioLine": {
+        "additionalProperties": false,
+        "properties": {
+          "citation_refs": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Citation Refs",
+            "type": "array"
+          },
+          "end": {
+            "exclusiveMinimum": 0.0,
+            "title": "End",
+            "type": "number"
+          },
+          "speaker": {
+            "enum": [
+              "Maya",
+              "Alex"
+            ],
+            "title": "Speaker",
+            "type": "string"
+          },
+          "start": {
+            "minimum": 0.0,
+            "title": "Start",
+            "type": "number"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "speaker",
+          "text",
+          "citation_refs",
+          "start",
+          "end"
+        ],
+        "title": "TimedAudioLine",
+        "type": "object"
+      },
       "URLSourceIn": {
         "properties": {
           "url": {
@@ -2248,6 +2360,116 @@
           }
         ],
         "summary": "Get Artifact",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/audio": {
+      "get": {
+        "operationId": "get_audio_notebooks__notebook_id__artifacts__artifact_id__audio_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Audio",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/cancel": {
+      "post": {
+        "operationId": "cancel_artifact_notebooks__notebook_id__artifacts__artifact_id__cancel_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Artifact",
         "tags": [
           "artifacts"
         ]

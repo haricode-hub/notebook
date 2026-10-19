@@ -18,9 +18,11 @@ from opennotebook_core.artifacts import (
     docx_export,
     markdown_export,
 )
+from opennotebook_core.audio import AudioOverview
 from opennotebook_core.models import Artifact, FlashcardProgress, Job, QuizAttempt, Source
 from opennotebook_core.prompts.artifact_v2 import VERSION
 from opennotebook_core.prompts.chat_v1 import Citation
+from opennotebook_core.storage import make_storage
 from opennotebook_core.study import schedule_review, score_quiz
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
@@ -45,6 +47,7 @@ class ArtifactOptions(BaseModel):
     model_override: str = Field(default="", max_length=200)
     question_count: int = Field(default=10, ge=3, le=20)
     difficulty: Literal["easy", "medium", "hard"] = "medium"
+    tone: Literal["conversational", "curious", "formal"] = "conversational"
 
 
 class ArtifactCreate(ArtifactOptions):
@@ -67,7 +70,14 @@ class ArtifactOut(BaseModel):
     progress: int
     source_ids: list[str]
     options: ArtifactOptions
-    output: ArtifactDocument | MindMapArtifact | FlashcardsArtifact | QuizArtifact | None
+    output: (
+        ArtifactDocument
+        | MindMapArtifact
+        | FlashcardsArtifact
+        | QuizArtifact
+        | AudioOverview
+        | None
+    )
     citations: list[ChatCitation]
     model_name: str | None
     prompt_version: str
@@ -90,7 +100,11 @@ def _out(record: Artifact) -> ArtifactOut:
         ),
         output=(
             cast(
-                ArtifactDocument | MindMapArtifact | FlashcardsArtifact | QuizArtifact,
+                ArtifactDocument
+                | MindMapArtifact
+                | FlashcardsArtifact
+                | QuizArtifact
+                | AudioOverview,
                 RECIPES_REGISTRY[record.recipe].output_schema.model_validate(record.output_json),
             )
             if record.output_json
@@ -123,10 +137,15 @@ async def _owned_artifact(
 
 
 async def _enqueue(request: Request, db: AsyncSession, artifact: Artifact) -> None:
+    kind = (
+        "generate_audio_overview"
+        if artifact.recipe == "audio_overview"
+        else "generate_text_artifact"
+    )
     job = Job(
         id=str(uuid4()),
         user_id=artifact.user_id,
-        kind="generate_text_artifact",
+        kind=kind,
         status="queued",
         stage="queued",
         progress=0,
@@ -138,7 +157,7 @@ async def _enqueue(request: Request, db: AsyncSession, artifact: Artifact) -> No
     pool: ArqRedis | None = None
     try:
         pool = await create_pool(RedisSettings.from_dsn(request.app.state.settings.redis_url))
-        await pool.enqueue_job("generate_text_artifact", artifact.id, _job_id=job.id)
+        await pool.enqueue_job(kind, artifact.id, _job_id=job.id)
     except Exception as exc:
         artifact.status = "failed"
         artifact.stage = "failed"
@@ -181,6 +200,18 @@ async def create_artifact(
     await owned_notebook(db, user.id, notebook_id)
     if body.recipe not in RECIPES_REGISTRY:
         raise HTTPException(422, "Unknown artifact recipe")
+    if body.recipe == "audio_overview":
+        active_audio = await db.scalar(
+            select(Artifact.id)
+            .where(
+                Artifact.user_id == user.id,
+                Artifact.recipe == "audio_overview",
+                Artifact.status.in_(["queued", "running"]),
+            )
+            .limit(1)
+        )
+        if active_audio:
+            raise HTTPException(409, "You already have an audio overview in progress")
     sources = list(
         (
             await db.scalars(
@@ -207,7 +238,7 @@ async def create_artifact(
         status="queued",
         stage="queued",
         progress=0,
-        prompt_version=VERSION,
+        prompt_version="audio-v1" if body.recipe == "audio_overview" else VERSION,
     )
     db.add(artifact)
     await db.flush()
@@ -259,18 +290,80 @@ async def regenerate_artifact(
     artifact.stage = "queued"
     artifact.progress = 0
     artifact.error = None
+    if artifact.recipe == "audio_overview" and artifact.output_json:
+        old_key = str(artifact.output_json.get("storage_key") or "")
+        if old_key:
+            await make_storage(request.app.state.settings).delete(old_key)
+        artifact.output_json = None
     await _enqueue(request, db, artifact)
     await db.refresh(artifact)
     return _out(artifact)
 
 
 @router.delete("/{artifact_id}", status_code=204)
-async def delete_artifact(notebook_id: str, artifact_id: str, user: User, db: Db) -> None:
+async def delete_artifact(
+    notebook_id: str, artifact_id: str, request: Request, user: User, db: Db
+) -> None:
     artifact = await _owned_artifact(db, notebook_id, user.id, artifact_id)
-    if artifact.status not in {"ready", "failed"}:
+    if artifact.status not in {"ready", "failed", "cancelled"}:
         raise HTTPException(409, "Wait for generation to finish before deleting")
+    if artifact.recipe == "audio_overview" and artifact.output_json:
+        key = str(artifact.output_json.get("storage_key") or "")
+        if key:
+            await make_storage(request.app.state.settings).delete(key)
     await db.delete(artifact)
     await db.commit()
+
+
+@router.get("/{artifact_id}/audio")
+async def get_audio(
+    notebook_id: str, artifact_id: str, request: Request, user: User, db: Db
+) -> Response:
+    artifact = await _owned_artifact(db, notebook_id, user.id, artifact_id)
+    if (
+        artifact.recipe != "audio_overview"
+        or artifact.status != "ready"
+        or not artifact.output_json
+    ):
+        raise HTTPException(409, "Audio overview is not ready")
+    key = str(artifact.output_json.get("storage_key") or "")
+    if not key:
+        raise HTTPException(404, "Audio file not found")
+    data = await make_storage(request.app.state.settings).get(key)
+    return Response(
+        data,
+        media_type="audio/mpeg",
+        headers={
+            "Content-Disposition": f'attachment; filename="audio-overview-{artifact.id[:8]}.mp3"',
+            "Cache-Control": "private, no-store",
+        },
+    )
+
+
+@router.post("/{artifact_id}/cancel", response_model=ArtifactOut)
+async def cancel_artifact(
+    notebook_id: str, artifact_id: str, request: Request, user: User, db: Db
+) -> ArtifactOut:
+    artifact = await _owned_artifact(db, notebook_id, user.id, artifact_id)
+    if artifact.recipe != "audio_overview" or artifact.status not in {"queued", "running"}:
+        raise HTTPException(409, "Audio overview is not running")
+    redis = Redis.from_url(request.app.state.settings.redis_url)
+    try:
+        await redis.set(f"audio:cancel:{artifact.id}", "1", ex=3600)
+    finally:
+        await redis.aclose()
+    artifact.status = "cancelled"
+    artifact.stage = "cancelled"
+    artifact.error = "Cancelled by user"
+    if artifact.job_id:
+        job = await db.get(Job, artifact.job_id)
+        if job:
+            job.status = "cancelled"
+            job.stage = "cancelled"
+            job.error = artifact.error
+    await db.commit()
+    await db.refresh(artifact)
+    return _out(artifact)
 
 
 @router.get("/{artifact_id}/export/{format}")

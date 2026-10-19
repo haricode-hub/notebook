@@ -75,6 +75,11 @@
 - [x] 7.5 Pass Python/web gates and all three Playwright interactions; record report and commit
 
 ## Level 8: Audio overview
+- [x] 8.1 Check Kokoro's Python 3.13 support and isolate the Python 3.12 TTS service with ADR-011
+- [x] 8.2 Add Kokoro/OpenAI/Fake providers, audio prompts, schema validation, faithfulness filtering, and Redis concurrency lease
+- [x] 8.3 Add staged audio artifact worker, ffmpeg MP3 stitching, storage, cancellation, download, and progress events
+- [x] 8.4 Build the audio player with synced transcript, seek, speed, download, citations, and cancel/regenerate actions
+- [x] 8.5 Pass Python/web gates and FakeTTS Playwright journey; record report
 
 ## Level 9: Advanced sources and sharing
 
