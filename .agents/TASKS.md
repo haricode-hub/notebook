@@ -1,5 +1,9 @@
 # Tasks
 
+## Overall status (2026-10-19)
+
+**Not all levels are complete in this checkout.** Level 3 is now verified, including the live OpenRouter first-token target (2.346 s). Level 9 Pass B is implemented and its focused acceptance tests pass. Remaining tracked work: Level 0's clean-clone cold-build target (0.10), Level 9's browser/security e2e run (C.1), and Level 10 runtime gates plus a clean Python audit workflow run. Docker Engine is unavailable on this host; Level 10's 10-minute k6 and VPS rehearsal also need their target runtime. See `.agents/PROGRESS.md` for results and limits.
+
 ## Level 0: Foundation
 
 - [x] 0.1 Document the level plan, tasks, and ADRs (<=2h)
@@ -40,7 +44,7 @@
 - [x] 3.3 Stream owned chat over SSE with limits and cancellation
 - [x] 3.4 Add typed chat UI, citation chips, source selection, history and clear
 - [x] 3.5 Add unit/integration tests and a 15-question offline evaluation
-- [ ] 3.6 Pass all gates and browser journey; record report and commit
+- [x] 3.6 Pass all local gates and browser journey; record report and commit (live OpenRouter first token: 2.346 s)
 
 ## Level 4: Source viewer
 
@@ -87,9 +91,9 @@
 - [x] A.3 Add time-aware citations/viewer, SearchProvider discovery, and SSRF-safe import
 - [x] A.4 Add hashed/revocable read-only share links, public page, strict rate limits, and ZIP export
 - [x] A.5 Pass local Python/web checks and fixture tests; commit Pass A (browser/security journeys remain in Pass C)
-- [ ] B.1 Re-read official EmbeddingGemma 2 multimodal documentation and record ADR-006 measurements
-- [ ] B.2 Add gated media embeddings, figure extraction, media_items and per-modality RRF
-- [ ] B.3 Add figure citations to chat and source viewer
+- [x] B.1 Re-read official EmbeddingGemma 2 multimodal documentation and record ADR-006 measurements
+- [x] B.2 Add gated media embeddings, figure extraction, media_items and per-modality RRF
+- [x] B.3 Add figure citations to chat and source viewer
 - [ ] C.1 Complete unit, integration, security, and e2e coverage; run all gates and commit Pass C
 
 ## Level 10: Hardening and scaling
@@ -98,3 +102,4 @@
 - [x] Pass 3: authorization sweep, auth hardening, headers, admin/quotas, audit automation
 - [x] Pass 4 implementation: k6 profile, scale Compose/S3, scaling docs, sample notebook, axe checks
 - [ ] Pass 4 runtime gates: 10-minute k6, scaled full e2e, workspace axe, VPS rehearsal
+- [ ] Verify the Python dependency audit passes in CI after switching from unsupported `uv.lock` discovery to exported locked requirements
