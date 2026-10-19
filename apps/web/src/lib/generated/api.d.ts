@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/admin/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview */
+        get: operations["overview_admin_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/files/{token}": {
         parameters: {
             query?: never;
@@ -284,6 +301,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notebooks/{notebook_id}/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Discover Sources */
+        get: operations["discover_sources_notebooks__notebook_id__discover_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notebooks/{notebook_id}/events": {
         parameters: {
             query?: never;
@@ -293,6 +327,40 @@ export interface paths {
         };
         /** Source Events */
         get: operations["source_events_notebooks__notebook_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/export.zip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Notebook */
+        get: operations["export_notebook_notebooks__notebook_id__export_zip_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/media/{media_item_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Media Content */
+        get: operations["media_content_notebooks__notebook_id__media__media_item_id__content_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -406,6 +474,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notebooks/{notebook_id}/shares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Share */
+        post: operations["create_share_notebooks__notebook_id__shares_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/shares/{share_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Share */
+        delete: operations["revoke_share_notebooks__notebook_id__shares__share_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notebooks/{notebook_id}/sources": {
         parameters: {
             query?: never;
@@ -417,6 +519,23 @@ export interface paths {
         get: operations["list_sources_notebooks__notebook_id__sources_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/sources/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Discovered */
+        post: operations["import_discovered_notebooks__notebook_id__sources_import_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -468,6 +587,23 @@ export interface paths {
         put?: never;
         /** Add Url */
         post: operations["add_url_notebooks__notebook_id__sources_url_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/sources/youtube": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Youtube */
+        post: operations["add_youtube_notebooks__notebook_id__sources_youtube_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -538,6 +674,23 @@ export interface paths {
         put?: never;
         /** Retry Source */
         post: operations["retry_source_notebooks__notebook_id__sources__source_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/shares/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Shared */
+        get: operations["read_shared_public_shares__token__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -617,6 +770,35 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AdminJob */
+        AdminJob: {
+            /** Error */
+            error: string | null;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Progress */
+            progress: number;
+            /** Stage */
+            stage: string | null;
+            /** Status */
+            status: string;
+            /** User Id */
+            user_id: string;
+        };
+        /** AdminOverview */
+        AdminOverview: {
+            /** Failed Jobs */
+            failed_jobs: components["schemas"]["AdminJob"][];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            /** Usage 24H */
+            usage_24h: components["schemas"]["UserUsage"][];
+        };
         /** ArtifactCreate */
         ArtifactCreate: {
             /**
@@ -792,7 +974,9 @@ export interface components {
             /** Char Start */
             char_start: number;
             /** Chunk Id */
-            chunk_id: string;
+            chunk_id: string | null;
+            /** Media Item Id */
+            media_item_id?: string | null;
             /** N */
             n: number;
             /** Page Start */
@@ -803,6 +987,10 @@ export interface components {
             source_id: string;
             /** Source Name */
             source_name: string;
+            /** Time End */
+            time_end?: number | null;
+            /** Time Start */
+            time_start?: number | null;
         };
         /** ChatIn */
         ChatIn: {
@@ -836,6 +1024,20 @@ export interface components {
              * @constant
              */
             status: "ok";
+        };
+        /** DiscoverCandidate */
+        DiscoverCandidate: {
+            /** Snippet */
+            snippet: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+        };
+        /** DiscoverImportIn */
+        DiscoverImportIn: {
+            /** Urls */
+            urls: string[];
         };
         /** Flashcard */
         Flashcard: {
@@ -1029,6 +1231,32 @@ export interface components {
             /** Title */
             title?: string | null;
         };
+        /** PublicNotebook */
+        PublicNotebook: {
+            /** Artifacts */
+            artifacts: {
+                [key: string]: unknown;
+            }[];
+            /** Notes */
+            notes: {
+                [key: string]: unknown;
+            }[];
+            /** Sources */
+            sources: components["schemas"]["PublicSource"][];
+            /** Title */
+            title: string;
+        };
+        /** PublicSource */
+        PublicSource: {
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Text */
+            text: string;
+        };
         /** QuizArtifact */
         QuizArtifact: {
             /** Questions */
@@ -1133,6 +1361,22 @@ export interface components {
             /** Provider */
             provider?: ("openrouter" | "gemini" | "openai" | "anthropic" | "ollama") | null;
         };
+        /** ShareCreate */
+        ShareCreate: {
+            /** Expires In Hours */
+            expires_in_hours?: number | null;
+        };
+        /** ShareCreated */
+        ShareCreated: {
+            /** Expires At */
+            expires_at: string | null;
+            /** Id */
+            id: string;
+            /** Token */
+            token: string;
+            /** Url Path */
+            url_path: string;
+        };
         /** SourceChunkOut */
         SourceChunkOut: {
             /** Char End */
@@ -1147,6 +1391,10 @@ export interface components {
             page_start: number | null;
             /** Text */
             text: string;
+            /** Time End */
+            time_end: number | null;
+            /** Time Start */
+            time_start: number | null;
         };
         /** SourceContentOut */
         SourceContentOut: {
@@ -1227,6 +1475,19 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** UserUsage */
+        UserUsage: {
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Reported Cost Usd */
+            reported_cost_usd: number | null;
+            /** Requests */
+            requests: number;
+            /** User Id */
+            user_id: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -1249,6 +1510,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    overview_admin_overview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminOverview"];
+                };
+            };
+        };
+    };
     signed_file_files__token__get: {
         parameters: {
             query?: never;
@@ -1999,12 +2280,109 @@ export interface operations {
             };
         };
     };
+    discover_sources_notebooks__notebook_id__discover_get: {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverCandidate"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     source_events_notebooks__notebook_id__events_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_notebook_notebooks__notebook_id__export_zip_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    media_content_notebooks__notebook_id__media__media_item_id__content_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                media_item_id: string;
             };
             cookie?: never;
         };
@@ -2322,6 +2700,71 @@ export interface operations {
             };
         };
     };
+    create_share_notebooks__notebook_id__shares_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ShareCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_share_notebooks__notebook_id__shares__share_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                share_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_sources_notebooks__notebook_id__sources_get: {
         parameters: {
             query?: never;
@@ -2335,6 +2778,41 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_discovered_notebooks__notebook_id__sources_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiscoverImportIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2424,6 +2902,41 @@ export interface operations {
         };
     };
     add_url_notebooks__notebook_id__sources_url_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["URLSourceIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_youtube_notebooks__notebook_id__sources_youtube_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2639,6 +3152,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_shared_public_shares__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicNotebook"];
                 };
             };
             /** @description Validation Error */

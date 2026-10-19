@@ -1,4 +1,4 @@
-.PHONY: dev test lint typecheck migrate auth-migrate seed types smoke eval benchmark-chat
+.PHONY: dev test lint typecheck migrate auth-migrate seed sample types smoke eval benchmark-chat
 
 dev:
 	docker compose up --build -d
@@ -23,6 +23,9 @@ auth-migrate:
 
 seed:
 	uv run python scripts/seed.py
+
+sample:
+	uv run --frozen --all-packages python scripts/load_onboarding_sample.py
 
 types:
 	uv run --frozen --all-packages python scripts/export_openapi.py

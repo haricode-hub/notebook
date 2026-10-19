@@ -2,9 +2,9 @@
 
 import json
 import re
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
-from opennotebook_core.models import Chunk
+from opennotebook_core.models import Chunk, MediaItem
 from opennotebook_core.retrieval import REFUSAL, ContextSelection
 
 SYSTEM_PROMPT = """You are OpenNotebook Studio's source-grounded research assistant.
@@ -24,17 +24,21 @@ MARKER = re.compile(r"\[S(\d+)\]")
 
 class Citation(TypedDict):
     n: int
-    chunk_id: str
+    chunk_id: str | None
+    media_item_id: NotRequired[str]
     source_id: str
     page_start: int | None
+    time_start: float | None
+    time_end: float | None
     char_start: int
     char_end: int
     source_name: str
     quote: str
 
 
-def labeled_chunks(selection: ContextSelection) -> dict[int, Chunk]:
-    return {number: chunk for number, chunk in enumerate(selection.chunks, start=1)}
+def labeled_chunks(selection: ContextSelection) -> dict[int, Chunk | MediaItem]:
+    evidence: list[Chunk | MediaItem] = [*selection.chunks, *(selection.media_items or [])]
+    return {number: item for number, item in enumerate(evidence, start=1)}
 
 
 def build_chat_messages(
@@ -45,15 +49,19 @@ def build_chat_messages(
     persona: str | None,
     response_length: str,
 ) -> list[dict[str, str]]:
-    excerpts = [
-        {
-            "label": f"S{number}",
-            "source": selection.source_names.get(chunk.source_id, "Source"),
-            "page": chunk.page_start,
-            "text": chunk.text,
-        }
-        for number, chunk in labeled_chunks(selection).items()
-    ]
+    excerpts = []
+    for number, item in labeled_chunks(selection).items():
+        excerpts.append(
+            {
+                "label": f"S{number}",
+                "source": selection.source_names.get(item.source_id, "Source"),
+                "page": item.page_start if isinstance(item, Chunk) else item.page,
+                "text": item.text
+                if isinstance(item, Chunk)
+                else f"Figure anchor: {item.text_anchor}",
+                "modality": "text" if isinstance(item, Chunk) else item.modality,
+            }
+        )
     style = (
         f"\nPersona preference: {persona[:4000] if persona else 'clear research assistant'}."
         f"\nResponse length preference: {response_length}."
@@ -90,19 +98,35 @@ def validate_citations(answer: str, selection: ContextSelection) -> tuple[str, l
         return REFUSAL, []
     citations: list[Citation] = []
     for number in sorted(seen):
-        chunk = allowed[number]
-        citations.append(
-            {
+        item = allowed[number]
+        if isinstance(item, Chunk):
+            citation: Citation = {
                 "n": number,
-                "chunk_id": chunk.id,
-                "source_id": chunk.source_id,
-                "page_start": chunk.page_start,
-                "char_start": chunk.char_start,
-                "char_end": chunk.char_end,
-                "source_name": selection.source_names.get(chunk.source_id, "Source"),
-                "quote": chunk.text[:500],
+                "chunk_id": item.id,
+                "source_id": item.source_id,
+                "page_start": item.page_start,
+                "time_start": item.time_start,
+                "time_end": item.time_end,
+                "char_start": item.char_start,
+                "char_end": item.char_end,
+                "source_name": selection.source_names.get(item.source_id, "Source"),
+                "quote": item.text[:500],
             }
-        )
+        else:
+            citation = {
+                "n": number,
+                "chunk_id": None,
+                "media_item_id": item.id,
+                "source_id": item.source_id,
+                "page_start": item.page,
+                "time_start": None,
+                "time_end": None,
+                "char_start": 0,
+                "char_end": 0,
+                "source_name": selection.source_names.get(item.source_id, "Source"),
+                "quote": item.text_anchor[:500],
+            }
+        citations.append(citation)
     return cleaned, citations
 
 

@@ -1,6 +1,93 @@
 {
   "components": {
     "schemas": {
+      "AdminJob": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "integer"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "kind",
+          "status",
+          "stage",
+          "progress",
+          "error"
+        ],
+        "title": "AdminJob",
+        "type": "object"
+      },
+      "AdminOverview": {
+        "properties": {
+          "failed_jobs": {
+            "items": {
+              "$ref": "#/components/schemas/AdminJob"
+            },
+            "title": "Failed Jobs",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "usage_24h": {
+            "items": {
+              "$ref": "#/components/schemas/UserUsage"
+            },
+            "title": "Usage 24H",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generated_at",
+          "failed_jobs",
+          "usage_24h"
+        ],
+        "title": "AdminOverview",
+        "type": "object"
+      },
       "ArtifactCreate": {
         "properties": {
           "difficulty": {
@@ -402,8 +489,26 @@
             "type": "integer"
           },
           "chunk_id": {
-            "title": "Chunk Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Id"
+          },
+          "media_item_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Item Id"
           },
           "n": {
             "title": "N",
@@ -431,6 +536,28 @@
           "source_name": {
             "title": "Source Name",
             "type": "string"
+          },
+          "time_end": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time End"
+          },
+          "time_start": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Start"
           }
         },
         "required": [
@@ -527,6 +654,47 @@
           "message"
         ],
         "title": "ConnectionOut",
+        "type": "object"
+      },
+      "DiscoverCandidate": {
+        "properties": {
+          "snippet": {
+            "title": "Snippet",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "url",
+          "snippet"
+        ],
+        "title": "DiscoverCandidate",
+        "type": "object"
+      },
+      "DiscoverImportIn": {
+        "properties": {
+          "urls": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Urls",
+            "type": "array"
+          }
+        },
+        "required": [
+          "urls"
+        ],
+        "title": "DiscoverImportIn",
         "type": "object"
       },
       "Flashcard": {
@@ -1079,6 +1247,73 @@
         "title": "NotebookUpdate",
         "type": "object"
       },
+      "PublicNotebook": {
+        "properties": {
+          "artifacts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Artifacts",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/PublicSource"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "sources",
+          "notes",
+          "artifacts"
+        ],
+        "title": "PublicNotebook",
+        "type": "object"
+      },
+      "PublicSource": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "text"
+        ],
+        "title": "PublicSource",
+        "type": "object"
+      },
       "QuizArtifact": {
         "additionalProperties": false,
         "properties": {
@@ -1405,6 +1640,61 @@
         "title": "SettingsUpdate",
         "type": "object"
       },
+      "ShareCreate": {
+        "properties": {
+          "expires_in_hours": {
+            "anyOf": [
+              {
+                "maximum": 2160.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires In Hours"
+          }
+        },
+        "title": "ShareCreate",
+        "type": "object"
+      },
+      "ShareCreated": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          },
+          "url_path": {
+            "title": "Url Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "token",
+          "url_path",
+          "expires_at"
+        ],
+        "title": "ShareCreated",
+        "type": "object"
+      },
       "SourceChunkOut": {
         "properties": {
           "char_end": {
@@ -1444,6 +1734,28 @@
           "text": {
             "title": "Text",
             "type": "string"
+          },
+          "time_end": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time End"
+          },
+          "time_start": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time Start"
           }
         },
         "required": [
@@ -1452,7 +1764,9 @@
           "page_start",
           "page_end",
           "char_start",
-          "char_end"
+          "char_end",
+          "time_start",
+          "time_end"
         ],
         "title": "SourceChunkOut",
         "type": "object"
@@ -1725,6 +2039,46 @@
         "title": "URLSourceIn",
         "type": "object"
       },
+      "UserUsage": {
+        "properties": {
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "reported_cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported Cost Usd"
+          },
+          "requests": {
+            "title": "Requests",
+            "type": "integer"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "requests",
+          "input_tokens",
+          "output_tokens",
+          "reported_cost_usd"
+        ],
+        "title": "UserUsage",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -1779,6 +2133,32 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/admin/overview": {
+      "get": {
+        "operationId": "overview_admin_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOverview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Overview",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/files/{token}": {
       "get": {
         "operationId": "signed_file_files__token__get",
@@ -2994,6 +3374,76 @@
         ]
       }
     },
+    "/notebooks/{notebook_id}/discover": {
+      "get": {
+        "operationId": "discover_sources_notebooks__notebook_id__discover_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 8,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DiscoverCandidate"
+                  },
+                  "title": "Response Discover Sources Notebooks  Notebook Id  Discover Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Discover Sources",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
     "/notebooks/{notebook_id}/events": {
       "get": {
         "operationId": "source_events_notebooks__notebook_id__events_get",
@@ -3034,6 +3484,105 @@
           }
         ],
         "summary": "Source Events",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/export.zip": {
+      "get": {
+        "operationId": "export_notebook_notebooks__notebook_id__export_zip_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Notebook",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/media/{media_item_id}/content": {
+      "get": {
+        "operationId": "media_content_notebooks__notebook_id__media__media_item_id__content_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "media_item_id",
+            "required": true,
+            "schema": {
+              "title": "Media Item Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Media Content",
         "tags": [
           "sources"
         ]
@@ -3530,6 +4079,112 @@
         ]
       }
     },
+    "/notebooks/{notebook_id}/shares": {
+      "post": {
+        "operationId": "create_share_notebooks__notebook_id__shares_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShareCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Share",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/shares/{share_id}": {
+      "delete": {
+        "operationId": "revoke_share_notebooks__notebook_id__shares__share_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "share_id",
+            "required": true,
+            "schema": {
+              "title": "Share Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Share",
+        "tags": [
+          "sharing"
+        ]
+      }
+    },
     "/notebooks/{notebook_id}/sources": {
       "get": {
         "operationId": "list_sources_notebooks__notebook_id__sources_get",
@@ -3576,6 +4231,67 @@
           }
         ],
         "summary": "List Sources",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/sources/import": {
+      "post": {
+        "operationId": "import_discovered_notebooks__notebook_id__sources_import_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoverImportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SourceOut"
+                  },
+                  "title": "Response Import Discovered Notebooks  Notebook Id  Sources Import Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Discovered",
         "tags": [
           "sources"
         ]
@@ -3747,6 +4463,63 @@
           }
         ],
         "summary": "Add Url",
+        "tags": [
+          "sources"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/sources/youtube": {
+      "post": {
+        "operationId": "add_youtube_notebooks__notebook_id__sources_youtube_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/URLSourceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Youtube",
         "tags": [
           "sources"
         ]
@@ -4084,6 +4857,48 @@
         "summary": "Retry Source",
         "tags": [
           "sources"
+        ]
+      }
+    },
+    "/public/shares/{token}": {
+      "get": {
+        "operationId": "read_shared_public_shares__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicNotebook"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Shared",
+        "tags": [
+          "sharing"
         ]
       }
     },

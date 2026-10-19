@@ -7,6 +7,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -39,6 +40,19 @@ class Job(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class LLMUsage(Base):
+    __tablename__ = "llm_usage"
+    __table_args__ = (Index("ix_llm_usage_user_created", "user_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    model_name: Mapped[str] = mapped_column(Text, nullable=False)
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    cost_usd: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Notebook(Base):
@@ -128,6 +142,8 @@ class Chunk(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     page_start: Mapped[int | None] = mapped_column(Integer)
     page_end: Mapped[int | None] = mapped_column(Integer)
+    time_start: Mapped[float | None] = mapped_column(Float)
+    time_end: Mapped[float | None] = mapped_column(Float)
     char_start: Mapped[int] = mapped_column(Integer, nullable=False)
     char_end: Mapped[int] = mapped_column(Integer, nullable=False)
     heading_path: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
@@ -136,6 +152,35 @@ class Chunk(Base):
     )
     tsv: Mapped[str | None] = mapped_column(TSVECTOR().with_variant(Text(), "sqlite"))
     metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False, default=dict)
+
+
+class MediaItem(Base):
+    __tablename__ = "media_items"
+    __table_args__ = (
+        Index("ix_media_items_notebook_source", "notebook_id", "source_id"),
+        Index(
+            "ix_media_items_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    source_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("sources.id", ondelete="CASCADE"), nullable=False
+    )
+    notebook_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("notebooks.id", ondelete="CASCADE"), nullable=False
+    )
+    storage_key: Mapped[str] = mapped_column(Text, nullable=False)
+    text_anchor: Mapped[str] = mapped_column(Text, nullable=False)
+    page: Mapped[int | None] = mapped_column(Integer)
+    bbox: Mapped[dict[str, float] | None] = mapped_column(JSON)
+    modality: Mapped[str] = mapped_column(String(16), nullable=False, default="image")
+    embedding: Mapped[list[float]] = mapped_column(
+        Vector(int(os.getenv("EMBED_DIM", "768"))).with_variant(JSON(), "sqlite"), nullable=False
+    )
 
 
 class ChatMessage(Base):
@@ -300,4 +345,19 @@ class QuizAttempt(Base):
     total: Mapped[int] = mapped_column(Integer, nullable=False)
     answers_json: Mapped[list[int]] = mapped_column(JSON, nullable=False)
     wrong_indices: Mapped[list[int]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NotebookShare(Base):
+    __tablename__ = "notebook_shares"
+    __table_args__ = (Index("ix_notebook_shares_notebook_user", "notebook_id", "user_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    notebook_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("notebooks.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(Text, nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

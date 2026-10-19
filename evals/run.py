@@ -1,4 +1,4 @@
-"""Reproducible local retrieval and citation evaluation over three short sources."""
+"""Reproducible local retrieval, citation, and faithfulness evaluation."""
 
 import asyncio
 import hashlib
@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from opennotebook_core.llm import GroundedFakeLLMProvider
+from opennotebook_core.llm import GroundedFakeLLMProvider, LLMProvider
 from opennotebook_core.models import Base, Chunk, Notebook, Source
 from opennotebook_core.prompts.chat_v1 import build_chat_messages, validate_citations
 from opennotebook_core.retrieval import ContextSelection, fts_search, rrf_merge, vector_search
@@ -16,6 +16,36 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 ROOT = Path(__file__).resolve().parent
+MARKER_RE = re.compile(r"\[S\d+\]")
+CONTENT_WORDS = {
+    "about", "after", "also", "among", "because", "been", "before", "being",
+    "does", "during", "from", "have", "into", "near", "over", "that", "their",
+    "them", "then", "there", "these", "they", "this", "through", "under", "very",
+    "were", "what", "when", "where", "which", "while", "with", "would",
+}
+
+
+def claims_supported_by_citations(answer: str, evidence: list[str]) -> bool:
+    """Conservative lexical support check: every answer sentence must map to its citations."""
+    cited_words = {
+        word for text in evidence for word in re.findall(r"[a-z0-9]+", text.casefold())
+    }
+    claims = [
+        claim.strip()
+        for claim in re.split(r"(?<=[.!?])\s+", MARKER_RE.sub("", answer))
+        if claim.strip()
+    ]
+    if not claims or not evidence:
+        return False
+    for claim in claims:
+        words = {
+            word
+            for word in re.findall(r"[a-z0-9]+", claim.casefold())
+            if len(word) >= 4 and word not in CONTENT_WORDS
+        }
+        if words and len(words & cited_words) / len(words) < 0.75:
+            return False
+    return True
 
 
 class EvalEmbedding:
@@ -57,6 +87,8 @@ class EvalMetrics:
     total: int
     hits: int
     valid_citations: int
+    faithful_answers: int
+    relevant_answers: int
 
     @property
     def hit_rate_at_8(self) -> float:
@@ -66,8 +98,18 @@ class EvalMetrics:
     def citation_validity(self) -> float:
         return self.valid_citations / self.total
 
+    @property
+    def faithfulness(self) -> float:
+        return self.faithful_answers / self.total
 
-async def run_evals() -> EvalMetrics:
+    @property
+    def answer_relevance(self) -> float:
+        return self.relevant_answers / self.total
+
+
+async def run_evals(
+    *, rrf_k: int = 60, llm_provider: LLMProvider | None = None
+) -> EvalMetrics:
     cases = json.loads((ROOT / "questions.json").read_text(encoding="utf-8"))
     engine = create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool)
     fake = EvalEmbedding()
@@ -75,6 +117,9 @@ async def run_evals() -> EvalMetrics:
         "solar": "Helios solar pilot",
         "wetlands": "Mangrove restoration",
         "printing": "Community print archive",
+        "batteries": "Grid storage field notes",
+        "coral": "Coral nursery survey",
+        "observatory": "Hilltop observatory log",
     }
     try:
         async with engine.begin() as connection:
@@ -128,13 +173,13 @@ async def run_evals() -> EvalMetrics:
                     ordinal += 1
             await db.commit()
 
-            hits = valid = 0
+            hits = valid = faithful = relevant = 0
             for case in cases:
                 question = case["question"]
                 selected = list(names)
                 vectors = await vector_search(db, fake, "eval-book", selected, question, 768)
                 lexical = await fts_search(db, "eval-book", selected, question)
-                ranked = rrf_merge(vectors, lexical, limit=8)
+                ranked = rrf_merge(vectors, lexical, limit=8, k=rrf_k)
                 expected_id = f"{case['source']}-{case['paragraph']}"
                 hits += any(
                     chunk.id == expected_id and case["expected_fact"] in chunk.text
@@ -145,7 +190,8 @@ async def run_evals() -> EvalMetrics:
                 prompt = build_chat_messages(
                     selection, question, [], persona=None, response_length="short"
                 )
-                raw = "".join([part async for part in GroundedFakeLLMProvider().stream(prompt)])
+                llm = llm_provider or GroundedFakeLLMProvider()
+                raw = "".join([part async for part in llm.stream(prompt)])
                 answer, citations = validate_citations(raw, selection)
                 lookup = {index: chunk for index, chunk in enumerate(ranked, start=1)}
                 valid += bool(citations) and all(
@@ -155,7 +201,16 @@ async def run_evals() -> EvalMetrics:
                     and f"[S{citation['n']}]" in answer
                     for citation in citations
                 )
-        return EvalMetrics(len(cases), hits, valid)
+                # Every answer sentence must have >=75% content-word support in
+                # the passages it cites. This is an offline proxy, not an LLM judge.
+                cited_text = [
+                    lookup[citation["n"]].text
+                    for citation in citations
+                    if citation["n"] in lookup
+                ]
+                faithful += claims_supported_by_citations(answer, cited_text)
+                relevant += case["expected_fact"].casefold() in answer.casefold()
+        return EvalMetrics(len(cases), hits, valid, faithful, relevant)
     finally:
         await engine.dispose()
 
@@ -165,5 +220,13 @@ if __name__ == "__main__":
     print(f"hit-rate@8: {metrics.hits}/{metrics.total} = {metrics.hit_rate_at_8:.1%}")
     print(f"citation validity: {metrics.valid_citations}/{metrics.total}")
     print(f"citation validity percent: {metrics.citation_validity:.1%}")
-    if metrics.hit_rate_at_8 < 0.85 or metrics.citation_validity < 1:
+    print(
+        f"faithfulness: {metrics.faithful_answers}/{metrics.total} = "
+        f"{metrics.faithfulness:.1%}"
+    )
+    print(
+        f"answer relevance: {metrics.relevant_answers}/{metrics.total} = "
+        f"{metrics.answer_relevance:.1%}"
+    )
+    if metrics.hit_rate_at_8 < 0.9 or metrics.citation_validity < 1 or metrics.faithfulness < 0.9:
         raise SystemExit(1)

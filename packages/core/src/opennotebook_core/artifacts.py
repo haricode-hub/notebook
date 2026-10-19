@@ -343,6 +343,8 @@ async def generate_artifact(
             "chunk_id": labeled[number].id,
             "source_id": labeled[number].source_id,
             "page_start": labeled[number].page_start,
+            "time_start": labeled[number].time_start,
+            "time_end": labeled[number].time_end,
             "char_start": labeled[number].char_start,
             "char_end": labeled[number].char_end,
             "source_name": source_names.get(labeled[number].source_id, "Source"),

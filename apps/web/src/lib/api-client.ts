@@ -108,10 +108,33 @@ export const sourceApi = {
   rename: (id: string, sourceId: string, name: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}`, { method: "PATCH", body: JSON.stringify({ name }) }),
   text: (id: string, name: string, text: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/text`, { method: "POST", body: JSON.stringify({ name, text }) }),
   url: (id: string, url: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/url`, { method: "POST", body: JSON.stringify({ url }) }),
+  youtube: (id: string, url: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/youtube`, { method: "POST", body: JSON.stringify({ url }) }),
+  discover: (id: string, query: string) => apiFetch<{ title: string; url: string; snippet: string }[]>(`/notebooks/${encodeURIComponent(id)}/discover?q=${encodeURIComponent(query)}`),
+  importDiscovered: (id: string, urls: string[]) => apiFetch<Source[]>(`/notebooks/${encodeURIComponent(id)}/sources/import`, { method: "POST", body: JSON.stringify({ urls }) }),
   retry: (id: string, sourceId: string) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}/retry`, { method: "POST" }),
   select: (id: string, sourceId: string, selected: boolean) => apiFetch<Source>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}`, { method: "PATCH", body: JSON.stringify({ selected }) }),
   remove: (id: string, sourceId: string) => apiFetch<void>(`/notebooks/${encodeURIComponent(id)}/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" }),
   reindex: (id: string) => apiFetch<{ status: string }>(`/notebooks/${encodeURIComponent(id)}/reindex`, { method: "POST" }),
+};
+
+export const shareApi = {
+  create: (id: string, expiresInHours?: number) => apiFetch<{ id: string; token: string; url_path: string; expires_at: string | null }>(`/notebooks/${encodeURIComponent(id)}/shares`, { method: "POST", body: JSON.stringify({ expires_in_hours: expiresInHours ?? null }) }),
+  revoke: (notebookId: string, shareId: string) => apiFetch<void>(`/notebooks/${encodeURIComponent(notebookId)}/shares/${encodeURIComponent(shareId)}`, { method: "DELETE" }),
+  public: (token: string) => fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/public/shares/${encodeURIComponent(token)}`, { cache: "no-store" }).then(async (response) => {
+    if (!response.ok) throw new Error(response.status === 404 ? "This share link is no longer available" : `Shared notebook failed (${response.status})`);
+    return await response.json() as { title: string; sources: { id: string; name: string; kind: string; text: string }[]; notes: { title: string; content_markdown: string; citations: unknown[] }[]; artifacts: { recipe: string; output: unknown; citations: unknown[] }[] };
+  }),
+  async exportZip(id: string): Promise<Blob> {
+    const path = `/notebooks/${encodeURIComponent(id)}/export.zip`;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const token = await getToken(attempt > 0);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}${path}`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+      if (response.status === 401 && attempt === 0) continue;
+      if (!response.ok) throw new Error(`Notebook export failed (${response.status})`);
+      return response.blob();
+    }
+    throw new Error("Your session has expired. Please sign in again.");
+  },
 };
 
 export const guideApi = {

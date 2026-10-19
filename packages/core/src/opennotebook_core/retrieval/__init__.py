@@ -3,18 +3,19 @@
 import math
 import re
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, TypeVar
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from opennotebook_core.embeddings import EmbeddingProvider
 from opennotebook_core.llm import LLMProvider
-from opennotebook_core.models import Chunk, Source
+from opennotebook_core.models import Chunk, MediaItem, Source
 
 TOP_CANDIDATES = 30
 RRF_K = 60
 REFUSAL = "I couldn't find that in your sources."
+Evidence = TypeVar("Evidence", Chunk, MediaItem)
 
 
 def estimate_tokens(value: str) -> int:
@@ -28,6 +29,7 @@ class ContextSelection:
     source_names: dict[str, str]
     mode: str
     query: str
+    media_items: list[MediaItem] | None = None
 
 
 class Reranker(Protocol):
@@ -147,6 +149,24 @@ def rrf_merge(*rankings: list[Chunk], limit: int = 8, k: int = RRF_K) -> list[Ch
     return [chunks[key] for key in sorted(scores, key=lambda key: (-scores[key], key))[:limit]]
 
 
+def rrf_merge_modalities(
+    text_ranking: list[Chunk], image_ranking: list[MediaItem], limit: int = 24, k: int = RRF_K
+) -> list[Chunk | MediaItem]:
+    """Fuse independently ranked modality lists using rank contributions only."""
+    if k <= 0:
+        raise ValueError("RRF k must be positive")
+    scores: dict[str, float] = {}
+    evidence: dict[str, Chunk | MediaItem] = {}
+    def contribute(ranking: list[Evidence]) -> None:
+        for rank, item in enumerate(ranking, start=1):
+            scores[item.id] = scores.get(item.id, 0.0) + 1 / (k + rank)
+            evidence[item.id] = item
+
+    contribute(text_ranking)
+    contribute(image_ranking)
+    return [evidence[key] for key in sorted(scores, key=lambda key: (-scores[key], key))[:limit]]
+
+
 async def condense_query(
     query: str, history: list[dict[str, str]], cheap_llm: LLMProvider | None
 ) -> str:
@@ -171,6 +191,49 @@ async def condense_query(
     return result[:300] or query
 
 
+async def media_vector_search(
+    db: AsyncSession,
+    embedding: EmbeddingProvider,
+    notebook_id: str,
+    selected_source_ids: list[str],
+    query: str,
+    dim: int,
+    limit: int = 12,
+) -> list[MediaItem]:
+    """Rank image candidates within their modality; never compare scores to text scores."""
+    if not selected_source_ids:
+        return []
+    vector = (await embedding.embed([query], "query", dim))[0]
+    if db.bind is not None and db.bind.dialect.name == "sqlite":
+        items = list(
+            (
+                await db.scalars(
+                    select(MediaItem).where(
+                        MediaItem.notebook_id == notebook_id,
+                        MediaItem.source_id.in_(selected_source_ids),
+                        MediaItem.modality == "image",
+                    )
+                )
+            ).all()
+        )
+        items.sort(
+            key=lambda item: 1
+            - sum(a * b for a, b in zip(item.embedding, vector, strict=True))
+        )
+        return items[:limit]
+    result = await db.scalars(
+        select(MediaItem)
+        .where(
+            MediaItem.notebook_id == notebook_id,
+            MediaItem.source_id.in_(selected_source_ids),
+            MediaItem.modality == "image",
+        )
+        .order_by(MediaItem.embedding.cosine_distance(vector))
+        .limit(limit)
+    )
+    return list(result.all())
+
+
 async def select_context(
     db: AsyncSession,
     embedding: EmbeddingProvider,
@@ -182,6 +245,7 @@ async def select_context(
     context_window: int = 8192,
     limit: int = 8,
     reranker: Reranker | None = None,
+    multimodal_enabled: bool = False,
 ) -> ContextSelection:
     """Select only ready, persisted-selected sources for one notebook."""
     if not selected_source_ids:
@@ -207,11 +271,23 @@ async def select_context(
         return ContextSelection([], names, "empty", query)
     budget = max(1024, min(int(context_window * 0.55), context_window - 2048))
     total = sum(estimate_tokens(chunk.text) + 32 for chunk in all_chunks)
-    if total <= budget:
+    if total <= budget and not multimodal_enabled:
         return ContextSelection(all_chunks, names, "full", query)
     vectors = await vector_search(db, embedding, notebook_id, selected_ids, query, dim)
     lexical = await fts_search(db, notebook_id, selected_ids, query)
-    merged = rrf_merge(vectors, lexical, limit=max(limit * 2, 12))
+    text_ranked = rrf_merge(vectors, lexical, limit=max(limit * 2, 12))
+    media = (
+        await media_vector_search(db, embedding, notebook_id, selected_ids, query, dim)
+        if multimodal_enabled
+        else []
+    )
+    mixed = rrf_merge_modalities(text_ranked, media, limit=max(limit * 3, 18))
+    selected_media = [item for item in mixed if isinstance(item, MediaItem)][:4]
+    merged = [item for item in mixed if isinstance(item, Chunk)]
+    if total <= budget:
+        return ContextSelection(
+            all_chunks, names, "multimodal-full" if media else "full", query, selected_media
+        )
     reranked = await (reranker or NoopReranker()).rerank(query, merged)
     chosen: list[Chunk] = []
     used = 0
@@ -223,4 +299,6 @@ async def select_context(
         used += cost
         if len(chosen) >= limit:
             break
-    return ContextSelection(chosen, names, "hybrid", query)
+    return ContextSelection(
+        chosen, names, "multimodal" if media else "hybrid", query, selected_media
+    )

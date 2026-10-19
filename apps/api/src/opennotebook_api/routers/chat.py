@@ -9,16 +9,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from opennotebook_core.models import ChatMessage, Source
+from opennotebook_core.models import ChatMessage, LLMUsage, Source
 from opennotebook_core.prompts.chat_v1 import (
     build_chat_messages,
     suggested_questions,
     validate_citations,
 )
-from opennotebook_core.retrieval import REFUSAL, condense_query, select_context
+from opennotebook_core.retrieval import REFUSAL, condense_query, estimate_tokens, select_context
 from pydantic import BaseModel, Field
 from redis.asyncio import Redis
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from opennotebook_api.deps.auth import CurrentUser, get_current_user
@@ -38,13 +38,16 @@ class ChatIn(BaseModel):
 
 class ChatCitation(BaseModel):
     n: int
-    chunk_id: str
+    chunk_id: str | None
     source_id: str
     page_start: int | None
+    time_start: float | None = None
+    time_end: float | None = None
     char_start: int
     char_end: int
     source_name: str
     quote: str
+    media_item_id: str | None = None
 
 
 class ChatMessageOut(BaseModel):
@@ -169,6 +172,7 @@ async def chat_stream(
         update={
             "llm_provider": provider,
             "default_chat_model": model,
+            "fallback_model": view.fallback_model,
             f"{provider}_api_key": key,
             "ollama_base_url": view.ollama_base_url,
         }
@@ -191,7 +195,24 @@ async def chat_stream(
         condensed,
         dim=config.embed_dim,
         context_window=window,
+        multimodal_enabled=config.multimodal_enabled and config.multimodal_image_enabled,
     )
+    utc_day_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    used_today = int(
+        await db.scalar(
+            select(
+                func.coalesce(
+                    func.sum(LLMUsage.input_tokens + LLMUsage.output_tokens), 0
+                )
+            ).where(LLMUsage.user_id == user.id, LLMUsage.created_at >= utc_day_start)
+        )
+        or 0
+    )
+    request_budget = estimate_tokens(body.question) + sum(
+        estimate_tokens(chunk.text) for chunk in selection.chunks
+    )
+    if used_today + request_budget > config.chat_tokens_per_day:
+        raise HTTPException(429, "Daily chat token quota reached. Try again tomorrow")
     prompt = build_chat_messages(
         selection,
         body.question,
@@ -213,9 +234,11 @@ async def chat_stream(
     async def events() -> AsyncIterator[str]:
         parts: list[str] = []
         stream: AsyncIterator[str] | None = None
+        chat_llm = None
         try:
-            if selection.chunks:
-                stream = request.app.state.llm_factory(selected_config).stream(prompt)
+            if selection.chunks or selection.media_items:
+                chat_llm = request.app.state.llm_factory(selected_config)
+                stream = chat_llm.stream(prompt)
                 async for token in stream:
                     parts.append(token)
                     yield _frame("token", {"text": token})
@@ -223,26 +246,51 @@ async def chat_stream(
                 parts.append(REFUSAL)
                 yield _frame("token", {"text": REFUSAL})
             answer, citations = validate_citations("".join(parts), selection)
-            if not selection.chunks:
+            if not selection.chunks and not selection.media_items:
                 answer, citations = REFUSAL, []
-            async with request.app.state.session_factory() as session:
-                assistant = ChatMessage(
-                    notebook_id=notebook_id,
-                    user_id=user.id,
-                    role="assistant",
-                    content=answer,
-                    citations_json=[dict(citation) for citation in citations],
-                    model_name=model or "none",
-                    created_at=datetime.now(UTC),
-                )
-                session.add(assistant)
-                await session.commit()
+            async with request.app.state.chat_persistence_lock:
+                async with request.app.state.session_factory() as session:
+                    actual_model = (
+                        getattr(chat_llm, "last_used_model", None)
+                        if chat_llm is not None
+                        else None
+                    ) or model or "none"
+                    usage = getattr(chat_llm, "last_usage", {}) if chat_llm is not None else {}
+                    input_tokens = int(
+                        usage.get("prompt_tokens")
+                        or estimate_tokens("".join(message["content"] for message in prompt))
+                    )
+                    output_tokens = int(
+                        usage.get("completion_tokens") or estimate_tokens(answer)
+                    )
+                    assistant = ChatMessage(
+                        notebook_id=notebook_id,
+                        user_id=user.id,
+                        role="assistant",
+                        content=answer,
+                        citations_json=[dict(citation) for citation in citations],
+                        model_name=actual_model,
+                        created_at=datetime.now(UTC),
+                    )
+                    session.add(assistant)
+                    if chat_llm is not None:
+                        cost = usage.get("cost")
+                        session.add(
+                            LLMUsage(
+                                user_id=user.id,
+                                model_name=actual_model,
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                                cost_usd=float(cost) if isinstance(cost, (float, int)) else None,
+                            )
+                        )
+                    await session.commit()
             final = ChatFinal(
                 message_id=assistant.id,
                 content=answer,
                 citations=[ChatCitation.model_validate(citation) for citation in citations],
                 followups=suggested_questions(selection) if citations else [],
-                model_name=model or "none",
+                model_name=actual_model,
             )
             yield _frame("final", final.model_dump())
         except asyncio.CancelledError:

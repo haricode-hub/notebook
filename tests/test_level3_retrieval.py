@@ -45,6 +45,8 @@ def test_citation_validator_drops_fabricated_markers() -> None:
             "chunk_id": "chunk-1",
             "source_id": "source",
             "page_start": None,
+            "time_start": None,
+            "time_end": None,
             "char_start": 0,
             "char_end": 16,
             "source_name": "Evidence",

@@ -2,7 +2,8 @@ import asyncio
 import json
 import logging
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from uuid import uuid4
 
@@ -10,6 +11,7 @@ import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from opennotebook_core.config import Settings, get_settings
 from opennotebook_core.db import make_session_factory
@@ -21,7 +23,16 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from opennotebook_api.deps.auth import JWKSVerifier
-from opennotebook_api.routers import artifacts, chat, guides, notebooks, notes, sources
+from opennotebook_api.routers import (
+    admin,
+    artifacts,
+    chat,
+    guides,
+    notebooks,
+    notes,
+    sharing,
+    sources,
+)
 from opennotebook_api.routers import settings as settings_router
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
@@ -93,7 +104,13 @@ def create_app(
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging()
-    app = FastAPI(title="OpenNotebook Studio API", version="0.1.0")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        yield
+        await app.state.session_factory.kw["bind"].dispose()
+
+    app = FastAPI(title="OpenNotebook Studio API", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
     app.state.session_factory = make_session_factory(settings)
     app.state.jwks_verifier = JWKSVerifier(settings)
@@ -103,6 +120,7 @@ def create_app(
     app.state.chat_limiter = chat.RedisChatLimiter(
         settings.redis_url, settings.chat_rate_limit_per_minute
     )
+    app.state.chat_persistence_lock = asyncio.Lock()
     app.include_router(notebooks.router)
     app.include_router(sources.router)
     app.include_router(sources.files_router)
@@ -111,6 +129,9 @@ def create_app(
     app.include_router(notes.router)
     app.include_router(artifacts.router)
     app.include_router(settings_router.router)
+    app.include_router(sharing.router)
+    app.include_router(admin.router)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.web_origin],
@@ -118,6 +139,7 @@ def create_app(
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     )
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
     probes = checks or {"db": check_db, "redis": check_redis, "embed": check_embed}
     logger = logging.getLogger("opennotebook.api")
 
@@ -142,6 +164,12 @@ def create_app(
             else:
                 response = await call_next(request)
             response.headers["x-request-id"] = request_id
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+            )
             logger.info(
                 "request method=%s path=%s status=%s duration_ms=%.1f",
                 request.method,

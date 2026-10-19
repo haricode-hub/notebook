@@ -1,8 +1,14 @@
 import asyncio
 import json
+import os
+import tempfile
+import time
+import uuid
 from typing import Any
 
 from arq.connections import RedisSettings
+from arq.cron import cron
+from arq.worker import Retry
 from opennotebook_core.artifacts import generate_artifact
 from opennotebook_core.audio import (
     AudioJobCancelled,
@@ -18,11 +24,18 @@ from opennotebook_core.chunking import chunk_document
 from opennotebook_core.config import get_settings
 from opennotebook_core.db import make_session_factory
 from opennotebook_core.embeddings import make_embedding
-from opennotebook_core.extractors import EXTRACTORS
+from opennotebook_core.extractors import (
+    EXTRACTORS,
+    AudioExtractor,
+    extract_figures,
+    extract_youtube_transcript,
+    parse_youtube_id,
+)
 from opennotebook_core.models import (
     Artifact,
     Chunk,
     Job,
+    MediaItem,
     Notebook,
     NotebookOverview,
     Source,
@@ -40,6 +53,14 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
+
+
+def _retry_delay(ctx: dict[str, Any], settings: Any) -> int | None:
+    """Return exponential retry delay; terminal failed DB rows are the dead-letter record."""
+    attempt = int(ctx.get("job_try", settings.job_max_tries))
+    if attempt >= int(settings.job_max_tries):
+        return None
+    return int(min(2 ** max(0, attempt - 1), 60))
 
 
 async def _publish(
@@ -103,16 +124,67 @@ async def ingest_source(
     fetcher = ctx.get("fetcher") or fetch_public_url
     try:
         source = await _stage(ctx, source_id, job_id, "fetching", 5)
-        if source.kind == "web":
+        source_data: bytes | None = None
+        transcript_source: str | None = None
+        if source.kind in {"web", "youtube"}:
             if not source.url:
-                raise ValueError("Website URL is missing")
-            data = await fetcher(source.url)
+                raise ValueError("Source URL is missing")
+            if source.kind == "youtube":
+                await _stage(ctx, source_id, job_id, "extracting", 20)
+                try:
+                    document = await asyncio.to_thread(extract_youtube_transcript, source.url)
+                    transcript_source = "youtube"
+                except Exception:
+                    video_id = parse_youtube_id(source.url)
+                    with tempfile.TemporaryDirectory(prefix="open-notebook-youtube-") as folder:
+                        target = f"{folder}/audio.%(ext)s"
+
+                        def download_audio() -> tuple[bytes, str]:
+                            import yt_dlp  # type: ignore[import-untyped]
+
+                            options: dict[str, object] = {
+                                "format": "bestaudio/best",
+                                "outtmpl": target,
+                                "noplaylist": True,
+                                "max_filesize": 150 * 1024 * 1024,
+                                "socket_timeout": 20,
+                                "retries": 2,
+                                "quiet": True,
+                                "no_warnings": True,
+                            }
+                            with yt_dlp.YoutubeDL(options) as downloader:
+                                downloader.download([f"https://www.youtube.com/watch?v={video_id}"])
+                            paths = [
+                                os.path.join(folder, name)
+                                for name in os.listdir(folder)
+                                if name.startswith("audio.")
+                            ]
+                            if not paths:
+                                raise ValueError("YouTube audio download produced no file")
+                            with open(paths[0], "rb") as media_file:
+                                return media_file.read(), os.path.splitext(paths[0])[1]
+
+                        media, media_suffix = await asyncio.to_thread(download_audio)
+                    document = await asyncio.to_thread(
+                        AudioExtractor().extract, media, media_suffix
+                    )
+                    transcript_source = "whisper"
+            else:
+                data = await fetcher(source.url)
+                source_data = data
+                await _stage(ctx, source_id, job_id, "extracting", 20)
+                document = await asyncio.to_thread(EXTRACTORS[source.kind].extract, data)
         else:
             if not source.storage_key:
                 raise ValueError("Source file is missing")
             data = await storage.get(source.storage_key)
-        await _stage(ctx, source_id, job_id, "extracting", 20)
-        document = await asyncio.to_thread(EXTRACTORS[source.kind].extract, data)
+            source_data = data
+            await _stage(ctx, source_id, job_id, "extracting", 20)
+            if source.kind == "audio":
+                suffix = os.path.splitext(source.name)[1]
+                document = await asyncio.to_thread(AudioExtractor().extract, data, suffix)
+            else:
+                document = await asyncio.to_thread(EXTRACTORS[source.kind].extract, data)
         await _stage(ctx, source_id, job_id, "chunking", 40)
         spans = chunk_document(document)
         if not spans:
@@ -142,6 +214,26 @@ async def ingest_source(
         )
         if len(vectors) != len(spans):
             raise ValueError("Embedding service returned the wrong number of vectors")
+        figures = (
+            extract_figures(source.kind, source_data)
+            if settings.multimodal_enabled
+            and settings.multimodal_image_enabled
+            and source_data is not None
+            and source.kind in {"pdf", "pptx"}
+            else []
+        )
+        figure_vectors: list[list[float]] = []
+        if figures:
+            embed_media = getattr(embedding, "embed_images", None)
+            if embed_media is None:
+                raise ValueError("Multimodal image embedding requires the gemma2 embed service")
+            figure_vectors = await embed_media(
+                [figure.data for figure in figures],
+                [figure.text_anchor for figure in figures],
+                settings.embed_dim,
+            )
+            if len(figure_vectors) != len(figures):
+                raise ValueError("Embedding service returned the wrong number of figure vectors")
         await _stage(ctx, source_id, job_id, "indexing", 90)
         async with factory() as session:
             record = await session.get(Source, source_id)
@@ -168,6 +260,7 @@ async def ingest_source(
                         "Embedding model or dimension changed. Re-index this notebook first"
                     )
             await session.execute(delete(Chunk).where(Chunk.source_id == source_id))
+            await session.execute(delete(MediaItem).where(MediaItem.source_id == source_id))
             dialect = session.bind.dialect.name if session.bind else "postgresql"
             for ordinal, (span, vector) in enumerate(zip(spans, vectors, strict=True)):
                 chunk = Chunk(
@@ -177,6 +270,8 @@ async def ingest_source(
                     text=span.text,
                     page_start=span.page_start,
                     page_end=span.page_end,
+                    time_start=span.time_start,
+                    time_end=span.time_end,
                     char_start=span.char_start,
                     char_end=span.char_end,
                     heading_path=list(span.heading_path),
@@ -186,7 +281,30 @@ async def ingest_source(
                 if dialect == "postgresql":
                     chunk.tsv = func.to_tsvector("english", span.text)
                 session.add(chunk)
+            for figure, vector in zip(figures, figure_vectors, strict=True):
+                media_id = str(uuid.uuid4())
+                extension = "jpg" if figure.mime_type == "image/jpeg" else "png"
+                key = f"media/{source_id}/{media_id}.{extension}"
+                await storage.put(key, figure.data)
+                session.add(
+                    MediaItem(
+                        id=media_id,
+                        source_id=source_id,
+                        notebook_id=record.notebook_id,
+                        storage_key=key,
+                        text_anchor=figure.text_anchor,
+                        page=figure.page,
+                        bbox=figure.bbox,
+                        modality="image",
+                        embedding=vector,
+                    )
+                )
             record.extracted_text = document.text
+            if transcript_source is not None:
+                record.metadata_json = {
+                    **record.metadata_json,
+                    "transcript_source": transcript_source,
+                }
             record.page_count = document.page_count
             record.embedding_model = identity
             record.embedding_dim = settings.embed_dim
@@ -205,7 +323,12 @@ async def ingest_source(
             if isinstance(exc, TimeoutError)
             else str(exc)[:500] or "Source ingestion failed"
         )
+        delay = _retry_delay(ctx, settings)
+        if delay is None:
+            message = f"Dead-lettered after {settings.job_max_tries} attempts: {message}"[:500]
         await _stage(ctx, source_id, job_id, "failed", 0, message)
+        if delay is not None:
+            raise Retry(defer=delay) from exc
         return source_id
 
 
@@ -312,6 +435,9 @@ async def summarize_source(ctx: dict[str, Any], source_id: str, job_id: str) -> 
                 await session.commit()
                 await _publish(ctx, source.notebook_id, source_id, "guide_failed", 100, guide.error)
         await _finish_job(factory, job_id, status="failed", error=str(exc)[:500])
+        delay = _retry_delay(ctx, settings)
+        if delay is not None:
+            raise Retry(defer=delay) from exc
     return source_id
 
 
@@ -396,7 +522,13 @@ async def refresh_notebook_overview(ctx: dict[str, Any], notebook_id: str, job_i
         await _publish(ctx, notebook_id, "", "overview_ready", 100)
         await _finish_job(factory, job_id)
     except Exception as exc:
-        await _finish_job(factory, job_id, status="failed", error=str(exc)[:500])
+        detail = str(exc)[:450]
+        delay = _retry_delay(ctx, settings)
+        if delay is None:
+            detail = f"Dead-lettered after {settings.job_max_tries} attempts: {detail}"
+        await _finish_job(factory, job_id, status="failed", error=detail)
+        if delay is not None:
+            raise Retry(defer=delay) from exc
     return notebook_id
 
 
@@ -466,7 +598,17 @@ async def reindex_notebook(ctx: dict[str, Any], notebook_id: str, job_id: str) -
                 job.error = str(exc)[:500]
                 await session.commit()
         await _publish(ctx, notebook_id, "", "failed", 0, str(exc)[:500])
-        raise
+        delay = _retry_delay(ctx, settings)
+        if delay is None:
+            async with factory() as session:
+                job = await session.get(Job, job_id)
+                if job is not None:
+                    job.error = (
+                        f"Dead-lettered after {settings.job_max_tries} attempts: {exc}"[:500]
+                    )
+                    await session.commit()
+            return notebook_id
+        raise Retry(defer=delay) from exc
 
 
 async def ping(ctx: dict[str, Any], job_id: str) -> str:
@@ -600,9 +742,21 @@ async def generate_text_artifact(ctx: dict[str, Any], artifact_id: str) -> str:
             await session.commit()
         await _artifact_stage(ctx, artifact_id, "ready", 100)
     except Exception as exc:
+        delay = _retry_delay(ctx, settings)
         await _artifact_stage(
-            ctx, artifact_id, "failed", 0, str(exc)[:500] or "Artifact generation failed"
+            ctx,
+            artifact_id,
+            "failed",
+            0,
+            (
+                f"Dead-lettered after {settings.job_max_tries} attempts: {exc}"
+                if delay is None
+                else str(exc)
+            )[:500]
+            or "Artifact generation failed",
         )
+        if delay is not None:
+            raise Retry(defer=delay) from exc
     return artifact_id
 
 
@@ -852,13 +1006,65 @@ async def generate_audio_overview(ctx: dict[str, Any], artifact_id: str) -> str:
     except AudioJobCancelled:
         await _artifact_stage(ctx, artifact_id, "cancelled", 0, "Cancelled by user")
     except Exception as exc:
+        delay = _retry_delay(ctx, settings)
         await _artifact_stage(
-            ctx, artifact_id, "failed", 0, str(exc)[:500] or "Audio generation failed"
+            ctx,
+            artifact_id,
+            "failed",
+            0,
+            (
+                f"Dead-lettered after {settings.job_max_tries} attempts: {exc}"
+                if delay is None
+                else str(exc)
+            )[:500]
+            or "Audio generation failed",
         )
+        if delay is not None:
+            raise Retry(defer=delay) from exc
     finally:
         if owns_redis:
             await redis.aclose()
     return artifact_id
+
+
+async def cleanup_orphaned_storage(ctx: dict[str, Any]) -> int:
+    """Remove unreferenced storage objects only after a safety grace period."""
+    settings = ctx.get("settings") or get_settings()
+    factory = ctx.get("session_factory") or make_session_factory(settings)
+    storage = ctx.get("storage") or make_storage(settings)
+    referenced: set[str] = set()
+    async with factory() as session:
+        for value in (await session.scalars(select(Source.storage_key))).all():
+            if isinstance(value, str):
+                referenced.add(value)
+        for value in (await session.scalars(select(MediaItem.storage_key))).all():
+            if isinstance(value, str):
+                referenced.add(value)
+        for payload in (await session.scalars(select(Artifact.output_json))).all():
+            if isinstance(payload, dict):
+                key = payload.get("storage_key")
+                if isinstance(key, str):
+                    referenced.add(key)
+    cutoff = time.time() - settings.orphan_file_grace_hours * 3600
+    objects = await storage.list_objects()
+    removed = 0
+    for key, modified_at in objects.items():
+        if key not in referenced and modified_at < cutoff:
+            await storage.delete(key)
+            removed += 1
+    return removed
+
+
+async def startup(ctx: dict[str, Any]) -> None:
+    settings = get_settings()
+    ctx["settings"] = settings
+    ctx["session_factory"] = make_session_factory(settings)
+
+
+async def shutdown(ctx: dict[str, Any]) -> None:
+    factory = ctx.get("session_factory")
+    if factory is not None:
+        await factory.kw["bind"].dispose()
 
 
 class WorkerSettings:
@@ -874,3 +1080,7 @@ class WorkerSettings:
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     max_jobs = 2
     job_timeout = 3600
+    max_tries = get_settings().job_max_tries
+    cron_jobs = [cron(cleanup_orphaned_storage, hour=3, minute=17)]
+    on_startup = startup
+    on_shutdown = shutdown

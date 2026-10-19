@@ -1,22 +1,28 @@
-﻿# OpenNotebook Studio
+# OpenNotebook Studio
 
-A source grounded research workspace. Level 0 provides the service foundation; product features begin in later levels.
+OpenNotebook Studio is a source-grounded research workspace. Upload documents, ask questions with clickable citations, and create study guides, briefs, timelines, mind maps, flashcards, quizzes, and audio overviews.
 
-## Start
+## Run locally
 
-Requires Docker Compose. Copy `.env.example` to `.env`, then run:
+Install Docker Compose, Python 3.13, [uv](https://docs.astral.sh/uv/), Node 22, and Corepack. Copy `.env.example` to `.env`, set `BETTER_AUTH_SECRET`, `SETTINGS_ENCRYPTION_KEY`, and `OPENROUTER_API_KEY`, then start the services:
 
 ```sh
-make dev
+docker compose up --build -d
+docker compose exec api alembic -c packages/core/alembic.ini upgrade head
+docker compose run --rm auth-migrate
 ```
 
-Open http://localhost:3000 to see API, database, Redis, and embedding readiness. The API exposes `/healthz` and `/readyz` at http://localhost:8000. The Level 0 embedding backend is deterministic and fake; the local Gemma 2 backend is reserved for Level 2.
+Open [http://localhost:3000](http://localhost:3000), create an account, and create a notebook. API readiness is at [http://localhost:8000/readyz](http://localhost:8000/readyz).
 
-`make smoke` enqueues a ping job and waits for its `jobs` row to reach `succeeded`. `make migrate` applies the Alembic migration if needed. `make types` regenerates the committed TypeScript types from FastAPI's OpenAPI schema.
+To try the sample corpus, sign in and obtain a short-lived Better Auth JWT from `/api/auth/token`. Then run:
 
-## Local checks
+```sh
+SAMPLE_USER_TOKEN=YOUR_SHORT_LIVED_JWT make sample
+```
 
-Install Python 3.13, [uv](https://docs.astral.sh/uv/), Node 22, Corepack pnpm, and GNU Make. Then run:
+The command creates a notebook with the observatory field notes, queues ingestion, and prints its URL after indexing finishes. The sample document is in [docs/samples/observatory-notebook.md](docs/samples/observatory-notebook.md).
+
+## Checks and evaluation
 
 ```sh
 uv sync --frozen --all-packages
@@ -24,8 +30,19 @@ pnpm install --frozen-lockfile
 make lint
 make typecheck
 make test
+make eval
 ```
 
-On Windows without GNU Make, run the recipes in [Makefile](Makefile) directly. The browser smoke test runs with `pnpm --filter web e2e` against the running Compose stack.
+`make eval` prints hit-rate@8, citation validity, lexical faithfulness, and expected-fact relevance for the checked-in golden set. The experiment history and live OpenRouter model comparison are recorded in [docs/DECISIONS.md](docs/DECISIONS.md). For deployment and load-test procedures, see [docs/SCALING.md](docs/SCALING.md).
 
-Project instructions and level specifications are in [AGENTS.md](AGENTS.md) and [docs/levels](docs/levels). Architecture decisions are in [docs/DECISIONS.md](docs/DECISIONS.md), and implementation progress is in [.agents/PROGRESS.md](.agents/PROGRESS.md).
+## Architecture and operations
+
+The web app uses Next.js App Router and Better Auth. FastAPI verifies its JWTs and serves notebook, source, chat, and artifact APIs. PostgreSQL/pgvector stores metadata and embeddings; Redis carries jobs and progress events; the arq worker handles ingestion and generation. EmbeddingGemma is served locally. Source files use local storage by default, with an S3-compatible backend available for scale deployments. Compose starts web, API, worker, embed, TTS, PostgreSQL, and Redis.
+
+- [Architecture decisions](docs/DECISIONS.md)
+- [Security operations](docs/SECURITY.md)
+- [Scaling and deployment](docs/SCALING.md)
+- [Level specifications](docs/levels)
+- [Operational progress](.agents/PROGRESS.md)
+
+For Windows without GNU Make, execute the relevant recipes in [Makefile](Makefile) with `uv` and `pnpm` directly.

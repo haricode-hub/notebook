@@ -33,13 +33,13 @@ Output <promise>L9_COMPLETE</promise> when acceptance tests pass.
 ```
 
 ## Task checklist
-- [ ] YouTube + audio extractors + time anchors
-- [ ] discover + SearchProvider
-- [ ] share tokens + public route + read-only router
-- [ ] export ZIP
-- [ ] embed service media endpoint (flagged)
-- [ ] figure extraction + media_items + per-modality RRF
-- [ ] figure citations in chat/viewer
+- [x] YouTube + audio extractors + time anchors
+- [x] discover + SearchProvider
+- [x] share tokens + public route + read-only router
+- [x] export ZIP
+- [x] embed service media endpoint (flagged)
+- [x] figure extraction + media_items + per-modality RRF
+- [x] figure citations in chat/viewer
 - [ ] ADR-006 + tests + e2e
 
 ## Acceptance tests
@@ -54,3 +54,9 @@ Output <promise>L9_COMPLETE</promise> when acceptance tests pass.
 
 ## Working condition
 "I can feed in videos and recordings, find new sources automatically, search my figures by text, and share a notebook safely."
+
+## Local execution notes (2026-10-19)
+
+- Pass A commit: `9c0bb33` (`feat(level9): add media sources discovery sharing and export`).
+- Pass B commit: `37949ab` (`feat(level9): add gated multimodal figure retrieval`).
+- Pass C Python acceptance tests: **101 passed, 1 skipped**; Ruff and mypy passed. Web typecheck and six Vitest tests passed. ESLint has three pre-existing warnings and no errors. Playwright recognizes the Level 9 browser test, but the discover/share journey could not run because Docker Engine is unavailable and there is no web/API stack listening on localhost. Run that journey after starting the Compose stack before treating Level 9 as complete.

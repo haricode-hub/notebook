@@ -205,6 +205,7 @@ def configured_summary_llm(
         update={
             "llm_provider": provider,
             "default_chat_model": model,
+            "fallback_model": row.fallback_model if row is not None else settings.fallback_model,
             f"{provider}_api_key": key,
             "ollama_base_url": row.ollama_base_url or settings.ollama_base_url
             if row
