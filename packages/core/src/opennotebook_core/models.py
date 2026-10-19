@@ -3,7 +3,18 @@ import uuid
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -253,3 +264,40 @@ class Artifact(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class FlashcardProgress(Base):
+    __tablename__ = "flashcard_progress"
+    __table_args__ = (
+        Index("ix_flashcard_progress_user_artifact", "user_id", "artifact_id"),
+        UniqueConstraint("artifact_id", "user_id", "card_index", name="uq_flashcard_progress_card"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    artifact_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("artifacts.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(Text, nullable=False)
+    card_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    box: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_result: Mapped[str | None] = mapped_column(String(16))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class QuizAttempt(Base):
+    __tablename__ = "quiz_attempts"
+    __table_args__ = (Index("ix_quiz_attempts_user_artifact", "user_id", "artifact_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    artifact_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("artifacts.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(Text, nullable=False)
+    score: Mapped[int] = mapped_column(Integer, nullable=False)
+    total: Mapped[int] = mapped_column(Integer, nullable=False)
+    answers_json: Mapped[list[int]] = mapped_column(JSON, nullable=False)
+    wrong_indices: Mapped[list[int]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

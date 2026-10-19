@@ -3,6 +3,16 @@
     "schemas": {
       "ArtifactCreate": {
         "properties": {
+          "difficulty": {
+            "default": "medium",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Difficulty",
+            "type": "string"
+          },
           "focus": {
             "default": "",
             "maxLength": 2000,
@@ -32,6 +42,13 @@
             "title": "Model Override",
             "type": "string"
           },
+          "question_count": {
+            "default": 10,
+            "maximum": 20.0,
+            "minimum": 3.0,
+            "title": "Question Count",
+            "type": "integer"
+          },
           "recipe": {
             "title": "Recipe",
             "type": "string"
@@ -52,6 +69,7 @@
         "type": "object"
       },
       "ArtifactDocument": {
+        "additionalProperties": false,
         "properties": {
           "recipe": {
             "title": "Recipe",
@@ -82,6 +100,16 @@
       },
       "ArtifactOptions": {
         "properties": {
+          "difficulty": {
+            "default": "medium",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ],
+            "title": "Difficulty",
+            "type": "string"
+          },
           "focus": {
             "default": "",
             "maxLength": 2000,
@@ -110,6 +138,13 @@
             "maxLength": 200,
             "title": "Model Override",
             "type": "string"
+          },
+          "question_count": {
+            "default": 10,
+            "maximum": 20.0,
+            "minimum": 3.0,
+            "title": "Question Count",
+            "type": "integer"
           },
           "source_ids": {
             "items": {
@@ -176,9 +211,19 @@
                 "$ref": "#/components/schemas/ArtifactDocument"
               },
               {
+                "$ref": "#/components/schemas/MindMapArtifact"
+              },
+              {
+                "$ref": "#/components/schemas/FlashcardsArtifact"
+              },
+              {
+                "$ref": "#/components/schemas/QuizArtifact"
+              },
+              {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Output"
           },
           "progress": {
             "title": "Progress",
@@ -415,6 +460,116 @@
         "title": "ConnectionOut",
         "type": "object"
       },
+      "Flashcard": {
+        "additionalProperties": false,
+        "properties": {
+          "back": {
+            "maxLength": 1500,
+            "minLength": 1,
+            "title": "Back",
+            "type": "string"
+          },
+          "front": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Front",
+            "type": "string"
+          },
+          "source_ref": {
+            "exclusiveMinimum": 0.0,
+            "title": "Source Ref",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "front",
+          "back",
+          "source_ref"
+        ],
+        "title": "Flashcard",
+        "type": "object"
+      },
+      "FlashcardProgressOut": {
+        "properties": {
+          "box": {
+            "title": "Box",
+            "type": "integer"
+          },
+          "card_index": {
+            "title": "Card Index",
+            "type": "integer"
+          },
+          "due_at": {
+            "format": "date-time",
+            "title": "Due At",
+            "type": "string"
+          },
+          "last_result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Result"
+          }
+        },
+        "required": [
+          "card_index",
+          "box",
+          "due_at",
+          "last_result"
+        ],
+        "title": "FlashcardProgressOut",
+        "type": "object"
+      },
+      "FlashcardReviewIn": {
+        "properties": {
+          "known": {
+            "title": "Known",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "known"
+        ],
+        "title": "FlashcardReviewIn",
+        "type": "object"
+      },
+      "FlashcardsArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/Flashcard"
+            },
+            "maxItems": 60,
+            "minItems": 1,
+            "title": "Cards",
+            "type": "array"
+          },
+          "recipe": {
+            "const": "flashcards",
+            "default": "flashcards",
+            "title": "Recipe",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "cards"
+        ],
+        "title": "FlashcardsArtifact",
+        "type": "object"
+      },
       "GuideOut": {
         "properties": {
           "error": {
@@ -477,6 +632,73 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "MindMapArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "recipe": {
+            "const": "mindmap",
+            "default": "mindmap",
+            "title": "Recipe",
+            "type": "string"
+          },
+          "root": {
+            "$ref": "#/components/schemas/MindMapNode"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "root"
+        ],
+        "title": "MindMapArtifact",
+        "type": "object"
+      },
+      "MindMapNode": {
+        "additionalProperties": false,
+        "properties": {
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/MindMapNode"
+            },
+            "maxItems": 12,
+            "title": "Children",
+            "type": "array"
+          },
+          "label": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "source_refs": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "summary": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "summary",
+          "source_refs"
+        ],
+        "title": "MindMapNode",
         "type": "object"
       },
       "ModelOption": {
@@ -786,6 +1008,147 @@
           }
         },
         "title": "NotebookUpdate",
+        "type": "object"
+      },
+      "QuizArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/QuizQuestion"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Questions",
+            "type": "array"
+          },
+          "recipe": {
+            "const": "quiz",
+            "default": "quiz",
+            "title": "Recipe",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "questions"
+        ],
+        "title": "QuizArtifact",
+        "type": "object"
+      },
+      "QuizAttemptIn": {
+        "properties": {
+          "answers": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "QuizAttemptIn",
+        "type": "object"
+      },
+      "QuizAttemptOut": {
+        "properties": {
+          "answers": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Answers",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "wrong_indices": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Wrong Indices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "score",
+          "total",
+          "answers",
+          "wrong_indices",
+          "created_at"
+        ],
+        "title": "QuizAttemptOut",
+        "type": "object"
+      },
+      "QuizQuestion": {
+        "additionalProperties": false,
+        "properties": {
+          "answer_index": {
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Answer Index",
+            "type": "integer"
+          },
+          "explanation": {
+            "maxLength": 1500,
+            "minLength": 1,
+            "title": "Explanation",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Options",
+            "type": "array"
+          },
+          "question": {
+            "maxLength": 800,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "source_ref": {
+            "exclusiveMinimum": 0.0,
+            "title": "Source Ref",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "question",
+          "options",
+          "answer_index",
+          "explanation",
+          "source_ref"
+        ],
+        "title": "QuizQuestion",
         "type": "object"
       },
       "ReadinessBody": {
@@ -1952,6 +2315,265 @@
           }
         ],
         "summary": "Export Artifact",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/flashcards/progress": {
+      "get": {
+        "operationId": "flashcard_progress_notebooks__notebook_id__artifacts__artifact_id__flashcards_progress_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FlashcardProgressOut"
+                  },
+                  "title": "Response Flashcard Progress Notebooks  Notebook Id  Artifacts  Artifact Id  Flashcards Progress Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Flashcard Progress",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/flashcards/{card_index}/review": {
+      "post": {
+        "operationId": "review_flashcard_notebooks__notebook_id__artifacts__artifact_id__flashcards__card_index__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "card_index",
+            "required": true,
+            "schema": {
+              "title": "Card Index",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlashcardReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlashcardProgressOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Review Flashcard",
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/quiz/attempts": {
+      "get": {
+        "operationId": "list_quiz_attempts_notebooks__notebook_id__artifacts__artifact_id__quiz_attempts_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QuizAttemptOut"
+                  },
+                  "title": "Response List Quiz Attempts Notebooks  Notebook Id  Artifacts  Artifact Id  Quiz Attempts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Quiz Attempts",
+        "tags": [
+          "artifacts"
+        ]
+      },
+      "post": {
+        "operationId": "create_quiz_attempt_notebooks__notebook_id__artifacts__artifact_id__quiz_attempts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notebook_id",
+            "required": true,
+            "schema": {
+              "title": "Notebook Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "artifact_id",
+            "required": true,
+            "schema": {
+              "title": "Artifact Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuizAttemptIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizAttemptOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Quiz Attempt",
         "tags": [
           "artifacts"
         ]

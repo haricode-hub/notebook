@@ -14,6 +14,12 @@ from opennotebook_core.artifacts import (
     ArtifactDocument,
     ArtifactSection,
     FakeArtifactLLM,
+    Flashcard,
+    FlashcardsArtifact,
+    MindMapArtifact,
+    MindMapNode,
+    QuizArtifact,
+    QuizQuestion,
     generate_artifact,
 )
 from opennotebook_core.config import Settings
@@ -38,6 +44,38 @@ class ScriptedLLM:
 
 
 def fixture_document(recipe: str, ref: int = 1) -> str:
+    if recipe == "mindmap":
+        return MindMapArtifact(
+            title="Mind map",
+            root=MindMapNode(
+                label="Launch",
+                summary=f"The launch code is BLUEBIRD-42 [S{ref}].",
+                source_refs=[ref],
+            ),
+        ).model_dump_json()
+    if recipe == "flashcards":
+        return FlashcardsArtifact(
+            title="Flashcards",
+            cards=[
+                Flashcard(
+                    front="What is the launch code?", back=f"BLUEBIRD-42 [S{ref}]", source_ref=ref
+                )
+            ],
+        ).model_dump_json()
+    if recipe == "quiz":
+        return QuizArtifact(
+            title="Quiz",
+            questions=[
+                QuizQuestion(
+                    question="What is the launch code?",
+                    options=["BLUEBIRD-42", "RED-99", "GREEN-7", "None"],
+                    answer_index=0,
+                    explanation=f"The source says BLUEBIRD-42. [S{ref}]",
+                    source_ref=ref,
+                )
+                for _ in range(10)
+            ],
+        ).model_dump_json()
     return ArtifactDocument(
         recipe=recipe,
         title=f"{RECIPES_REGISTRY[recipe].title} for launch",
@@ -90,6 +128,7 @@ async def test_invalid_json_gets_exactly_one_repair_and_fabricated_refs_fail() -
     document, citations = await generate_artifact(
         "study_guide", [chunk], {"evidence": "Launch.txt"}, {}, repaired
     )
+    assert isinstance(document, ArtifactDocument)
     assert document.sections[0].citation_refs == [1]
     assert len(citations) == 1 and len(repaired.calls) == 2
     assert repaired.calls[1][-1]["role"] == "user"
@@ -161,7 +200,7 @@ async def test_artifact_api_worker_selection_failure_retry_and_exports(
         owner, other = auth(keys.token("owner")), auth(keys.token("other"))
         path = f"/notebooks/{notebook_id}/artifacts"
         recipes = await client.get(f"{path}/recipes", headers=owner)
-        assert recipes.status_code == 200 and len(recipes.json()) == 5
+        assert recipes.status_code == 200 and len(recipes.json()) == 8
         assert (await client.get(path, headers=other)).status_code == 404
         rejected = await client.post(
             path, headers=owner, json={"recipe": "study_guide", "source_ids": ["unselected"]}

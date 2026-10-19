@@ -6,13 +6,13 @@ import re
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Protocol
+from typing import Literal, Protocol, cast
 
 from docx import Document
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from opennotebook_core.models import Chunk
-from opennotebook_core.prompts.artifact_v1 import RECIPES, artifact_messages, map_messages
+from opennotebook_core.prompts.artifact_v2 import RECIPES, artifact_messages, map_messages
 from opennotebook_core.prompts.chat_v1 import MARKER, Citation
 
 
@@ -23,9 +23,89 @@ class ArtifactSection(BaseModel):
 
 
 class ArtifactDocument(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     recipe: str
     title: str = Field(min_length=1, max_length=200)
     sections: list[ArtifactSection] = Field(min_length=1)
+
+
+class MindMapNode(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    label: str = Field(min_length=1, max_length=120)
+    summary: str = Field(min_length=1, max_length=1000)
+    source_refs: list[int] = Field(min_length=1, max_length=10)
+    children: list["MindMapNode"] = Field(default_factory=list, max_length=12)
+
+    @model_validator(mode="after")
+    def valid_source_refs(self) -> "MindMapNode":
+        if any(ref < 1 for ref in self.source_refs) or len(set(self.source_refs)) != len(
+            self.source_refs
+        ):
+            raise ValueError("Mind map source_refs must be distinct positive citation numbers")
+        return self
+
+
+class MindMapArtifact(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    recipe: Literal["mindmap"] = "mindmap"
+    title: str = Field(min_length=1, max_length=200)
+    root: MindMapNode
+
+    @model_validator(mode="after")
+    def bounded_tree(self) -> "MindMapArtifact":
+        count = 0
+
+        def walk(node: MindMapNode, depth: int) -> None:
+            nonlocal count
+            count += 1
+            if depth > 4:
+                raise ValueError("Mind map depth must be at most 4")
+            if count > 60:
+                raise ValueError("Mind map must contain at most 60 nodes")
+            for child in node.children:
+                walk(child, depth + 1)
+
+        walk(self.root, 1)
+        return self
+
+
+class Flashcard(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    front: str = Field(min_length=1, max_length=500)
+    back: str = Field(min_length=1, max_length=1500)
+    source_ref: int = Field(gt=0)
+
+
+class FlashcardsArtifact(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    recipe: Literal["flashcards"] = "flashcards"
+    title: str = Field(min_length=1, max_length=200)
+    cards: list[Flashcard] = Field(min_length=1, max_length=60)
+
+
+class QuizQuestion(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    question: str = Field(min_length=1, max_length=800)
+    options: list[str] = Field(min_length=4, max_length=4)
+    answer_index: int = Field(ge=0, le=3)
+    explanation: str = Field(min_length=1, max_length=1500)
+    source_ref: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def distinct_options_and_cited_explanation(self) -> "QuizQuestion":
+        if len({option.strip().casefold() for option in self.options}) != 4:
+            raise ValueError("Quiz options must be distinct")
+        refs = {int(match.group(1)) for match in MARKER.finditer(self.explanation)}
+        if refs != {self.source_ref}:
+            raise ValueError("Quiz explanation must cite its source_ref")
+        return self
+
+
+class QuizArtifact(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    recipe: Literal["quiz"] = "quiz"
+    title: str = Field(min_length=1, max_length=200)
+    questions: list[QuizQuestion] = Field(min_length=1, max_length=50)
 
 
 class EvidenceItem(BaseModel):
@@ -43,12 +123,26 @@ class ArtifactRecipe:
     title: str
     instruction: str
     renderer_id: str = "markdown_sections_v1"
-    output_schema: type[ArtifactDocument] = ArtifactDocument
+    output_schema: type[BaseModel] = ArtifactDocument
 
 
 RECIPES_REGISTRY: dict[str, ArtifactRecipe] = {
     key: ArtifactRecipe(key, title, instruction) for key, (title, instruction) in RECIPES.items()
 }
+for _id, _schema, _title, _renderer in (
+    ("mindmap", MindMapArtifact, "Mind map", "mindmap_v1"),
+    ("flashcards", FlashcardsArtifact, "Flashcards", "flashcards_v1"),
+    ("quiz", QuizArtifact, "Quiz", "quiz_v1"),
+):
+    RECIPES_REGISTRY[_id] = ArtifactRecipe(
+        _id,
+        _title,
+        RECIPES[_id][1],
+        _renderer,
+        _schema,
+    )
+
+GeneratedArtifact = ArtifactDocument | MindMapArtifact | FlashcardsArtifact | QuizArtifact
 
 
 class ArtifactLLM(Protocol):
@@ -117,6 +211,37 @@ def _validate_document(document: ArtifactDocument, recipe: str, allowed: set[int
             raise ValueError("Artifact section contains missing or fabricated citations")
 
 
+def _validate_output(
+    document: BaseModel, recipe: str, allowed: set[int], options: dict[str, object]
+) -> None:
+    if getattr(document, "recipe", None) != recipe:
+        raise ValueError("Wrong recipe in artifact output")
+    if isinstance(document, ArtifactDocument):
+        _validate_document(document, recipe, allowed)
+        return
+    refs: set[int] = set()
+    if isinstance(document, MindMapArtifact):
+
+        def walk(node: MindMapNode) -> None:
+            refs.update(node.source_refs)
+            for child in node.children:
+                walk(child)
+
+        walk(document.root)
+    elif isinstance(document, FlashcardsArtifact):
+        refs.update(card.source_ref for card in document.cards)
+    elif isinstance(document, QuizArtifact):
+        raw_count = options.get("question_count", 10)
+        if not isinstance(raw_count, int):
+            raise ValueError("Quiz question count must be an integer")
+        requested = raw_count
+        if len(document.questions) != requested:
+            raise ValueError("Quiz question count must match the requested count")
+        refs.update(question.source_ref for question in document.questions)
+    if not refs or not refs <= allowed:
+        raise ValueError("Artifact contains missing or fabricated citations")
+
+
 async def generate_artifact(
     recipe: str,
     chunks: list[Chunk],
@@ -126,7 +251,7 @@ async def generate_artifact(
     *,
     max_input_bytes: int = 10000,
     progress: Callable[[str, int], Awaitable[None]] | None = None,
-) -> tuple[ArtifactDocument, list[Citation]]:
+) -> tuple[GeneratedArtifact, list[Citation]]:
     """Map long sources into cited evidence, then generate a validated document."""
     if recipe not in RECIPES_REGISTRY:
         raise ValueError("Unknown artifact recipe")
@@ -168,8 +293,7 @@ async def generate_artifact(
             if len(json.dumps(items, ensure_ascii=False).encode()) <= max_input_bytes:
                 break
             reduction_input: list[dict[str, object]] = [
-                {"ref": item["ref"], "text": str(item["fact"])[:400]}
-                for item in items
+                {"ref": item["ref"], "text": str(item["fact"])[:400]} for item in items
             ]
             groups = _batches(reduction_input, max_input_bytes)
             if len(groups) >= len(items):
@@ -185,9 +309,24 @@ async def generate_artifact(
         llm,
         artifact_messages(recipe, evidence, options),
         RECIPES_REGISTRY[recipe].output_schema,
-        lambda value: _validate_document(value, recipe, set(labeled)),
+        lambda value: _validate_output(value, recipe, set(labeled), options),
     )
-    used = sorted({ref for section in document.sections for ref in section.citation_refs})
+    used: set[int] = set()
+    if isinstance(document, ArtifactDocument):
+        used.update(ref for section in document.sections for ref in section.citation_refs)
+    elif isinstance(document, MindMapArtifact):
+
+        def collect(node: MindMapNode) -> None:
+            used.update(node.source_refs)
+            for child in node.children:
+                collect(child)
+
+        collect(document.root)
+    elif isinstance(document, FlashcardsArtifact):
+        used.update(card.source_ref for card in document.cards)
+    elif isinstance(document, QuizArtifact):
+        used.update(question.source_ref for question in document.questions)
+    used_refs = sorted(used)
     citations: list[Citation] = [
         {
             "n": number,
@@ -199,9 +338,9 @@ async def generate_artifact(
             "source_name": source_names.get(labeled[number].source_id, "Source"),
             "quote": labeled[number].text[:500],
         }
-        for number in used
+        for number in used_refs
     ]
-    return document, citations
+    return cast(GeneratedArtifact, document), citations
 
 
 class FakeArtifactLLM:
@@ -221,6 +360,40 @@ class FakeArtifactLLM:
         first = evidence[0]
         ref = first["ref"]
         fact = str(first.get("fact") or first.get("text") or "Source finding").splitlines()[0][:250]
+        artifact_cls = RECIPES_REGISTRY[data["recipe"]].output_schema
+        if artifact_cls is MindMapArtifact:
+            yield MindMapArtifact(
+                title="Mind map",
+                root=MindMapNode(
+                    label="Key finding", summary=f"{fact} [S{ref}]", source_refs=[ref], children=[]
+                ),
+            ).model_dump_json()
+            return
+        if artifact_cls is FlashcardsArtifact:
+            yield FlashcardsArtifact(
+                title="Flashcards",
+                cards=[
+                    Flashcard(
+                        front="What is the key finding?", back=f"{fact} [S{ref}]", source_ref=ref
+                    )
+                ],
+            ).model_dump_json()
+            return
+        if artifact_cls is QuizArtifact:
+            yield QuizArtifact(
+                title="Quiz",
+                questions=[
+                    QuizQuestion(
+                        question=f"Which statement is supported by the source? ({index + 1})",
+                        options=[fact, "Not stated", "Opposite of the source", "None of these"],
+                        answer_index=0,
+                        explanation=f"The source supports this. [S{ref}]",
+                        source_ref=ref,
+                    )
+                    for index in range(int(data.get("question_count") or 10))
+                ],
+            ).model_dump_json()
+            return
         yield ArtifactDocument(
             recipe=data["recipe"],
             title=data["title"],

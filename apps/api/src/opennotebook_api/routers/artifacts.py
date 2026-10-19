@@ -12,12 +12,16 @@ from fastapi.responses import Response, StreamingResponse
 from opennotebook_core.artifacts import (
     RECIPES_REGISTRY,
     ArtifactDocument,
+    FlashcardsArtifact,
+    MindMapArtifact,
+    QuizArtifact,
     docx_export,
     markdown_export,
 )
-from opennotebook_core.models import Artifact, Job, Source
-from opennotebook_core.prompts.artifact_v1 import VERSION
+from opennotebook_core.models import Artifact, FlashcardProgress, Job, QuizAttempt, Source
+from opennotebook_core.prompts.artifact_v2 import VERSION
 from opennotebook_core.prompts.chat_v1 import Citation
+from opennotebook_core.study import schedule_review, score_quiz
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 from sqlalchemy import select
@@ -39,6 +43,8 @@ class ArtifactOptions(BaseModel):
     length: Literal["short", "default", "long"] = "default"
     focus: str = Field(default="", max_length=2000)
     model_override: str = Field(default="", max_length=200)
+    question_count: int = Field(default=10, ge=3, le=20)
+    difficulty: Literal["easy", "medium", "hard"] = "medium"
 
 
 class ArtifactCreate(ArtifactOptions):
@@ -61,7 +67,7 @@ class ArtifactOut(BaseModel):
     progress: int
     source_ids: list[str]
     options: ArtifactOptions
-    output: ArtifactDocument | None
+    output: ArtifactDocument | MindMapArtifact | FlashcardsArtifact | QuizArtifact | None
     citations: list[ChatCitation]
     model_name: str | None
     prompt_version: str
@@ -82,7 +88,14 @@ def _out(record: Artifact) -> ArtifactOut:
         options=ArtifactOptions.model_validate(
             {**record.options_json, "source_ids": record.source_ids}
         ),
-        output=ArtifactDocument.model_validate(record.output_json) if record.output_json else None,
+        output=(
+            cast(
+                ArtifactDocument | MindMapArtifact | FlashcardsArtifact | QuizArtifact,
+                RECIPES_REGISTRY[record.recipe].output_schema.model_validate(record.output_json),
+            )
+            if record.output_json
+            else None
+        ),
         citations=[ChatCitation.model_validate(item) for item in record.citations_json],
         model_name=record.model_name,
         prompt_version=record.prompt_version,
@@ -267,6 +280,8 @@ async def export_artifact(
     artifact = await _owned_artifact(db, notebook_id, user.id, artifact_id)
     if artifact.status != "ready" or artifact.output_json is None:
         raise HTTPException(409, "Artifact is not ready")
+    if artifact.recipe in {"mindmap", "flashcards", "quiz"}:
+        raise HTTPException(409, "Use the interactive viewer export for this artifact")
     document = ArtifactDocument.model_validate(artifact.output_json)
     citations = cast(
         list[Citation],
@@ -286,4 +301,151 @@ async def export_artifact(
             "Content-Disposition": f'attachment; filename="{filename}"',
             "Cache-Control": "private, no-store",
         },
+    )
+
+
+class FlashcardReviewIn(BaseModel):
+    known: bool
+
+
+class FlashcardProgressOut(BaseModel):
+    card_index: int
+    box: int
+    due_at: datetime
+    last_result: str | None
+
+
+class QuizAttemptIn(BaseModel):
+    model_config = ConfigDict(strict=True)
+    answers: list[int] = Field(min_length=1, max_length=50)
+
+
+class QuizAttemptOut(BaseModel):
+    id: str
+    score: int
+    total: int
+    answers: list[int]
+    wrong_indices: list[int]
+    created_at: datetime
+
+
+@router.get("/{artifact_id}/flashcards/progress", response_model=list[FlashcardProgressOut])
+async def flashcard_progress(
+    notebook_id: str, artifact_id: str, user: User, db: Db
+) -> list[FlashcardProgressOut]:
+    artifact = await _owned_artifact(db, notebook_id, user.id, artifact_id)
+    if artifact.recipe != "flashcards" or artifact.status != "ready":
+        raise HTTPException(409, "Flashcards are not ready")
+    rows = (
+        await db.scalars(
+            select(FlashcardProgress).where(
+                FlashcardProgress.artifact_id == artifact_id,
+                FlashcardProgress.user_id == user.id,
+            )
+        )
+    ).all()
+    return [FlashcardProgressOut.model_validate(row, from_attributes=True) for row in rows]
+
+
+@router.post("/{artifact_id}/flashcards/{card_index}/review", response_model=FlashcardProgressOut)
+async def review_flashcard(
+    notebook_id: str,
+    artifact_id: str,
+    card_index: int,
+    body: FlashcardReviewIn,
+    user: User,
+    db: Db,
+) -> FlashcardProgressOut:
+    artifact = await _owned_artifact(db, notebook_id, user.id, artifact_id)
+    if artifact.recipe != "flashcards" or artifact.status != "ready":
+        raise HTTPException(409, "Flashcards are not ready")
+    document = FlashcardsArtifact.model_validate(artifact.output_json)
+    if not 0 <= card_index < len(document.cards):
+        raise HTTPException(404, "Flashcard not found")
+    row = (
+        await db.scalars(
+            select(FlashcardProgress).where(
+                FlashcardProgress.artifact_id == artifact_id,
+                FlashcardProgress.user_id == user.id,
+                FlashcardProgress.card_index == card_index,
+            )
+        )
+    ).one_or_none()
+    box, due_at = schedule_review(row.box if row else 1, body.known)
+    if row is None:
+        row = FlashcardProgress(
+            artifact_id=artifact_id,
+            user_id=user.id,
+            card_index=card_index,
+            box=box,
+            due_at=due_at,
+            last_result="known" if body.known else "unknown",
+        )
+        db.add(row)
+    else:
+        row.box, row.due_at = box, due_at
+        row.last_result = "known" if body.known else "unknown"
+    await db.commit()
+    await db.refresh(row)
+    return FlashcardProgressOut.model_validate(row, from_attributes=True)
+
+
+@router.get("/{artifact_id}/quiz/attempts", response_model=list[QuizAttemptOut])
+async def list_quiz_attempts(
+    notebook_id: str, artifact_id: str, user: User, db: Db
+) -> list[QuizAttemptOut]:
+    artifact = await _owned_artifact(db, notebook_id, user.id, artifact_id)
+    if artifact.recipe != "quiz":
+        raise HTTPException(409, "Artifact is not a quiz")
+    rows = (
+        await db.scalars(
+            select(QuizAttempt)
+            .where(QuizAttempt.artifact_id == artifact_id, QuizAttempt.user_id == user.id)
+            .order_by(QuizAttempt.created_at.desc())
+        )
+    ).all()
+    return [
+        QuizAttemptOut(
+            id=row.id,
+            score=row.score,
+            total=row.total,
+            answers=row.answers_json,
+            wrong_indices=row.wrong_indices,
+            created_at=row.created_at,
+        )
+        for row in rows
+    ]
+
+
+@router.post("/{artifact_id}/quiz/attempts", response_model=QuizAttemptOut, status_code=201)
+async def create_quiz_attempt(
+    notebook_id: str, artifact_id: str, body: QuizAttemptIn, user: User, db: Db
+) -> QuizAttemptOut:
+    artifact = await _owned_artifact(db, notebook_id, user.id, artifact_id)
+    if artifact.recipe != "quiz" or artifact.status != "ready":
+        raise HTTPException(409, "Quiz is not ready")
+    quiz = QuizArtifact.model_validate(artifact.output_json)
+    if len(body.answers) != len(quiz.questions) or any(
+        answer not in range(4) for answer in body.answers
+    ):
+        raise HTTPException(422, "Provide one valid option index per question")
+    score, wrong = score_quiz([item.answer_index for item in quiz.questions], body.answers)
+    row = QuizAttempt(
+        artifact_id=artifact_id,
+        user_id=user.id,
+        score=score,
+        total=len(quiz.questions),
+        answers_json=body.answers,
+        wrong_indices=wrong,
+    )
+    db.add(row)
+    await db.commit()
+    await db.refresh(row)
+    return QuizAttemptOut(
+        id=row.id,
+        score=row.score,
+        total=row.total,
+        answers=row.answers_json,
+        wrong_indices=row.wrong_indices,
+        created_at=row.created_at,
     )

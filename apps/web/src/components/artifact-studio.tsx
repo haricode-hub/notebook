@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, FileText, RotateCcw, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { CitedMarkdown } from "@/components/cited-markdown";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,11 @@ import { Input } from "@/components/ui/input";
 import { artifactApi, getToken, sourceApi, type Artifact, type ChatCitation } from "@/lib/api-client";
 
 const labels: Record<string, string> = {
-  briefing: "Briefing doc", study_guide: "Study guide", faq: "FAQ", timeline: "Timeline", report: "Custom report",
+  briefing: "Briefing doc", study_guide: "Study guide", faq: "FAQ", timeline: "Timeline", report: "Custom report", mindmap: "Mind map", flashcards: "Flashcards", quiz: "Quiz",
 };
+const MindMapView = dynamic(() => import("@/components/mindmap-view"), { ssr: false });
+const FlashcardsView = dynamic(() => import("@/components/flashcards-view"), { ssr: false });
+const QuizView = dynamic(() => import("@/components/quiz-view"), { ssr: false });
 
 function useArtifactEvents(notebookId: string) {
   const client = useQueryClient();
@@ -62,11 +66,12 @@ async function saveExport(notebookId: string, artifact: Artifact, format: "md" |
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function ArtifactViewer({ notebookId, artifact, onClose, onOpenCitation, onChanged }: {
+function ArtifactViewer({ notebookId, artifact, onClose, onOpenCitation, onAskQuestion, onChanged }: {
   notebookId: string;
   artifact: Artifact;
   onClose: () => void;
   onOpenCitation: (citation: ChatCitation, citations: ChatCitation[]) => void;
+  onAskQuestion: (question: string) => void;
   onChanged: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
@@ -78,8 +83,8 @@ function ArtifactViewer({ notebookId, artifact, onClose, onOpenCitation, onChang
     <div className="artifact-toolbar flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 p-3 dark:border-slate-800">
       <div><p className="text-xs uppercase tracking-wide text-indigo-600">{labels[artifact.recipe] ?? artifact.recipe}</p><h2 className="font-semibold">{artifact.output?.title ?? "Artifact"}</h2></div>
       <div className="flex flex-wrap gap-1">
-        <Button size="sm" variant="outline" onClick={() => void exportAs("md")}><Download className="size-3" /> Markdown</Button>
-        <Button size="sm" variant="outline" onClick={() => void exportAs("docx")}><Download className="size-3" /> DOCX</Button>
+        {!(["mindmap", "flashcards", "quiz"].includes(artifact.recipe)) && <><Button size="sm" variant="outline" onClick={() => void exportAs("md")}><Download className="size-3" /> Markdown</Button>
+        <Button size="sm" variant="outline" onClick={() => void exportAs("docx")}><Download className="size-3" /> DOCX</Button></>}
         <Button size="sm" variant="outline" onClick={() => window.print()}><Download className="size-3" /> Print / PDF</Button>
         <Button size="sm" variant="outline" disabled={busy} onClick={async () => { setBusy(true); try { await artifactApi.regenerate(notebookId, artifact.id); await onChanged(); onClose(); toast.success("Regenerating artifact"); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not regenerate"); } finally { setBusy(false); } }}><RotateCcw className="size-3" /> Regenerate</Button>
         <Button size="sm" variant="ghost" aria-label="Close artifact" onClick={onClose}><X className="size-4" /></Button>
@@ -87,19 +92,23 @@ function ArtifactViewer({ notebookId, artifact, onClose, onOpenCitation, onChang
     </div>
     <article className="artifact-document mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-6 py-8" aria-label="Generated artifact">
       <h1 className="mb-6 text-3xl font-bold">{artifact.output?.title}</h1>
-      {artifact.output?.sections.map((section, index) => <section key={`${section.heading}-${index}`} className="mb-8">
+      {artifact.output && "sections" in artifact.output && artifact.output.sections.map((section, index) => <section key={`${section.heading}-${index}`} className="mb-8">
         <h2 className="mb-2 text-xl font-semibold">{section.heading}</h2>
         <CitedMarkdown content={section.markdown} citations={artifact.citations} onOpenCitation={(citation, citations) => { onClose(); onOpenCitation(citation, citations); }} />
       </section>)}
+      {artifact.recipe === "mindmap" && artifact.output && "root" in artifact.output && <MindMapView root={artifact.output.root} citations={artifact.citations} onOpenCitation={(citation, citations) => { onClose(); onOpenCitation(citation, citations); }} onAskQuestion={(question) => { onClose(); onAskQuestion(question); }} />}
+      {artifact.recipe === "flashcards" && artifact.output && "cards" in artifact.output && <FlashcardsView notebookId={notebookId} artifactId={artifact.id} cards={artifact.output.cards} citations={artifact.citations} />}
+      {artifact.recipe === "quiz" && artifact.output && "questions" in artifact.output && <QuizView notebookId={notebookId} artifactId={artifact.id} questions={artifact.output.questions} citations={artifact.citations} onOpenCitation={(citation, citations) => { onClose(); onOpenCitation(citation, citations); }} />}
       <h2 className="mb-2 text-xl font-semibold">Sources</h2>
       <div className="flex flex-wrap gap-2">{artifact.citations.map((citation) => <button type="button" key={citation.n} className="rounded border px-2 py-1 text-sm" onClick={() => { onClose(); onOpenCitation(citation, artifact.citations); }}>[S{citation.n}] {citation.source_name}{citation.page_start ? `, p. ${citation.page_start}` : ""}</button>)}</div>
     </article>
   </div>, document.body);
 }
 
-export function ArtifactStudio({ notebookId, onOpenCitation }: {
+export function ArtifactStudio({ notebookId, onOpenCitation, onAskQuestion }: {
   notebookId: string;
   onOpenCitation: (citation: ChatCitation, citations: ChatCitation[]) => void;
+  onAskQuestion: (question: string) => void;
 }) {
   const client = useQueryClient();
   const artifacts = useQuery({ queryKey: ["artifacts", notebookId], queryFn: () => artifactApi.list(notebookId), refetchInterval: (query) => query.state.data?.some((artifact) => artifact.status === "queued" || artifact.status === "running") ? 3000 : false });
@@ -111,6 +120,8 @@ export function ArtifactStudio({ notebookId, onOpenCitation }: {
   const [language, setLanguage] = useState("English");
   const [length, setLength] = useState<"short" | "default" | "long">("default");
   const [focus, setFocus] = useState("");
+  const [questionCount, setQuestionCount] = useState(10);
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [modelOverride, setModelOverride] = useState("");
   const [creating, setCreating] = useState(false);
   const [viewId, setViewId] = useState<string | null>(null);
@@ -121,7 +132,7 @@ export function ArtifactStudio({ notebookId, onOpenCitation }: {
     if (!recipe || !sourceIds.length) return;
     setCreating(true);
     try {
-      await artifactApi.create(notebookId, { recipe, source_ids: sourceIds, language, length, focus, model_override: modelOverride });
+      await artifactApi.create(notebookId, { recipe, source_ids: sourceIds, language, length, focus, model_override: modelOverride, question_count: questionCount, difficulty });
       setRecipe(null);
       await refresh();
       toast.success("Artifact queued");
@@ -144,10 +155,11 @@ export function ArtifactStudio({ notebookId, onOpenCitation }: {
       <fieldset><legend className="mb-1 text-sm font-medium">Sources</legend><div className="max-h-32 space-y-1 overflow-y-auto">{readySources.map((source) => <label key={source.id} className="flex gap-2 text-sm"><input type="checkbox" checked={sourceIds.includes(source.id)} onChange={(event) => setSourceIds((current) => event.target.checked ? [...current, source.id] : current.filter((id) => id !== source.id))} />{source.name}</label>)}</div></fieldset>
       <label className="block text-sm">Language<Input value={language} onChange={(event) => setLanguage(event.target.value)} maxLength={50} /></label>
       <label className="block text-sm">Length<select className="mt-1 w-full rounded border p-2 dark:bg-slate-900" value={length} onChange={(event) => setLength(event.target.value as typeof length)}><option value="short">Short</option><option value="default">Default</option><option value="long">Long</option></select></label>
+      {recipe === "quiz" && <><label className="block text-sm">Question count<select className="mt-1 w-full rounded border p-2 dark:bg-slate-900" value={questionCount} onChange={(event) => setQuestionCount(Number(event.target.value))}>{[5, 10, 15, 20].map((count) => <option key={count} value={count}>{count}</option>)}</select></label><label className="block text-sm">Difficulty<select className="mt-1 w-full rounded border p-2 dark:bg-slate-900" value={difficulty} onChange={(event) => setDifficulty(event.target.value as typeof difficulty)}><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select></label></>}
       <label className="block text-sm">Focus (optional)<textarea className="mt-1 w-full rounded border p-2 dark:bg-slate-900" value={focus} onChange={(event) => setFocus(event.target.value)} maxLength={2000} rows={2} /></label>
       <label className="block text-sm">Model override (optional)<Input value={modelOverride} onChange={(event) => setModelOverride(event.target.value)} placeholder="Use your cheap model" maxLength={200} /></label>
       <Button onClick={() => void start()} disabled={!sourceIds.length || !language.trim() || creating}>{creating ? "Queuing…" : "Generate"}</Button>
     </div></div>, document.body)}
-    {current?.status === "ready" && <ArtifactViewer notebookId={notebookId} artifact={current} onClose={() => setViewId(null)} onOpenCitation={onOpenCitation} onChanged={refresh} />}
+    {current?.status === "ready" && <ArtifactViewer notebookId={notebookId} artifact={current} onClose={() => setViewId(null)} onOpenCitation={onOpenCitation} onAskQuestion={onAskQuestion} onChanged={refresh} />}
   </section>;
 }

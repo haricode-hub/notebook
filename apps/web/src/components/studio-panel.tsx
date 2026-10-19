@@ -67,7 +67,7 @@ export function StudioPanel({ notebookId, onAskQuestion, onOpenCitation }: {
   return <section className="flex h-full min-h-0 flex-col" aria-label="Studio">
     <div className="border-b border-slate-200 p-3 dark:border-slate-800"><h2 className="font-semibold">Studio</h2><p className="text-xs text-slate-500">Overview and notes</p></div>
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-      <ArtifactStudio notebookId={notebookId} onOpenCitation={onOpenCitation} />
+      <ArtifactStudio notebookId={notebookId} onOpenCitation={onOpenCitation} onAskQuestion={onAskQuestion} />
       <section className="rounded-lg border border-slate-200 p-3 dark:border-slate-800" aria-label="Notebook overview">
         <h3 className="font-medium">Notebook overview</h3>
         {overview.data?.status === "ready" ? <><p className="mt-2 text-sm leading-relaxed">{overview.data.summary}</p><div className="mt-2 flex flex-wrap gap-1">{overview.data.topics.map((topic) => <span key={topic} className="rounded bg-indigo-50 px-2 py-0.5 text-xs dark:bg-indigo-950">{topic}</span>)}</div><div className="mt-3 space-y-1">{overview.data.questions.map((question) => <button key={question} type="button" onClick={() => onAskQuestion(question)} className="block w-full rounded border border-slate-200 p-2 text-left text-xs hover:border-indigo-400 dark:border-slate-700">{question}</button>)}</div></> : <p className="mt-2 text-xs text-slate-500">{overview.data?.error ?? "The overview will appear after your sources are ready."}</p>}
