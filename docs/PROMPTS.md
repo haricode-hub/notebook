@@ -43,3 +43,13 @@ If evidence is insufficient, say so rather than filling gaps. Return JSON only.
 ```
 
 The user message is JSON with recipe, options, labeled evidence, and the output schema. The five recipe instructions are in `RECIPES` in that module. Long inputs first map bounded excerpt batches to short `{ref, fact}` evidence items, then reduce those items into `{recipe, title, sections: [{heading, markdown, citation_refs}]}`. Every section must contain markers `[S#]` whose numeric set exactly matches `citation_refs`; all refs must identify chunks sent to the model. A malformed or ungrounded response gets exactly one repair call. A second failure marks the job failed, with a retry action in Studio.
+
+## Interactive study artifacts v2
+
+Source: `packages/core/src/opennotebook_core/prompts/artifact_v2.py`. The `artifact-v2` system contract retains the same untrusted-source and grounded-evidence rules as v1 and registers three additional recipes:
+
+- `mindmap` returns `{recipe, title, root}` with nested `{label, summary, source_refs, children}` nodes. The schema caps depth at four and total nodes at 60. Every reference must be one of the source chunks supplied to this generation.
+- `flashcards` returns `{recipe, title, cards}` with `{front, back, source_ref}` records. Cards are capped at 60 and source references are checked before persistence.
+- `quiz` returns `{recipe, title, questions}` with `{question, options, answer_index, explanation, source_ref}`. Each item has exactly four distinct options, one bounded answer index, and an explanation whose `[S#]` set matches its cited `source_ref`. The requested question count is enforced.
+
+All interactive schemas forbid extra fields and use strict validation. Invalid JSON, shape, count, or citation references get one repair attempt; a second invalid response fails the artifact job. The browser uses only the API's validated citation records for clickable source links.

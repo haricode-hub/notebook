@@ -23,10 +23,10 @@ Output <promise>L7_COMPLETE</promise> when acceptance tests pass.
 ```
 
 ## Task checklist
-- [ ] mindmap recipe + MindMapView + exports
-- [ ] flashcards recipe + view + Leitner + CSV
-- [ ] quiz recipe + view + attempts + review
-- [ ] validators + tests + e2e
+- [x] mindmap recipe + MindMapView + exports
+- [x] flashcards recipe + view + Leitner + CSV
+- [x] quiz recipe + view + attempts + review
+- [x] validators + tests + e2e
 
 ## Acceptance tests
 1. Mind map for a 50-page notebook renders in under 2 s, at most 60 nodes, usable on mobile.

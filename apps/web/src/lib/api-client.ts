@@ -133,6 +133,10 @@ export const artifactApi = {
   create: (id: string, body: ArtifactCreate) => apiFetch<Artifact>(`/notebooks/${encodeURIComponent(id)}/artifacts`, { method: "POST", body: JSON.stringify(body) }),
   regenerate: (id: string, artifactId: string) => apiFetch<Artifact>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/regenerate`, { method: "POST" }),
   remove: (id: string, artifactId: string) => apiFetch<void>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}`, { method: "DELETE" }),
+  flashcardProgress: (id: string, artifactId: string) => apiFetch<{ card_index: number; box: number; due_at: string; last_result: string | null }[]>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/flashcards/progress`),
+  reviewFlashcard: (id: string, artifactId: string, cardIndex: number, known: boolean) => apiFetch<{ card_index: number; box: number; due_at: string; last_result: string | null }>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/flashcards/${cardIndex}/review`, { method: "POST", body: JSON.stringify({ known }) }),
+  quizAttempts: (id: string, artifactId: string) => apiFetch<{ id: string; score: number; total: number; answers: number[]; wrong_indices: number[]; created_at: string }[]>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/quiz/attempts`),
+  submitQuiz: (id: string, artifactId: string, answers: number[]) => apiFetch<{ id: string; score: number; total: number; answers: number[]; wrong_indices: number[]; created_at: string }>(`/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/quiz/attempts`, { method: "POST", body: JSON.stringify({ answers }) }),
   async download(id: string, artifactId: string, format: "md" | "docx"): Promise<Blob> {
     const path = `/notebooks/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(artifactId)}/export/${format}`;
     for (let attempt = 0; attempt < 2; attempt++) {

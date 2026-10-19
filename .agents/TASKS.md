@@ -68,6 +68,12 @@
 
 ## Level 7: Interactive study artifacts
 
+- [x] 7.1 Add versioned mind map, flashcard, and quiz recipes with strict schemas and citation validators; record React Flow ADR
+- [x] 7.2 Persist Leitner progress and quiz attempts with owned API routes and Alembic migration
+- [x] 7.3 Build interactive renderers, node-to-chat, and PNG/SVG/Anki CSV exports
+- [x] 7.4 Add schema, scheduling, scoring, persistence, and ownership tests
+- [x] 7.5 Pass Python/web gates and all three Playwright interactions; record report and commit
+
 ## Level 8: Audio overview
 
 ## Level 9: Advanced sources and sharing

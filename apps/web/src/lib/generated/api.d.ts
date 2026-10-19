@@ -162,6 +162,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/flashcards/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Flashcard Progress */
+        get: operations["flashcard_progress_notebooks__notebook_id__artifacts__artifact_id__flashcards_progress_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/flashcards/{card_index}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review Flashcard */
+        post: operations["review_flashcard_notebooks__notebook_id__artifacts__artifact_id__flashcards__card_index__review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/notebooks/{notebook_id}/artifacts/{artifact_id}/quiz/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Quiz Attempts */
+        get: operations["list_quiz_attempts_notebooks__notebook_id__artifacts__artifact_id__quiz_attempts_get"];
+        put?: never;
+        /** Create Quiz Attempt */
+        post: operations["create_quiz_attempt_notebooks__notebook_id__artifacts__artifact_id__quiz_attempts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notebooks/{notebook_id}/artifacts/{artifact_id}/regenerate": {
         parameters: {
             query?: never;
@@ -534,6 +586,12 @@ export interface components {
         /** ArtifactCreate */
         ArtifactCreate: {
             /**
+             * Difficulty
+             * @default medium
+             * @enum {string}
+             */
+            difficulty: "easy" | "medium" | "hard";
+            /**
              * Focus
              * @default
              */
@@ -554,6 +612,11 @@ export interface components {
              * @default
              */
             model_override: string;
+            /**
+             * Question Count
+             * @default 10
+             */
+            question_count: number;
             /** Recipe */
             recipe: string;
             /** Source Ids */
@@ -571,6 +634,12 @@ export interface components {
         /** ArtifactOptions */
         ArtifactOptions: {
             /**
+             * Difficulty
+             * @default medium
+             * @enum {string}
+             */
+            difficulty: "easy" | "medium" | "hard";
+            /**
              * Focus
              * @default
              */
@@ -591,6 +660,11 @@ export interface components {
              * @default
              */
             model_override: string;
+            /**
+             * Question Count
+             * @default 10
+             */
+            question_count: number;
             /** Source Ids */
             source_ids?: string[];
         };
@@ -612,7 +686,8 @@ export interface components {
             /** Notebook Id */
             notebook_id: string;
             options: components["schemas"]["ArtifactOptions"];
-            output: components["schemas"]["ArtifactDocument"] | null;
+            /** Output */
+            output: components["schemas"]["ArtifactDocument"] | components["schemas"]["MindMapArtifact"] | components["schemas"]["FlashcardsArtifact"] | components["schemas"]["QuizArtifact"] | null;
             /** Progress */
             progress: number;
             /** Prompt Version */
@@ -697,6 +772,47 @@ export interface components {
              */
             status: "ok";
         };
+        /** Flashcard */
+        Flashcard: {
+            /** Back */
+            back: string;
+            /** Front */
+            front: string;
+            /** Source Ref */
+            source_ref: number;
+        };
+        /** FlashcardProgressOut */
+        FlashcardProgressOut: {
+            /** Box */
+            box: number;
+            /** Card Index */
+            card_index: number;
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /** Last Result */
+            last_result: string | null;
+        };
+        /** FlashcardReviewIn */
+        FlashcardReviewIn: {
+            /** Known */
+            known: boolean;
+        };
+        /** FlashcardsArtifact */
+        FlashcardsArtifact: {
+            /** Cards */
+            cards: components["schemas"]["Flashcard"][];
+            /**
+             * Recipe
+             * @default flashcards
+             * @constant
+             */
+            recipe: "flashcards";
+            /** Title */
+            title: string;
+        };
         /** GuideOut */
         GuideOut: {
             /** Error */
@@ -716,6 +832,29 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** MindMapArtifact */
+        MindMapArtifact: {
+            /**
+             * Recipe
+             * @default mindmap
+             * @constant
+             */
+            recipe: "mindmap";
+            root: components["schemas"]["MindMapNode"];
+            /** Title */
+            title: string;
+        };
+        /** MindMapNode */
+        MindMapNode: {
+            /** Children */
+            children?: components["schemas"]["MindMapNode"][];
+            /** Label */
+            label: string;
+            /** Source Refs */
+            source_refs: number[];
+            /** Summary */
+            summary: string;
         };
         /** ModelOption */
         ModelOption: {
@@ -824,6 +963,55 @@ export interface components {
             response_length?: ("short" | "medium" | "long") | null;
             /** Title */
             title?: string | null;
+        };
+        /** QuizArtifact */
+        QuizArtifact: {
+            /** Questions */
+            questions: components["schemas"]["QuizQuestion"][];
+            /**
+             * Recipe
+             * @default quiz
+             * @constant
+             */
+            recipe: "quiz";
+            /** Title */
+            title: string;
+        };
+        /** QuizAttemptIn */
+        QuizAttemptIn: {
+            /** Answers */
+            answers: number[];
+        };
+        /** QuizAttemptOut */
+        QuizAttemptOut: {
+            /** Answers */
+            answers: number[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /** Score */
+            score: number;
+            /** Total */
+            total: number;
+            /** Wrong Indices */
+            wrong_indices: number[];
+        };
+        /** QuizQuestion */
+        QuizQuestion: {
+            /** Answer Index */
+            answer_index: number;
+            /** Explanation */
+            explanation: string;
+            /** Options */
+            options: string[];
+            /** Question */
+            question: string;
+            /** Source Ref */
+            source_ref: number;
         };
         /** ReadinessBody */
         ReadinessBody: {
@@ -1391,6 +1579,143 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    flashcard_progress_notebooks__notebook_id__artifacts__artifact_id__flashcards_progress_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlashcardProgressOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_flashcard_notebooks__notebook_id__artifacts__artifact_id__flashcards__card_index__review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                artifact_id: string;
+                card_index: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlashcardReviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlashcardProgressOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_quiz_attempts_notebooks__notebook_id__artifacts__artifact_id__quiz_attempts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizAttemptOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_quiz_attempt_notebooks__notebook_id__artifacts__artifact_id__quiz_attempts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notebook_id: string;
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuizAttemptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuizAttemptOut"];
                 };
             };
             /** @description Validation Error */

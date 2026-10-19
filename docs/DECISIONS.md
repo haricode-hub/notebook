@@ -63,7 +63,7 @@ The [official EmbeddingGemma 2 model card](https://huggingface.co/google/embeddi
 
 **Status:** Accepted for Level 5. Context7 and Playwright MCP are not connected in this session, so editor setup was checked against the official [Tiptap Next.js guide](https://tiptap.dev/docs/editor/getting-started/install/nextjs) and [Markdown extension documentation](https://tiptap.dev/docs/editor/markdown/getting-started/basic-usage). Browser verification uses the Playwright CLI.
 
-- A source guide uses a versioned prompt and the user's configured cheap model. Map inputs are capped at 6,000 UTF-8 bytes, a conservative provider-independent token bound; reductions obey the same cap. Pydantic checks the summary, 5â€“8 topics, and exactly three questions, with one JSON repair retry. The cache key hashes user ID, content, prompt version, model ID, and guide type so identical re-ingestion makes no model call and private content is not shared across users.
+- A source guide uses a versioned prompt and the user's configured cheap model. Map inputs are capped at 6,000 UTF-8 bytes, a conservative provider-independent token bound; reductions obey the same cap. Pydantic checks the summary, 5–8 topics, and exactly three questions, with one JSON repair retry. The cache key hashes user ID, content, prompt version, model ID, and guide type so identical re-ingestion makes no model call and private content is not shared across users.
 - A separate worker job generates each guide after ingestion reaches ready. When guides or sources change, a Redis generation marker and an arq 30-second deferred job coalesce notebook overview updates. Older jobs exit before calling the model; an unchanged overview fingerprint exits too. Source and overview rows expose status and errors independently of ingestion.
 - Notes store Markdown and canonical validated chat citations in app-owned tables. Saving an answer copies its server-side persisted content and citations; conversion reuses the existing text-source ingestion path, so a note becomes searchable only after indexing. The editor uses client-only `next/dynamic` and Tiptap's `immediatelyRender: false`; the official Markdown extension handles round-trip editing and local `.md` export. The extension is currently marked beta upstream, so the note body remains portable Markdown in the database.
 - The worker receives the same provider key, cheap-model, and encryption settings as the API through Compose. On the local fake-embedding stack with a live OpenRouter cheap model, the upload-to-ready-guide browser run took **20.8 seconds**, below the Level 5 60-second limit. This measures the configured cloud model and a short text source; long documents still depend on map-reduce call count and provider latency.
@@ -75,3 +75,28 @@ The [official EmbeddingGemma 2 model card](https://huggingface.co/google/embeddi
 Long inputs are split into UTF-8 byte-bounded excerpt batches (`ARTIFACT_MAP_MAX_BYTES`, default 10,000), mapped concurrently at most four at a time, and reduced into the recipe document using the user's cheap model unless overridden. The deterministic fake supports offline tests. The server exports Markdown and DOCX with citation references. `python-docx==1.2.0` imports successfully under local Python 3.13.5. The [official python-docx package](https://pypi.org/project/python-docx/) requires Python >=3.9 and provides a pure Python wheel.
 
 WeasyPrint's Python wheel resolves under Python 3.13, consistent with its [PyPI classifiers](https://pypi.org/project/weasyprint/), but import fails on this Windows host because its Pango/GObject native DLL is unavailable. Its [installation guide](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html) documents the native requirement. The browser's print stylesheet is the supported PDF path: the artifact viewer has a Print / PDF action, and browser Save as PDF produces the PDF. This avoids platform-specific native packages in the API image. The same validated citation chip renderer is shared with chat.
+
+## ADR-010: React Flow for interactive study artifacts
+
+**Status:** Accepted (2026-10-19)
+
+**Context:** Level 7 needs a compact mind map with interactive node selection, pan/zoom,
+node-to-chat, and PNG/SVG export. The client-only diagram must remain responsive for
+maps capped at 60 nodes.
+
+**Decision:** Use `@xyflow/react` in a client-only renderer, with deterministic tree
+layout and a 60-node/depth-4 schema limit. Use `html-to-image` to export the rendered
+map as PNG or SVG. Keep citations as source labels on nodes and resolve them through
+the artifact's validated citation list.
+
+**Rationale:** React Flow provides built-in viewport controls and node interaction;
+its official React Flow 12 docs describe the React component, required sized parent,
+and client-side image export path. The modest size limit avoids needing a layout worker.
+
+**Consequences:** The two UI packages are part of the web bundle, and the flow CSS is
+loaded globally after Tailwind. Mind map rendering and image generation run in the
+browser; the API stores only the validated tree and references.
+
+**References:** [React Flow quick start](https://reactflow.dev/learn),
+[React Flow component](https://reactflow.dev/api-reference/react-flow),
+[React Flow SSR/SSG guidance](https://reactflow.dev/learn/advanced-use/ssr-ssg-configuration).
