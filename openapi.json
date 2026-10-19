@@ -1,6 +1,93 @@
 {
   "components": {
     "schemas": {
+      "AdminJob": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "integer"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "kind",
+          "status",
+          "stage",
+          "progress",
+          "error"
+        ],
+        "title": "AdminJob",
+        "type": "object"
+      },
+      "AdminOverview": {
+        "properties": {
+          "failed_jobs": {
+            "items": {
+              "$ref": "#/components/schemas/AdminJob"
+            },
+            "title": "Failed Jobs",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "usage_24h": {
+            "items": {
+              "$ref": "#/components/schemas/UserUsage"
+            },
+            "title": "Usage 24H",
+            "type": "array"
+          }
+        },
+        "required": [
+          "generated_at",
+          "failed_jobs",
+          "usage_24h"
+        ],
+        "title": "AdminOverview",
+        "type": "object"
+      },
       "ArtifactCreate": {
         "properties": {
           "difficulty": {
@@ -1952,6 +2039,46 @@
         "title": "URLSourceIn",
         "type": "object"
       },
+      "UserUsage": {
+        "properties": {
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "reported_cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported Cost Usd"
+          },
+          "requests": {
+            "title": "Requests",
+            "type": "integer"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "requests",
+          "input_tokens",
+          "output_tokens",
+          "reported_cost_usd"
+        ],
+        "title": "UserUsage",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -2006,6 +2133,32 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/admin/overview": {
+      "get": {
+        "operationId": "overview_admin_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminOverview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Overview",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/files/{token}": {
       "get": {
         "operationId": "signed_file_files__token__get",

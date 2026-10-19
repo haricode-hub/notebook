@@ -153,6 +153,16 @@ The API authorization sweep derives routes from the generated OpenAPI schema and
 
 References: [Better Auth cookies](https://better-auth.com/docs/concepts/cookies), [rate limits](https://better-auth.com/docs/concepts/rate-limit), [database](https://better-auth.com/docs/concepts/database), [options](https://better-auth.com/docs/reference/options), [Gitleaks Action v3](https://github.com/gitleaks/gitleaks-action/releases/tag/v3.0.0).
 
+## ADR-015: S3-compatible storage and horizontal web/API topology
+
+**Status:** Accepted (2026-10-19).
+
+The existing `StorageBackend` contract now has an S3-compatible implementation backed by boto3. Object operations run in worker threads so synchronous SDK calls do not block the async API/worker loop. File delivery still uses the app's expiring, user-bound signed route; public bucket access and long-lived presigned URLs are not enabled. Boto3 was already present in the frozen dependency graph via LiteLLM and is declared directly by the core package.
+
+The optional scale Compose file configures 3 web replicas, 3 API replicas, one MinIO instance with a persistent data volume, a bucket initialization job, and independent Nginx proxies for web and API. The API proxy disables buffering for SSE. PostgreSQL/Redis and the embedding/TTS services remain single instances. Compose config validation confirms 3 replicas and no direct host ports on the replicated app services; runtime/e2e behavior still requires a Docker-enabled host.
+
+The Compose merge uses the Docker Compose `!reset []` tag to remove host port declarations from replicated web/API services, as documented in [Compose file merge](https://docs.docker.com/reference/compose-file/merge/). MinIO initialization uses the official `mc alias set` and `mc mb` workflow; see [MinIO container deployment](https://min.io/docs/minio/container/operations/install-deploy-manage/deploy-minio-single-node-single-drive.html).
+
 
 ### Level 9 multimodal extension to ADR-006 (2026-10-19)
 

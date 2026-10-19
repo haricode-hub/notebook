@@ -14,8 +14,13 @@ class Settings(BaseSettings):
     embed_url: str = "http://localhost:8001"
     api_url: str = "http://localhost:8000"
     web_origin: str = "http://localhost:3000"
-    storage_backend: Literal["local", "memory"] = "local"
+    storage_backend: Literal["local", "memory", "s3"] = "local"
     storage_path: Path = Path("storage")
+    s3_endpoint_url: str = ""
+    s3_bucket: str = "opennotebook"
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+    s3_region: str = "us-east-1"
     embed_backend: Literal["gemma2", "fake"] = "gemma2"
     embed_dim: int = 768
     embed_batch_size: int = Field(default=8, ge=1, le=128)

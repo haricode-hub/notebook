@@ -83,6 +83,11 @@ services:
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
       STORAGE_PATH: /app/storage
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_BUCKET: ${S3_BUCKET:-opennotebook}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
       EMBED_DIM: ${EMBED_DIM:-768}
       LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
       CHAT_CONTEXT_TOKENS: ${CHAT_CONTEXT_TOKENS:-8192}
@@ -137,6 +142,11 @@ services:
       REDIS_URL: redis://redis:6379/0
       STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
       STORAGE_PATH: /app/storage
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_BUCKET: ${S3_BUCKET:-opennotebook}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
       EMBED_URL: http://embed:8001
       EMBED_BACKEND: ${EMBED_BACKEND:-gemma2}
       MULTIMODAL_ENABLED: ${MULTIMODAL_ENABLED:-false}
