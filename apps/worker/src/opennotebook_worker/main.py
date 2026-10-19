@@ -70,6 +70,7 @@ async def _publish(
     stage: str,
     progress: int,
     error: str | None = None,
+    eta_seconds: int | None = None,
 ) -> None:
     owned = ctx.get("redis") is None
     redis: Any = ctx.get("redis") or Redis.from_url(get_settings().redis_url)
@@ -77,12 +78,25 @@ async def _publish(
         await redis.publish(
             f"notebook:{notebook_id}:events",
             json.dumps(
-                {"source_id": source_id, "stage": stage, "progress": progress, "error": error}
+                {
+                    "source_id": source_id,
+                    "stage": stage,
+                    "progress": progress,
+                    "eta_seconds": eta_seconds,
+                    "error": error,
+                }
             ),
         )
     finally:
         if owned:
             await redis.aclose()
+
+
+def _eta_seconds(started_at: float, progress: int, now: float | None = None) -> int:
+    if progress <= 0 or progress >= 100:
+        return 0
+    elapsed = (time.monotonic() if now is None else now) - started_at
+    return max(0, int(elapsed * (100 - progress) / progress))
 
 
 async def _stage(
@@ -109,7 +123,9 @@ async def _stage(
         )
         job.error = error
         await session.commit()
-        await _publish(ctx, source.notebook_id, source.id, stage, progress, error)
+        started_at = ctx.setdefault("source_started_at", {}).setdefault(source_id, time.monotonic())
+        eta = _eta_seconds(started_at, progress)
+        await _publish(ctx, source.notebook_id, source.id, stage, progress, error, eta)
         return source
 
 
@@ -209,9 +225,18 @@ async def ingest_source(
                         "Embedding model or dimension changed. Re-index this notebook first"
                     )
         await _stage(ctx, source_id, job_id, "embedding", 60)
-        vectors = await embedding.embed(
-            [span.text for span in spans], "document", settings.embed_dim
-        )
+        vectors: list[list[float]] = []
+        batch_size = settings.embed_batch_size
+        texts = [span.text for span in spans]
+        for offset in range(0, len(texts), batch_size):
+            vectors.extend(
+                await embedding.embed(
+                    texts[offset : offset + batch_size], "document", settings.embed_dim
+                )
+            )
+            completed = min(offset + batch_size, len(texts))
+            progress = 60 + int(25 * completed / len(texts))
+            await _stage(ctx, source_id, job_id, "embedding", progress)
         if len(vectors) != len(spans):
             raise ValueError("Embedding service returned the wrong number of vectors")
         figures = (
@@ -304,6 +329,11 @@ async def ingest_source(
                 record.metadata_json = {
                     **record.metadata_json,
                     "transcript_source": transcript_source,
+                }
+            if document.ocr_pages:
+                record.metadata_json = {
+                    **record.metadata_json,
+                    "ocr_pages": list(document.ocr_pages),
                 }
             record.page_count = document.page_count
             record.embedding_model = identity
@@ -603,9 +633,9 @@ async def reindex_notebook(ctx: dict[str, Any], notebook_id: str, job_id: str) -
             async with factory() as session:
                 job = await session.get(Job, job_id)
                 if job is not None:
-                    job.error = (
-                        f"Dead-lettered after {settings.job_max_tries} attempts: {exc}"[:500]
-                    )
+                    job.error = f"Dead-lettered after {settings.job_max_tries} attempts: {exc}"[
+                        :500
+                    ]
                     await session.commit()
             return notebook_id
         raise Retry(defer=delay) from exc
@@ -688,6 +718,9 @@ async def generate_text_artifact(ctx: dict[str, Any], artifact_id: str) -> str:
             artifact = await session.get(Artifact, artifact_id)
             if artifact is None:
                 return artifact_id
+            notebook = await session.get(Notebook, artifact.notebook_id)
+            if notebook is None or notebook.user_id != artifact.user_id:
+                raise ValueError("Artifact notebook was not found")
             sources = list(
                 (
                     await session.scalars(
@@ -719,7 +752,12 @@ async def generate_text_artifact(ctx: dict[str, Any], artifact_id: str) -> str:
             llm, model = ctx.get("artifact_llm") or configured_summary_llm(
                 settings, row, model_override=str(artifact.options_json.get("model_override") or "")
             )
-            recipe, options = artifact.recipe, artifact.options_json
+            recipe = artifact.recipe
+            options = {
+                **artifact.options_json,
+                "persona": notebook.persona or "clear research assistant",
+                "response_length": notebook.response_length,
+            }
             source_names = {source.id: source.name for source in sources}
         await _artifact_stage(ctx, artifact_id, "mapping", 30)
         document, citations = await generate_artifact(

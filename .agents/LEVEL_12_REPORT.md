@@ -14,6 +14,8 @@ Status: **IN PROGRESS**. The Level 11 prerequisite is not complete: task 11.2 an
 | Dense + strict citation format | real harness, dev split | hit@8 44/45 (97.78%); MRR 0.9315; validity 47/48 (97.92%); precision 21/22 (95.45%); faithfulness 46/48 (95.83%); relevance 47/48; refusal 3/3 | Measured; held-out untouched | Windows CPU + Gemini 3.1 Flash Lite + Anthropic Sonnet 4.5 judge |
 | Hybrid RRF k=60 + strict citation format | `EVAL_RETRIEVAL_MODE=hybrid EVAL_TOP_K=8 python evals/real/run.py --split dev` | hit@8 45/45 (100%); MRR 0.9526; validity 47/48 (97.92%); precision 43/44 (97.73%); faithfulness 47/48 (97.92%); relevance 47/48; refusal 3/3 | Measured; held-out untouched | Windows CPU + Gemini 3.1 Flash Lite + Anthropic Sonnet 4.5 judge |
 | Level 11 prerequisite | `.agents/TASKS.md` | Task 11.2 and runtime gates unchecked | Open | Repository state |
+| Dense 100-page PDF | `python evals/real/benchmark_pdf.py` | 100 pages; extraction 7.53s; chunking 0.05s; embedding 82 chunks 335.56s (0.24/s); total after model load 343.14s; peak RSS 1,924.4 MiB | Measured on local CPU; DB indexing not included | Windows CPU + real EmbeddingGemma 2 FP32 |
+| Scanned PDF OCR | `pytest tests/test_level12_ocr.py` | Synthetic 20-page scan became searchable; page anchors 1?20 and chunk offsets slice back to extracted text; PNG OCR test passed | Passed locally; Docker runtime pending | Windows + Tesseract/Poppler |
 
 The development baseline completed with real EmbeddingGemma 2 vectors, a live Google chat model, and a live Anthropic judge. This is a development result only; it is not the held-out acceptance result. Existing offline/fake evaluation results are not Level 12 evidence.
 
@@ -45,3 +47,19 @@ The development baseline completed with real EmbeddingGemma 2 vectors, a live Go
 - Experiment 2 changed only retrieval mode from dense to hybrid reciprocal-rank fusion (k=60). All 48 development questions completed with real EmbeddingGemma 2 FP32, Google Gemini 3.1 Flash Lite answer generation, and Anthropic Claude Sonnet 4.5 judging. Compared with dense + strict citation format: hit-rate@8 rose 97.78% to 100%, MRR 0.9315 to 0.9526, citation precision 95.45% to 97.73%, faithfulness 95.83% to 97.92%; validity and relevance were unchanged. Kept hybrid for this config. Run artifact: `evals/real/results/dev_20261019T163307Z.json` (local ignored output).
 - The initial hybrid attempt stopped after 15 questions with OpenRouter HTTP 402 because LiteLLM requested up to 64,000 output tokens. It produced no metrics. The runner now caps answers at 1,024 tokens and judge JSON at 512 and checkpoints completed rows under a config hash. The successful capped rerun is the only hybrid result reported above.
 - The 12-question held-out file has not been evaluated or used for tuning. No held-out score is claimed.
+
+
+### Pass 3 ? dense PDF speed and UI ETA
+
+- Measured the first 100 pages of the dense NIST OT security PDF with real Gemma FP32: 7.53 seconds extraction, 0.05 seconds chunking, and 335.56 seconds embedding 82 chunks (0.24 chunks/s). Peak resident memory was 1,924.4 MiB. This excludes database insertion/indexing. The detailed measurement is `evals/real/results/pdf-benchmark-latest.json` (local ignored output).
+- Worker SSE events now contain estimated remaining seconds. Embedding is split into configured batches and updates progress after each batch. Sources panel displays the estimate. ETA is a rough elapsed/progress extrapolation; no browser runtime measurement has been made.
+- Unit tests for ETA arithmetic passed; web TypeScript typecheck passed. The observed CPU throughput is slow and is listed as a known weakness.
+
+### Pass 4 ? OCR and image sources
+
+- Added Poppler/Tesseract OCR fallback for textless PDF pages and OCR extraction for PNG/JPEG uploads. Extracted blocks retain page numbers and mark OCR heading paths; source content exposes OCR page numbers, and viewer labels these pages.
+- Local tests passed on a generated 20-page scanned PDF plus a PNG. Text is searchable; OCR page mapping and chunk offsets were checked. Docker/Linux and browser citation-viewer behavior have not yet been measured.
+
+### Judge model steering
+
+At the user's direction, the default judge for future runs is now `deepseek/deepseek-v4-flash-0731`, a different family than the Gemini answer model. OpenRouter lists it at $0.03/M input and $0.13/M output. Existing metrics keep their actual Sonnet 4.5 judge attribution; no cheap-judge quality comparison has yet been run.

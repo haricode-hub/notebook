@@ -26,6 +26,7 @@ DOCS = ROOT / "docs"
 MODEL_ID = "google/embeddinggemma-2"
 PROMPT_VERSION = "real_eval_v1"
 REFUSAL = "I couldn't find that in your sources."
+DEFAULT_JUDGE_MODEL = "deepseek/deepseek-v4-flash-0731"
 
 
 @dataclass(frozen=True)
@@ -177,7 +178,7 @@ async def main(split: str) -> int:
     if settings.llm_provider != "openrouter":
         raise RuntimeError("this harness currently requires a live OpenRouter chat route")
     answer_model = os.environ.get("EVAL_CHAT_MODEL", settings.default_chat_model).strip()
-    judge_model = os.environ.get("EVAL_JUDGE_MODEL", "").strip()
+    judge_model = os.environ.get("EVAL_JUDGE_MODEL", DEFAULT_JUDGE_MODEL).strip()
     if not answer_model or not judge_model:
         raise RuntimeError("Set EVAL_CHAT_MODEL and EVAL_JUDGE_MODEL (different model families)")
     if family(answer_model) == family(judge_model):

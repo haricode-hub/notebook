@@ -233,3 +233,17 @@ Runner change following the interruption: answer requests now cap output at 1,02
 | Negative refusal accuracy | 3/3 = 100% | 3/3 = 100% |
 
 Decision: retain hybrid RRF k=60 for this configuration; dev retrieval and judge metrics improved or stayed level. This remains development-only evidence; held-out has not been run. Final run artifact: `evals/real/results/dev_20261019T163307Z.json` (ignored local artifact).
+
+
+### Level 12 Pass 3 ? dense PDF throughput and ETA (2026-10-19)
+
+Measurement used the first 100 pages of the public NIST OT Security 800-82r3 PDF (256,059 extracted characters), the production sentence chunker, and the real EmbeddingGemma 2 text-only FP32 model on CPU. Batch size was 16 for this benchmark; vector dimension was 768. Model load: 6.07 s; extraction: 7.53 s; chunking: 0.05 s; embedding 82 chunks: 335.56 s (0.24 chunks/s); total after model load: 343.14 s; process RSS after run: 1,924.4 MiB. This measures extractor/chunker/embedder, not database insert/index time. Full JSON is local at `evals/real/results/` when retained; command `HF_HUB_OFFLINE=1 python evals/real/benchmark_pdf.py`.
+
+Variable/result: the benchmark used batch size 16, matching the script's setting; no batch-size comparison was run. The application worker's configured batch size remains 8. No ONNX, quantization, truncation, or remote embedding comparison was run. We do not claim a speedup. The measured throughput is slow on this host and remains a deployment concern.
+
+The worker now emits `eta_seconds` with each status event and embeds chunks in configured batches, publishing progress after each batch. ETA is a simple elapsed/progress estimate; it should be treated as approximate because ingestion stages have different costs. The source panel displays the current estimate. Unit coverage checks ETA arithmetic; browser visual/runtime verification remains pending.
+
+
+### Level 12 judge cost choice (2026-10-19)
+
+User direction changed the judge-model variable for subsequent Level 12 runs from `anthropic/claude-sonnet-4.5` to `deepseek/deepseek-v4-flash-0731`. OpenRouter's official model page lists the DeepSeek model at $0.03/M input and $0.13/M output, and it is a different model family from the Google Gemini answer model. See [OpenRouter model pricing](https://openrouter.ai/deepseek/deepseek-v4-flash-0731/). The earlier development results remain labeled with the Anthropic judge that actually produced them; they are not relabeled. No quality comparison between judges has been run. Future runs default to DeepSeek unless `EVAL_JUDGE_MODEL` explicitly overrides it.
