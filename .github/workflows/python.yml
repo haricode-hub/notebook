@@ -43,7 +43,11 @@ jobs:
       - run: uv python install 3.13
       - run: uv sync --frozen --all-packages
       - name: Audit locked Python dependencies
-        run: uv run --with pip-audit --frozen pip-audit --locked .
+        run: |
+          uv export --locked --all-packages --all-groups --format requirements-txt --no-emit-workspace --no-annotate --no-header --no-hashes --output-file "$RUNNER_TEMP/python-requirements.txt"
+          uv export --project apps/tts --locked --no-dev --format requirements-txt --no-annotate --no-header --no-hashes --output-file "$RUNNER_TEMP/tts-requirements.txt"
+          uv run --with pip-audit --frozen pip-audit -r "$RUNNER_TEMP/python-requirements.txt"
+          uv run --with pip-audit --frozen pip-audit -r "$RUNNER_TEMP/tts-requirements.txt"
       - run: uv python install 3.12
       - run: uv sync --project apps/tts --locked --no-dev
       - run: uv run --project apps/tts --locked python -c "import kokoro, soundfile"
