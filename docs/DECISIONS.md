@@ -141,6 +141,18 @@ The query shapes and corresponding HNSW/GIN/B-tree indexes are documented in `do
 
 Pass 2 verification on this Windows host: all 98 fast/regression tests passed before pytest's configured temp directory cleanup hit a workspace permission error in eight fixture setups; rerunning with a temp directory under the permitted temp root is needed for a clean full-suite result. The new targeted reliability/cache/LLM tests passed. Ruff and mypy passed. `docker compose config -q` passed (Docker emitted only warnings that its user config file is unreadable); the Docker engine remains unavailable, so container backup, shutdown under live load, and DB plan execution are unverified.
 
+## ADR-014: Security controls, authorization coverage, and audit automation
+
+**Status:** Accepted (2026-10-19).
+
+Better Auth is configured with secure cookies in production, the configured application origin as its trusted origin, database-backed rate limits, and implicit account linking disabled. The latter avoids automatically linking an identity provider account based only on matching email addresses. The official [Better Auth cookies](https://better-auth.com/docs/concepts/cookies), [rate limit](https://better-auth.com/docs/concepts/rate-limit), [database](https://better-auth.com/docs/concepts/database), and [options reference](https://better-auth.com/docs/reference/options) documents support these options. Email verification and two-factor authentication remain disabled because this deployment has no configured SMTP or second-factor enrollment flow.
+
+The API authorization sweep derives routes from the generated OpenAPI schema and checks unauthenticated responses for every private route; dedicated ownership tests cover cross-user source/notebook access and admin access. Web responses set CSP and browser security headers; the API applies corresponding response headers. Admin access requires the Better Auth JWT `role=admin` claim. User quotas are configurable for source counts and estimated daily chat tokens. Langfuse remains optional and unconfigured.
+
+`pnpm audit --prod` passed after moving Vitest to patched 4.1.11. Python lockfile auditing is automated as `uv run --with pip-audit --frozen pip-audit --locked` in CI, which audits the workspace lock rather than the isolated audit tool environment. Gitleaks runs on pushes, pull requests, and manual dispatch via the official [Gitleaks Action v3](https://github.com/gitleaks/gitleaks-action/releases/tag/v3.0.0). Its v3 runtime uses Node 24; organization repositories need the action license secret, while personal repositories do not. This network-restricted Windows environment has no local gitleaks executable; current local API/web tests passed, and the CI scan result remains pending.
+
+References: [Better Auth cookies](https://better-auth.com/docs/concepts/cookies), [rate limits](https://better-auth.com/docs/concepts/rate-limit), [database](https://better-auth.com/docs/concepts/database), [options](https://better-auth.com/docs/reference/options), [Gitleaks Action v3](https://github.com/gitleaks/gitleaks-action/releases/tag/v3.0.0).
+
 
 ### Level 9 multimodal extension to ADR-006 (2026-10-19)
 

@@ -42,6 +42,19 @@ class Job(Base):
     )
 
 
+class LLMUsage(Base):
+    __tablename__ = "llm_usage"
+    __table_args__ = (Index("ix_llm_usage_user_created", "user_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    model_name: Mapped[str] = mapped_column(Text, nullable=False)
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    cost_usd: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Notebook(Base):
     __tablename__ = "notebooks"
     __table_args__ = (Index("ix_notebooks_user_id_created_at", "user_id", "created_at"),)

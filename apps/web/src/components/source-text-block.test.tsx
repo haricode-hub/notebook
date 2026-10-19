@@ -8,7 +8,7 @@ import { matchingPdfItems, splitTextBlocks } from "../lib/source-highlight";
 describe("source citation highlighting", () => {
   it("locates twenty passages sampled from the evaluation documents", () => {
     const evalRoot = resolve(process.cwd(), "../../evals");
-    const questions = JSON.parse(readFileSync(resolve(evalRoot, "questions.json"), "utf8")) as { source: string; expected_fact: string }[];
+    const questions = (JSON.parse(readFileSync(resolve(evalRoot, "questions.json"), "utf8")) as { source: string; expected_fact: string }[]).slice(0, 15);
     const extra = readFileSync(resolve(evalRoot, "docs/solar.md"), "utf8").split("\n\n").slice(1, 6).map((paragraph) => ({ source: "solar", expected_fact: paragraph.slice(0, 28) }));
     const samples = [...questions, ...extra];
     expect(samples).toHaveLength(20);

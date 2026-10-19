@@ -93,3 +93,7 @@
 - [ ] C.1 Complete unit, integration, security, and e2e coverage; run all gates and commit Pass C
 
 ## Level 10: Hardening and scaling
+- [x] Pass 1: eval expansion, faithfulness, RAG tuning, OpenRouter comparison
+- [x] Pass 2: retries, dead-letter visibility, fallback, caches, shutdown, backup, cleanup
+- [x] Pass 3: authorization sweep, auth hardening, headers, admin/quotas, audit automation
+- [ ] Pass 4: k6, scale Compose, scaling docs, sample notebook, a11y

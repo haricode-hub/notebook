@@ -11,4 +11,4 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/notebooks/:path*", "/workspace/:path*", "/settings/:path*"] };
+export const config = { matcher: ["/notebooks/:path*", "/workspace/:path*", "/settings/:path*", "/admin/:path*"] };

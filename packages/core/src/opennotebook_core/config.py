@@ -57,6 +57,8 @@ class Settings(BaseSettings):
     summary_map_max_bytes: int = Field(default=6000, ge=1000, le=16000)
     artifact_map_max_bytes: int = Field(default=10000, ge=2000, le=32000)
     upload_max_mb: int = Field(default=50, ge=1)
+    source_quota_per_user: int = Field(default=250, ge=1)
+    chat_tokens_per_day: int = Field(default=100000, ge=1000)
 
     @field_validator("embed_dim")
     @classmethod

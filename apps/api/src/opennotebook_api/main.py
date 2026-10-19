@@ -23,7 +23,16 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from opennotebook_api.deps.auth import JWKSVerifier
-from opennotebook_api.routers import artifacts, chat, guides, notebooks, notes, sharing, sources
+from opennotebook_api.routers import (
+    admin,
+    artifacts,
+    chat,
+    guides,
+    notebooks,
+    notes,
+    sharing,
+    sources,
+)
 from opennotebook_api.routers import settings as settings_router
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
@@ -111,6 +120,7 @@ def create_app(
     app.state.chat_limiter = chat.RedisChatLimiter(
         settings.redis_url, settings.chat_rate_limit_per_minute
     )
+    app.state.chat_persistence_lock = asyncio.Lock()
     app.include_router(notebooks.router)
     app.include_router(sources.router)
     app.include_router(sources.files_router)
@@ -120,6 +130,7 @@ def create_app(
     app.include_router(artifacts.router)
     app.include_router(settings_router.router)
     app.include_router(sharing.router)
+    app.include_router(admin.router)
 
     app.add_middleware(
         CORSMiddleware,
@@ -153,6 +164,12 @@ def create_app(
             else:
                 response = await call_next(request)
             response.headers["x-request-id"] = request_id
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+            )
             logger.info(
                 "request method=%s path=%s status=%s duration_ms=%.1f",
                 request.method,

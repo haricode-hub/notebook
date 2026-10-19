@@ -108,11 +108,15 @@ async def _owned_source(db: AsyncSession, notebook_id: str, user_id: str, source
     return source
 
 
-async def _source_capacity(db: AsyncSession, notebook_id: str) -> None:
+async def _source_capacity(db: AsyncSession, notebook_id: str, user_limit: int = 250) -> None:
     await db.execute(select(Notebook.id).where(Notebook.id == notebook_id).with_for_update())
     count = await db.scalar(select(func.count(Source.id)).where(Source.notebook_id == notebook_id))
     if count is not None and count >= 50:
         raise HTTPException(409, "A notebook can contain at most 50 sources")
+    user_id = await db.scalar(select(Notebook.user_id).where(Notebook.id == notebook_id))
+    user_count = await db.scalar(select(func.count(Source.id)).where(Source.user_id == user_id))
+    if user_count is not None and user_count >= user_limit:
+        raise HTTPException(429, "Your source quota is full. Delete an existing source to continue")
 
 
 async def _enqueue(
@@ -166,7 +170,7 @@ async def add_text(
     notebook_id: str, body: TextSourceIn, request: Request, user: User, db: Db
 ) -> Source:
     await owned_notebook(db, user.id, notebook_id)
-    await _source_capacity(db, notebook_id)
+    await _source_capacity(db, notebook_id, request.app.state.settings.source_quota_per_user)
     source = Source(
         id=str(uuid4()),
         notebook_id=notebook_id,
@@ -191,7 +195,7 @@ async def add_url(
     notebook_id: str, body: URLSourceIn, request: Request, user: User, db: Db
 ) -> Source:
     await owned_notebook(db, user.id, notebook_id)
-    await _source_capacity(db, notebook_id)
+    await _source_capacity(db, notebook_id, request.app.state.settings.source_quota_per_user)
     try:
         validate_url(body.url)
     except UnsafeURL as exc:
@@ -219,7 +223,7 @@ async def add_youtube(
     notebook_id: str, body: URLSourceIn, request: Request, user: User, db: Db
 ) -> Source:
     await owned_notebook(db, user.id, notebook_id)
-    await _source_capacity(db, notebook_id)
+    await _source_capacity(db, notebook_id, request.app.state.settings.source_quota_per_user)
     try:
         video_id = parse_youtube_id(body.url)
     except ValueError as exc:
@@ -301,7 +305,7 @@ async def upload_source(
     notebook_id: str, request: Request, user: User, db: Db, file: Annotated[UploadFile, File()]
 ) -> Source:
     await owned_notebook(db, user.id, notebook_id)
-    await _source_capacity(db, notebook_id)
+    await _source_capacity(db, notebook_id, request.app.state.settings.source_quota_per_user)
     filename = (
         re.sub(r"[^A-Za-z0-9._ -]", "_", (file.filename or "source")[-255:]).strip(". ") or "source"
     )

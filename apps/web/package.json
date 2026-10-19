@@ -59,6 +59,6 @@
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.2.0",
     "openapi-typescript": "^7.0.0",
-    "vitest": "^3.2.0"
+    "vitest": "^4.1.11"
   }
 }

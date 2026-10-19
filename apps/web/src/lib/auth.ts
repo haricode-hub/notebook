@@ -19,12 +19,18 @@ export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   database: new Pool({ connectionString: process.env.BETTER_AUTH_DATABASE_URL, max: 10 }),
   trustedOrigins: [publicOrigin],
+  advanced: {
+    useSecureCookies: process.env.NODE_ENV === "production",
+  },
   emailAndPassword: { enabled: true },
   socialProviders,
   user: {
     additionalFields: {
       role: { type: "string", required: false, defaultValue: "user", input: false },
     },
+  },
+  account: {
+    accountLinking: { enabled: true, disableImplicitLinking: true },
   },
   rateLimit: {
     enabled: true,
