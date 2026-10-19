@@ -24,7 +24,8 @@ export function AuthForm({ mode, socials }: { mode: "sign-in" | "sign-up"; socia
   const router = useRouter();
   const search = useSearchParams();
   const [serverError, setServerError] = useState("");
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const [resetRequested, setResetRequested] = useState(false);
+  const { register, handleSubmit, getValues, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: "", email: "", password: "" },
   });
@@ -70,6 +71,24 @@ export function AuthForm({ mode, socials }: { mode: "sign-in" | "sign-up"; socia
       <Button type="submit" disabled={isSubmitting} className="w-full bg-indigo-600 text-white hover:bg-indigo-700">
         {isSubmitting ? "Working…" : signUp ? "Create account" : "Sign in"}
       </Button>
+      {!signUp && <div className="flex flex-wrap justify-center gap-4 text-sm">
+        <button type="button" className="text-indigo-600 hover:underline dark:text-indigo-400" onClick={async () => {
+          const email = getValues("email");
+          const parsed = z.email().safeParse(email);
+          if (!parsed.success) { setServerError("Enter your email above, then request a reset link."); return; }
+          setServerError("");
+          const result = await authClient.requestPasswordReset({ email, redirectTo: "/reset-password" });
+          if (result.error) { setServerError("Could not request a reset link. Try again shortly."); return; }
+          setResetRequested(true);
+        }}>Forgot password?</button>
+        <button type="button" className="text-indigo-600 hover:underline dark:text-indigo-400" onClick={async () => {
+          const email = getValues("email");
+          if (!z.email().safeParse(email).success) { setServerError("Enter your email above first."); return; }
+          await authClient.sendVerificationEmail({ email, callbackURL: "/notebooks" });
+          setResetRequested(true);
+        }}>Resend verification email</button>
+      </div>}
+      {resetRequested && <p role="status" className="text-center text-sm text-emerald-700">If that account can receive email, a secure link has been sent.</p>}
       <p className="text-center text-sm text-slate-600 dark:text-slate-400">
         {signUp ? "Already have an account? " : "New here? "}
         <Link href={signUp ? "/sign-in" : "/sign-up"} className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">

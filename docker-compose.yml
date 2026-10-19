@@ -1,4 +1,11 @@
 services:
+  mailpit:
+    image: axllent/mailpit:v1.27
+    profiles: ["dev-mail"]
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   postgres:
     image: pgvector/pgvector:pg16
     environment:
@@ -117,6 +124,13 @@ services:
       DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-10}
       ORPHAN_FILE_GRACE_HOURS: ${ORPHAN_FILE_GRACE_HOURS:-24}
       ARTIFACT_MAP_MAX_BYTES: ${ARTIFACT_MAP_MAX_BYTES:-10000}
+      ACCOUNT_INTERNAL_TOKEN: ${ACCOUNT_INTERNAL_TOKEN:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-OpenNotebook Studio <no-reply@localhost>}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -193,6 +207,8 @@ services:
       BETTER_AUTH_DATABASE_URL: postgresql://${POSTGRES_USER:-studio}:${POSTGRES_PASSWORD:-studio}@postgres:5432/${POSTGRES_DB:-studio}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      ACCOUNT_INTERNAL_TOKEN: ${ACCOUNT_INTERNAL_TOKEN:-}
+      SMTP_HOST: ${SMTP_HOST:-}
     depends_on:
       postgres: { condition: service_healthy }
 
@@ -208,6 +224,8 @@ services:
       BETTER_AUTH_DATABASE_URL: postgresql://${POSTGRES_USER:-studio}:${POSTGRES_PASSWORD:-studio}@postgres:5432/${POSTGRES_DB:-studio}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      ACCOUNT_INTERNAL_TOKEN: ${ACCOUNT_INTERNAL_TOKEN:-}
+      SMTP_HOST: ${SMTP_HOST:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}

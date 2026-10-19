@@ -64,6 +64,13 @@ class Settings(BaseSettings):
     upload_max_mb: int = Field(default=50, ge=1)
     source_quota_per_user: int = Field(default=250, ge=1)
     chat_tokens_per_day: int = Field(default=100000, ge=1000)
+    account_internal_token: str = ""
+    smtp_host: str = ""
+    smtp_port: int = Field(default=1025, ge=1, le=65535)
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "OpenNotebook Studio <no-reply@localhost>"
+    smtp_starttls: bool = False
 
     @field_validator("embed_dim")
     @classmethod

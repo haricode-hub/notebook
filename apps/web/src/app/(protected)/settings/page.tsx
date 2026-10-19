@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { settingsApi, type ModelOption, type Provider, type UserSettings } from "@/lib/api-client";
+import { AccountSecurity } from "@/components/account-security";
 
 const providers: { id: Provider; label: string }[] = [
   { id: "openrouter", label: "OpenRouter" }, { id: "gemini", label: "Gemini" },
@@ -48,5 +49,6 @@ export default function SettingsPage() {
   const query = useQuery({ queryKey: ["settings"], queryFn: settingsApi.get });
   return <main className="mx-auto max-w-3xl px-5 py-10"><p className="text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Account</p><h1 className="mt-2 text-3xl font-semibold">Model settings</h1><p className="mb-8 mt-2 text-sm text-slate-500">Choose where chat runs. Model choices load from each provider.</p>
     {query.isPending ? <div className="h-96 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" aria-label="Loading settings" /> : query.isError ? <p role="alert">Could not load settings. <Button variant="link" onClick={() => query.refetch()}>Try again</Button></p> : <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900"><SettingsForm initial={query.data} /></div>}
+    <AccountSecurity />
   </main>;
 }

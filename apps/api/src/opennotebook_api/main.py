@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from opennotebook_api.deps.auth import JWKSVerifier
 from opennotebook_api.routers import (
+    account,
     admin,
     artifacts,
     chat,
@@ -131,6 +132,7 @@ def create_app(
     app.include_router(settings_router.router)
     app.include_router(sharing.router)
     app.include_router(admin.router)
+    app.include_router(account.router)
 
     app.add_middleware(
         CORSMiddleware,

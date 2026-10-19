@@ -125,3 +125,16 @@
 - [ ] 12.7 Add and test Linux server-side PDF export
 - [ ] 12.8 Add XSS, prompt-injection, SSRF, and upload-fuzz regressions and fixes
 - [ ] 12.9 Verify persona and response-length settings change chat and artifact outputs
+
+## Level 13: Missing Product Features
+
+- [ ] 13.1 Complete account recovery, email verification, session management, account deletion and export (PARTIAL: local implementation/tests pass; Mailpit lifecycle and Playwright remain open)
+- [ ] 13.2 Add command palette and keyboard shortcuts
+- [ ] 13.3 Add answer feedback, admin view and eval export
+- [ ] 13.4 Add cross-notebook search
+- [ ] 13.5 Add slide deck generation and exports
+- [ ] 13.6 Add bounded deep research mode
+- [ ] 13.7 Add URL source refresh and duplicate detection
+- [ ] 13.8 Add Google Drive import or explicitly defer
+- [ ] 13.9 Add UI localization and chat output language
+- [ ] 13.10 Add notebook collaboration or explicitly defer
