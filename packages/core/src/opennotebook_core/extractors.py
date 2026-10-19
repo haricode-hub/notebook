@@ -1,10 +1,13 @@
 """Turn supported inputs into one canonical text with addressable blocks."""
 
+import os
 import re
+import tempfile
 from collections.abc import Sequence
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Protocol
+from urllib.parse import parse_qs, urlsplit
 
 
 @dataclass(frozen=True)
@@ -14,6 +17,8 @@ class Block:
     char_end: int
     page: int | None = None
     heading_path: tuple[str, ...] = ()
+    time_start: float | None = None
+    time_end: float | None = None
 
 
 @dataclass(frozen=True)
@@ -177,6 +182,92 @@ class WebExtractor:
             raise ValueError("Could not extract readable text from this website") from exc
 
 
+def _timestamped_document(parts: Sequence[tuple[str, float, float]]) -> ExtractedDocument:
+    text = ""
+    blocks: list[Block] = []
+    for value, start_time, end_time in parts:
+        value = value.strip()
+        if not value:
+            continue
+        if text:
+            text += "\n\n"
+        start = len(text)
+        text += value
+        blocks.append(Block(value, start, len(text), time_start=start_time, time_end=end_time))
+    if not blocks:
+        raise ValueError("No speech was detected in this media source")
+    return ExtractedDocument(text, tuple(blocks))
+
+
+def parse_youtube_id(url: str) -> str:
+    parsed = urlsplit(url)
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if host not in {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"}:
+        raise ValueError("Only youtube.com and youtu.be links are supported")
+    try:
+        if parsed.scheme != "https" or parsed.port not in {None, 443} or parsed.username:
+            raise ValueError("YouTube URL must use HTTPS")
+    except ValueError as exc:
+        raise ValueError("YouTube URL has an invalid port") from exc
+    if host == "youtu.be":
+        video_id = parsed.path.strip("/").split("/")[0]
+    else:
+        video_id = parse_qs(parsed.query).get("v", [""])[0]
+        if not video_id and parsed.path.startswith("/shorts/"):
+            video_id = parsed.path.split("/")[2]
+    if not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
+        raise ValueError("YouTube URL does not contain a valid video ID")
+    return video_id
+
+
+def extract_youtube_transcript(url: str, languages: Sequence[str] = ("en",)) -> ExtractedDocument:
+    from youtube_transcript_api import YouTubeTranscriptApi
+
+    transcript = YouTubeTranscriptApi().fetch(parse_youtube_id(url), languages=list(languages))
+    return _timestamped_document(
+        [
+            (str(row.text), float(row.start), float(row.start + row.duration))
+            for row in transcript.snippets
+        ]
+    )
+
+
+class AudioExtractor:
+    """Timestamped speech extraction; Whisper is lazily initialized on first use."""
+
+    _model: object | None = None
+
+    @classmethod
+    def _whisper(cls) -> object:
+        if cls._model is None:
+            from faster_whisper import WhisperModel  # type: ignore[import-untyped]
+
+            cls._model = WhisperModel("small", device="cpu", compute_type="int8")
+        return cls._model
+
+    def extract(self, data: bytes, suffix: str = ".mp3") -> ExtractedDocument:
+        if not data:
+            raise ValueError("Audio file is empty")
+        if suffix.lower() not in {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".opus", ".webm"}:
+            suffix = ".mp3"
+        with tempfile.NamedTemporaryFile(suffix=suffix.lower(), delete=False) as audio_file:
+            audio_path = audio_file.name
+            audio_file.write(data)
+        try:
+            model = self._whisper()
+            segments, _info = model.transcribe(  # type: ignore[attr-defined]
+                audio_path, beam_size=5, vad_filter=True
+            )
+            parts: list[tuple[str, float, float]] = []
+            for segment in segments:
+                value = str(segment.text).strip()
+                if value:
+                    parts.append((value, float(segment.start), float(segment.end)))
+        finally:
+            os.unlink(audio_path)
+        return _timestamped_document(parts)
+
+
 EXTRACTORS: dict[str, Extractor] = {
     "pdf": PdfExtractor(),
     "docx": DocxExtractor(),
@@ -185,4 +276,5 @@ EXTRACTORS: dict[str, Extractor] = {
     "md": MarkdownExtractor(),
     "text": TextExtractor(),
     "web": WebExtractor(),
+    "audio": AudioExtractor(),
 }

@@ -27,6 +27,8 @@ class Citation(TypedDict):
     chunk_id: str
     source_id: str
     page_start: int | None
+    time_start: float | None
+    time_end: float | None
     char_start: int
     char_end: int
     source_name: str
@@ -97,6 +99,8 @@ def validate_citations(answer: str, selection: ContextSelection) -> tuple[str, l
                 "chunk_id": chunk.id,
                 "source_id": chunk.source_id,
                 "page_start": chunk.page_start,
+                "time_start": chunk.time_start,
+                "time_end": chunk.time_end,
                 "char_start": chunk.char_start,
                 "char_end": chunk.char_end,
                 "source_name": selection.source_names.get(chunk.source_id, "Source"),

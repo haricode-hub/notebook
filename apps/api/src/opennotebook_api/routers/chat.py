@@ -41,6 +41,8 @@ class ChatCitation(BaseModel):
     chunk_id: str
     source_id: str
     page_start: int | None
+    time_start: float | None = None
+    time_end: float | None = None
     char_start: int
     char_end: int
     source_name: str

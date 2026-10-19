@@ -8,12 +8,17 @@ import type { ChatCitation } from "@/lib/api-client";
 export function CitationChip({ citation, onOpen }: { citation: ChatCitation; onOpen: () => void }) {
   const [open, setOpen] = useState(false);
   return <span className="group relative inline-block align-baseline">
-    <button type="button" aria-label={`Source ${citation.n}: ${citation.source_name}`} onClick={onOpen} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} className="mx-0.5 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-800 hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-100">S{citation.n}</button>
+    <button type="button" aria-label={`Source ${citation.n}: ${citation.source_name}${citation.time_start != null ? ` at ${formatMediaTime(citation.time_start)}` : ""}`} onClick={onOpen} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)} className="mx-0.5 rounded bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-800 hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-100">S{citation.n}{citation.time_start != null ? ` ${formatMediaTime(citation.time_start)}` : ""}</button>
     <span role="note" className={`${open ? "block" : "hidden group-hover:block group-focus-within:block"} absolute bottom-full left-0 z-30 mb-2 w-64 rounded-lg border border-slate-200 bg-white p-3 text-left text-xs text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200`}>
-      <strong className="block truncate">{citation.source_name}{citation.page_start ? ` · page ${citation.page_start}` : ""}</strong>
+      <strong className="block truncate">{citation.source_name}{citation.page_start ? ` · page ${citation.page_start}` : ""}{citation.time_start != null ? ` · ${formatMediaTime(citation.time_start)}` : ""}</strong>
       <span className="mt-1 block max-h-32 overflow-y-auto">{citation.quote}</span>
     </span>
   </span>;
+}
+
+export function formatMediaTime(seconds: number): string {
+  const safe = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
 }
 
 export function CitedMarkdown({ content, citations, onOpenCitation }: {

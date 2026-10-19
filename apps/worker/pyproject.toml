@@ -2,7 +2,13 @@
 name = "opennotebook-worker"
 version = "0.1.0"
 requires-python = ">=3.13,<3.14"
-dependencies = ["opennotebook-core", "arq>=0.26"]
+dependencies = [
+    "opennotebook-core",
+    "arq>=0.26",
+    "faster-whisper>=1.2.1",
+    "yt-dlp>=2026.8.19",
+    "youtube-transcript-api>=1.2.4",
+]
 
 [tool.uv.sources]
 opennotebook-core = { workspace = true }

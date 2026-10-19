@@ -1,5 +1,7 @@
 import asyncio
 import json
+import os
+import tempfile
 from typing import Any
 
 from arq.connections import RedisSettings
@@ -18,7 +20,12 @@ from opennotebook_core.chunking import chunk_document
 from opennotebook_core.config import get_settings
 from opennotebook_core.db import make_session_factory
 from opennotebook_core.embeddings import make_embedding
-from opennotebook_core.extractors import EXTRACTORS
+from opennotebook_core.extractors import (
+    EXTRACTORS,
+    AudioExtractor,
+    extract_youtube_transcript,
+    parse_youtube_id,
+)
 from opennotebook_core.models import (
     Artifact,
     Chunk,
@@ -103,16 +110,64 @@ async def ingest_source(
     fetcher = ctx.get("fetcher") or fetch_public_url
     try:
         source = await _stage(ctx, source_id, job_id, "fetching", 5)
-        if source.kind == "web":
+        transcript_source: str | None = None
+        if source.kind in {"web", "youtube"}:
             if not source.url:
-                raise ValueError("Website URL is missing")
-            data = await fetcher(source.url)
+                raise ValueError("Source URL is missing")
+            if source.kind == "youtube":
+                await _stage(ctx, source_id, job_id, "extracting", 20)
+                try:
+                    document = await asyncio.to_thread(extract_youtube_transcript, source.url)
+                    transcript_source = "youtube"
+                except Exception:
+                    video_id = parse_youtube_id(source.url)
+                    with tempfile.TemporaryDirectory(prefix="open-notebook-youtube-") as folder:
+                        target = f"{folder}/audio.%(ext)s"
+
+                        def download_audio() -> tuple[bytes, str]:
+                            import yt_dlp  # type: ignore[import-untyped]
+
+                            options: dict[str, object] = {
+                                "format": "bestaudio/best",
+                                "outtmpl": target,
+                                "noplaylist": True,
+                                "max_filesize": 150 * 1024 * 1024,
+                                "socket_timeout": 20,
+                                "retries": 2,
+                                "quiet": True,
+                                "no_warnings": True,
+                            }
+                            with yt_dlp.YoutubeDL(options) as downloader:
+                                downloader.download([f"https://www.youtube.com/watch?v={video_id}"])
+                            paths = [
+                                os.path.join(folder, name)
+                                for name in os.listdir(folder)
+                                if name.startswith("audio.")
+                            ]
+                            if not paths:
+                                raise ValueError("YouTube audio download produced no file")
+                            with open(paths[0], "rb") as media_file:
+                                return media_file.read(), os.path.splitext(paths[0])[1]
+
+                        media, media_suffix = await asyncio.to_thread(download_audio)
+                    document = await asyncio.to_thread(
+                        AudioExtractor().extract, media, media_suffix
+                    )
+                    transcript_source = "whisper"
+            else:
+                data = await fetcher(source.url)
+                await _stage(ctx, source_id, job_id, "extracting", 20)
+                document = await asyncio.to_thread(EXTRACTORS[source.kind].extract, data)
         else:
             if not source.storage_key:
                 raise ValueError("Source file is missing")
             data = await storage.get(source.storage_key)
-        await _stage(ctx, source_id, job_id, "extracting", 20)
-        document = await asyncio.to_thread(EXTRACTORS[source.kind].extract, data)
+            await _stage(ctx, source_id, job_id, "extracting", 20)
+            if source.kind == "audio":
+                suffix = os.path.splitext(source.name)[1]
+                document = await asyncio.to_thread(AudioExtractor().extract, data, suffix)
+            else:
+                document = await asyncio.to_thread(EXTRACTORS[source.kind].extract, data)
         await _stage(ctx, source_id, job_id, "chunking", 40)
         spans = chunk_document(document)
         if not spans:
@@ -177,6 +232,8 @@ async def ingest_source(
                     text=span.text,
                     page_start=span.page_start,
                     page_end=span.page_end,
+                    time_start=span.time_start,
+                    time_end=span.time_end,
                     char_start=span.char_start,
                     char_end=span.char_end,
                     heading_path=list(span.heading_path),
@@ -187,6 +244,11 @@ async def ingest_source(
                     chunk.tsv = func.to_tsvector("english", span.text)
                 session.add(chunk)
             record.extracted_text = document.text
+            if transcript_source is not None:
+                record.metadata_json = {
+                    **record.metadata_json,
+                    "transcript_source": transcript_source,
+                }
             record.page_count = document.page_count
             record.embedding_model = identity
             record.embedding_dim = settings.embed_dim

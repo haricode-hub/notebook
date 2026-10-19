@@ -21,6 +21,8 @@ class ChunkSpan:
     page_start: int | None
     page_end: int | None
     heading_path: tuple[str, ...]
+    time_start: float | None = None
+    time_end: float | None = None
 
 
 def _sentences(text: str) -> list[tuple[int, int]]:
@@ -79,6 +81,14 @@ def chunk_document(
                 min(pages) if pages else None,
                 max(pages) if pages else None,
                 touched[0].heading_path if touched else (),
+                min(
+                    (block.time_start for block in touched if block.time_start is not None),
+                    default=None,
+                ),
+                max(
+                    (block.time_end for block in touched if block.time_end is not None),
+                    default=None,
+                ),
             )
         )
         if end_index == len(sentences):

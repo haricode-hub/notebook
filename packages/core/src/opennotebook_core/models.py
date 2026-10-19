@@ -7,6 +7,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -128,6 +129,8 @@ class Chunk(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     page_start: Mapped[int | None] = mapped_column(Integer)
     page_end: Mapped[int | None] = mapped_column(Integer)
+    time_start: Mapped[float | None] = mapped_column(Float)
+    time_end: Mapped[float | None] = mapped_column(Float)
     char_start: Mapped[int] = mapped_column(Integer, nullable=False)
     char_end: Mapped[int] = mapped_column(Integer, nullable=False)
     heading_path: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
@@ -300,4 +303,19 @@ class QuizAttempt(Base):
     total: Mapped[int] = mapped_column(Integer, nullable=False)
     answers_json: Mapped[list[int]] = mapped_column(JSON, nullable=False)
     wrong_indices: Mapped[list[int]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NotebookShare(Base):
+    __tablename__ = "notebook_shares"
+    __table_args__ = (Index("ix_notebook_shares_notebook_user", "notebook_id", "user_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    notebook_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("notebooks.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(Text, nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

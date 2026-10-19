@@ -14,6 +14,8 @@ from arq import create_pool
 from arq.connections import ArqRedis, RedisSettings
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response, StreamingResponse
+from opennotebook_core.discovery import DuckDuckGoSearch
+from opennotebook_core.extractors import parse_youtube_id
 from opennotebook_core.models import Chunk, Job, Notebook, Source
 from opennotebook_core.queue import schedule_overview
 from opennotebook_core.safe_fetch import UnsafeURL, validate_url
@@ -70,6 +72,8 @@ class SourceChunkOut(BaseModel):
     page_end: int | None
     char_start: int
     char_end: int
+    time_start: float | None
+    time_end: float | None
 
 
 class SourceContentOut(BaseModel):
@@ -79,6 +83,16 @@ class SourceContentOut(BaseModel):
     original_url: str | None
     file_url: str | None
     expires_at: int | None
+
+
+class DiscoverCandidate(BaseModel):
+    title: str
+    url: str
+    snippet: str
+
+
+class DiscoverImportIn(BaseModel):
+    urls: list[str] = Field(min_length=1, max_length=10)
 
 
 async def _owned_source(db: AsyncSession, notebook_id: str, user_id: str, source_id: str) -> Source:
@@ -200,6 +214,88 @@ async def add_url(
     return source
 
 
+@router.post("/sources/youtube", response_model=SourceOut, status_code=status.HTTP_201_CREATED)
+async def add_youtube(
+    notebook_id: str, body: URLSourceIn, request: Request, user: User, db: Db
+) -> Source:
+    await owned_notebook(db, user.id, notebook_id)
+    await _source_capacity(db, notebook_id)
+    try:
+        video_id = parse_youtube_id(body.url)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    canonical_url = f"https://www.youtube.com/watch?v={video_id}"
+    source = Source(
+        id=str(uuid4()),
+        notebook_id=notebook_id,
+        user_id=user.id,
+        name=f"YouTube video {video_id}",
+        kind="youtube",
+        url=canonical_url,
+        status="queued",
+        progress=0,
+        metadata_json={"video_id": video_id},
+    )
+    db.add(source)
+    await _enqueue(db, request, source)
+    await db.refresh(source)
+    return source
+
+
+@router.get("/discover", response_model=list[DiscoverCandidate])
+async def discover_sources(
+    notebook_id: str, q: str, request: Request, user: User, db: Db, limit: int = 8
+) -> list[DiscoverCandidate]:
+    await owned_notebook(db, user.id, notebook_id)
+    if len(q.strip()) < 3 or len(q) > 300 or not 1 <= limit <= 10:
+        raise HTTPException(422, "Use a 3–300 character search and a limit from 1 to 10")
+    provider = getattr(request.app.state, "search_provider", None) or DuckDuckGoSearch()
+    try:
+        rows = await provider.search(q, limit)
+    except Exception as exc:
+        raise HTTPException(502, "Search is temporarily unavailable") from exc
+    return [DiscoverCandidate(title=row.title, url=row.url, snippet=row.snippet) for row in rows]
+
+
+@router.post("/sources/import", response_model=list[SourceOut], status_code=202)
+async def import_discovered(
+    notebook_id: str,
+    body: DiscoverImportIn,
+    request: Request,
+    user: User,
+    db: Db,
+) -> list[Source]:
+    await owned_notebook(db, user.id, notebook_id)
+    count = await db.scalar(select(func.count(Source.id)).where(Source.notebook_id == notebook_id))
+    urls = list(dict.fromkeys(body.urls))
+    if (count or 0) + len(urls) > 50:
+        raise HTTPException(409, "A notebook can contain at most 50 sources")
+    safe_urls: list[str] = []
+    for value in urls:
+        try:
+            safe_urls.append(validate_url(value))
+        except UnsafeURL as exc:
+            raise HTTPException(422, str(exc)) from exc
+    created: list[Source] = []
+    for safe_url in safe_urls:
+        source = Source(
+            id=str(uuid4()),
+            notebook_id=notebook_id,
+            user_id=user.id,
+            name=(urlsplit(safe_url).hostname or "Website")[:255],
+            kind="web",
+            url=safe_url,
+            status="queued",
+            progress=0,
+            metadata_json={"discovered": True},
+        )
+        db.add(source)
+        await db.flush()
+        await _enqueue(db, request, source)
+        created.append(source)
+    return created
+
+
 @router.post("/sources/upload", response_model=SourceOut, status_code=status.HTTP_201_CREATED)
 async def upload_source(
     notebook_id: str, request: Request, user: User, db: Db, file: Annotated[UploadFile, File()]
@@ -209,9 +305,13 @@ async def upload_source(
     filename = (
         re.sub(r"[^A-Za-z0-9._ -]", "_", (file.filename or "source")[-255:]).strip(". ") or "source"
     )
-    kind = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    if kind not in {"pdf", "docx", "pptx", "txt", "md"}:
-        raise HTTPException(415, "Supported files: PDF, DOCX, PPTX, TXT, MD")
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    audio_types = {"mp3", "wav", "m4a", "flac", "ogg", "opus", "webm"}
+    if extension not in {"pdf", "docx", "pptx", "txt", "md", *audio_types}:
+        raise HTTPException(
+            415, "Supported files: PDF, DOCX, PPTX, TXT, MD, MP3, WAV, M4A, FLAC, OGG"
+        )
+    kind = "audio" if extension in audio_types else extension
     limit = request.app.state.settings.upload_max_mb * 1024 * 1024
     data = await file.read(limit + 1)
     if len(data) > limit:
@@ -277,7 +377,7 @@ async def source_content(
     )
     file_url = None
     expires_at = None
-    if source.kind == "pdf" and source.storage_key:
+    if source.storage_key:
         expires_at = int(datetime.now(UTC).timestamp()) + 300
         try:
             file_url = make_storage(request.app.state.settings).url(
@@ -327,7 +427,9 @@ async def signed_file(token: str, request: Request, user: User, db: Db) -> Respo
         data = await make_storage(request.app.state.settings).get(key)
     except (FileNotFoundError, KeyError) as exc:
         raise HTTPException(404, "File not found") from exc
-    media_type = "application/pdf" if source.kind == "pdf" else "application/octet-stream"
+    media_type = source.mime_type or (
+        "application/pdf" if source.kind == "pdf" else "application/octet-stream"
+    )
     return Response(
         data,
         media_type=media_type,

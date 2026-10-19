@@ -82,5 +82,14 @@
 - [x] 8.5 Pass Python/web gates and FakeTTS Playwright journey; record report
 
 ## Level 9: Advanced sources and sharing
+- [x] A.1 Verify faster-whisper, yt-dlp, and youtube-transcript-api install and import on Python 3.13.5
+- [x] A.2 Add YouTube transcript-first and Whisper fallback ingestion, audio uploads, and chunk timestamps
+- [x] A.3 Add time-aware citations/viewer, SearchProvider discovery, and SSRF-safe import
+- [x] A.4 Add hashed/revocable read-only share links, public page, strict rate limits, and ZIP export
+- [x] A.5 Pass local Python/web checks and fixture tests; commit Pass A (browser/security journeys remain in Pass C)
+- [ ] B.1 Re-read official EmbeddingGemma 2 multimodal documentation and record ADR-006 measurements
+- [ ] B.2 Add gated media embeddings, figure extraction, media_items and per-modality RRF
+- [ ] B.3 Add figure citations to chat and source viewer
+- [ ] C.1 Complete unit, integration, security, and e2e coverage; run all gates and commit Pass C
 
 ## Level 10: Hardening and scaling

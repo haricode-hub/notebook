@@ -33,10 +33,10 @@ Output <promise>L9_COMPLETE</promise> when acceptance tests pass.
 ```
 
 ## Task checklist
-- [ ] YouTube + audio extractors + time anchors
-- [ ] discover + SearchProvider
-- [ ] share tokens + public route + read-only router
-- [ ] export ZIP
+- [x] YouTube + audio extractors + time anchors
+- [x] discover + SearchProvider
+- [x] share tokens + public route + read-only router
+- [x] export ZIP
 - [ ] embed service media endpoint (flagged)
 - [ ] figure extraction + media_items + per-modality RRF
 - [ ] figure citations in chat/viewer
