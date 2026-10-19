@@ -64,6 +64,7 @@ class Notebook(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     persona: Mapped[str | None] = mapped_column(Text)
     response_length: Mapped[str] = mapped_column(String(16), nullable=False, default="medium")
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

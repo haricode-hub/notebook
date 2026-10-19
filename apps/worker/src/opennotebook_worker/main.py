@@ -4,6 +4,7 @@ import os
 import tempfile
 import time
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from arq.connections import RedisSettings
@@ -1093,6 +1094,45 @@ async def cleanup_orphaned_storage(ctx: dict[str, Any]) -> int:
     return removed
 
 
+async def cleanup_deleted_notebooks(ctx: dict[str, Any]) -> int:
+    """Purge notebooks after their owner-visible undo window has expired."""
+    settings = ctx.get("settings") or get_settings()
+    factory = ctx.get("session_factory") or make_session_factory(settings)
+    storage = ctx.get("storage") or make_storage(settings)
+    cutoff = datetime.now(UTC) - timedelta(seconds=settings.soft_delete_grace_seconds)
+    async with factory() as session:
+        expired = list(
+            (
+                await session.scalars(
+                    select(Notebook).where(
+                        Notebook.deleted_at.is_not(None), Notebook.deleted_at <= cutoff
+                    )
+                )
+            ).all()
+        )
+        purged = 0
+        for notebook in expired:
+            keys: set[str] = set()
+            for model in (Source, MediaItem):
+                values = await session.scalars(
+                    select(model.storage_key).where(model.notebook_id == notebook.id)
+                )
+                keys.update(value for value in values.all() if isinstance(value, str))
+            for output in await session.scalars(
+                select(Artifact.output_json).where(Artifact.notebook_id == notebook.id)
+            ):
+                if isinstance(output, dict):
+                    key = output.get("storage_key")
+                    if isinstance(key, str):
+                        keys.add(key)
+            for key in keys:
+                await storage.delete(key)
+            await session.delete(notebook)
+            purged += 1
+        await session.commit()
+    return purged
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     settings = get_settings()
     ctx["settings"] = settings
@@ -1119,6 +1159,9 @@ class WorkerSettings:
     max_jobs = 2
     job_timeout = 3600
     max_tries = get_settings().job_max_tries
-    cron_jobs = [cron(cleanup_orphaned_storage, hour=3, minute=17)]
+    cron_jobs = [
+        cron(cleanup_orphaned_storage, hour=3, minute=17),
+        cron(cleanup_deleted_notebooks, second={0, 15, 30, 45}, unique=False),
+    ]
     on_startup = startup
     on_shutdown = shutdown

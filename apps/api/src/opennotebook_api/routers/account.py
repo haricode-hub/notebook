@@ -117,7 +117,15 @@ async def send_account_email(
 
 @router.delete("/internal/accounts/{user_id}/data", status_code=204)
 async def purge_account_data(user_id: str, request: Request, _internal: Internal, db: Db) -> None:
-    notebooks = list((await db.scalars(select(Notebook).where(Notebook.user_id == user_id))).all())
+    notebooks = list(
+        (
+            await db.scalars(
+                select(Notebook).where(
+                    Notebook.user_id == user_id, Notebook.deleted_at.is_(None)
+                )
+            )
+        ).all()
+    )
     notebook_ids = [notebook.id for notebook in notebooks]
     sources = list((await db.scalars(select(Source).where(Source.user_id == user_id))).all())
     media = (
@@ -160,7 +168,9 @@ async def export_account(user: User, db: Db) -> Response:
     notebooks = list(
         (
             await db.scalars(
-                select(Notebook).where(Notebook.user_id == user.id).order_by(Notebook.created_at)
+                select(Notebook)
+                .where(Notebook.user_id == user.id, Notebook.deleted_at.is_(None))
+                .order_by(Notebook.created_at)
             )
         ).all()
     )

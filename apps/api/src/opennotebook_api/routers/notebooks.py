@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from opennotebook_core.models import Notebook
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
@@ -40,7 +40,11 @@ class NotebookOut(BaseModel):
 
 async def owned_notebook(db: AsyncSession, user_id: str, notebook_id: str) -> Notebook:
     result = await db.execute(
-        select(Notebook).where(Notebook.id == notebook_id, Notebook.user_id == user_id)
+        select(Notebook).where(
+            Notebook.id == notebook_id,
+            Notebook.user_id == user_id,
+            Notebook.deleted_at.is_(None),
+        )
     )
     notebook = result.scalar_one_or_none()
     if notebook is None:
@@ -52,7 +56,7 @@ async def owned_notebook(db: AsyncSession, user_id: str, notebook_id: str) -> No
 async def list_notebooks(user: User, db: Db) -> list[Notebook]:
     result = await db.execute(
         select(Notebook)
-        .where(Notebook.user_id == user.id)
+        .where(Notebook.user_id == user.id, Notebook.deleted_at.is_(None))
         .order_by(Notebook.created_at.desc(), Notebook.id.desc())
     )
     return list(result.scalars().all())
@@ -91,5 +95,25 @@ async def update_notebook(
 @router.delete("/{notebook_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_notebook(notebook_id: str, user: User, db: Db) -> None:
     notebook = await owned_notebook(db, user.id, notebook_id)
-    await db.delete(notebook)
+    notebook.deleted_at = datetime.now(UTC)
     await db.commit()
+
+
+@router.post("/{notebook_id}/restore", response_model=NotebookOut)
+async def restore_notebook(notebook_id: str, user: User, db: Db, request: Request) -> Notebook:
+    notebook = await db.scalar(
+        select(Notebook).where(Notebook.id == notebook_id, Notebook.user_id == user.id)
+    )
+    if notebook is None or notebook.deleted_at is None:
+        raise HTTPException(status_code=404, detail="Deleted notebook not found")
+    deleted_at = notebook.deleted_at
+    if deleted_at.tzinfo is None:
+        deleted_at = deleted_at.replace(tzinfo=UTC)
+    grace_seconds = request.app.state.settings.soft_delete_grace_seconds
+    expires_at = deleted_at + timedelta(seconds=grace_seconds)
+    if expires_at <= datetime.now(UTC):
+        raise HTTPException(status_code=410, detail="Undo period has expired")
+    notebook.deleted_at = None
+    await db.commit()
+    await db.refresh(notebook)
+    return notebook

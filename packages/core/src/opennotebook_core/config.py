@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     db_pool_size: int = Field(default=10, ge=1, le=50)
     db_max_overflow: int = Field(default=10, ge=0, le=50)
     orphan_file_grace_hours: int = Field(default=24, ge=1, le=720)
+    soft_delete_grace_seconds: int = Field(default=30, ge=1, le=3600)
     chat_context_tokens: int = Field(default=8192, ge=2048)
     chat_max_history: int = Field(default=6, ge=0, le=20)
     chat_rate_limit_per_minute: int = Field(default=30, ge=1)

@@ -18,10 +18,35 @@ export default function NotebooksPage() {
   const refresh = () => client.invalidateQueries({ queryKey: ["notebooks"] });
   const create = useMutation({ mutationFn: notebookApi.create, onSuccess: () => { setTitle(""); refresh(); toast.success("Notebook created"); }, onError: (error) => toast.error(error.message) });
   const rename = useMutation({ mutationFn: ({ id, title }: { id: string; title: string }) => notebookApi.update(id, { title }), onSuccess: () => { setEditing(null); refresh(); toast.success("Notebook renamed"); }, onError: (error) => toast.error(error.message) });
-  const remove = useMutation({ mutationFn: notebookApi.remove, onSuccess: () => { refresh(); toast.success("Notebook deleted"); }, onError: (error) => toast.error(error.message) });
+  const remove = useMutation({
+    mutationFn: notebookApi.remove,
+    onMutate: async (id) => {
+      await client.cancelQueries({ queryKey: ["notebooks"] });
+      const previous = client.getQueryData<Notebook[]>(["notebooks"]);
+      client.setQueryData<Notebook[]>(["notebooks"], (items) => items?.filter((book) => book.id !== id));
+      return { previous, book: previous?.find((book) => book.id === id) };
+    },
+    onError: (error, _id, context) => {
+      client.setQueryData(["notebooks"], context?.previous);
+      toast.error(error.message);
+    },
+    onSuccess: (_result, id, context) => {
+      if (!context?.book) return refresh();
+      toast("Moved to Trash", {
+        duration: 10_000,
+        action: {
+          label: "Undo",
+          onClick: () => notebookApi.restore(id).then((book) => {
+            client.setQueryData<Notebook[]>(["notebooks"], (items) => [...(items ?? []), book].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+            toast.success("Notebook restored");
+          }).catch((error: unknown) => toast.error(error instanceof Error ? error.message : "Could not restore notebook")),
+        },
+      });
+    },
+  });
 
-  function confirmDelete(book: Notebook) {
-    if (window.confirm(`Delete “${book.title}”? This cannot be undone.`)) remove.mutate(book.id);
+  function deleteNotebook(book: Notebook) {
+    remove.mutate(book.id);
   }
 
   return <main className="mx-auto max-w-6xl px-5 py-8 sm:py-12">
@@ -36,7 +61,7 @@ export default function NotebooksPage() {
       <BookOpen className="mb-7 size-6 text-indigo-600 dark:text-indigo-400" />
       {editing === book.id ? <form onSubmit={(event) => { event.preventDefault(); if (draft.trim()) rename.mutate({ id: book.id, title: draft.trim() }); }} className="flex gap-2"><Input aria-label="Rename notebook" value={draft} onChange={(event) => setDraft(event.target.value)} autoFocus /><Button type="submit" size="sm" disabled={!draft.trim() || rename.isPending}>Save</Button></form> : <Link className="block text-lg font-semibold hover:text-indigo-600" href={`/workspace/${book.id}`}>{book.title}</Link>}
       <p className="mt-2 text-xs text-slate-500">Updated {new Date(book.updated_at).toLocaleDateString()}</p>
-      <div className="mt-5 flex justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800"><Button variant="ghost" size="sm" onClick={() => { setEditing(book.id); setDraft(book.title); }}>Rename</Button><Button variant="ghost" size="sm" aria-label={`Delete ${book.title}`} onClick={() => confirmDelete(book)}><Trash2 /></Button></div>
+      <div className="mt-5 flex justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800"><Button variant="ghost" size="sm" onClick={() => { setEditing(book.id); setDraft(book.title); }}>Rename</Button><Button variant="ghost" size="sm" aria-label={`Delete ${book.title}`} onClick={() => deleteNotebook(book)}><Trash2 /></Button></div>
     </article>)}</div>}
   </main>;
 }

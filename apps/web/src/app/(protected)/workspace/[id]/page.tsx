@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, PanelLeftClose, PanelRightClose, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { AnimatePresence, motion } from "motion/react";
 import { Group, Panel, Separator, type PanelImperativeHandle } from "react-resizable-panels";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -15,6 +16,8 @@ import { StudioPanel } from "@/components/studio-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { notebookApi, type ChatCitation, type NotebookUpdate } from "@/lib/api-client";
+import { springOptions } from "@/design/springs";
+import { useMotionPrefs } from "@/design/use-motion-prefs";
 
 type Tab = "Sources" | "Chat" | "Studio";
 
@@ -28,7 +31,8 @@ export default function WorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const client = useQueryClient();
   const query = useQuery({ queryKey: ["notebook", id], queryFn: () => notebookApi.get(id) });
-  const [tab, setTab] = useState<Tab>("Sources");
+  const [tab, setTab] = useState<Tab>("Chat");
+  const { reducedMotion } = useMotionPrefs();
   const [viewer, setViewer] = useState<ViewerSelection | null>(null);
   const openSource = (sourceId: string) => setViewer({ sourceId, citations: [], index: 0 });
   const openGuide = (sourceId: string) => setViewer({ sourceId, citations: [], index: 0, initialTab: "guide" });
@@ -64,7 +68,34 @@ export default function WorkspacePage() {
       <Button type="submit" className="self-end" disabled={save.isPending}>Save</Button>
     </form>}
     <div className="flex border-b border-slate-200 md:hidden dark:border-slate-800" role="tablist" aria-label="Workspace panels">{panels.map((panel) => <button key={panel.title} type="button" role="tab" aria-selected={tab === panel.title} onClick={() => setTab(panel.title)} className={`flex-1 px-4 py-3 text-sm ${tab === panel.title ? "border-b-2 border-indigo-600 font-semibold text-indigo-600" : "text-slate-500"}`}>{panel.title}</button>)}</div>
-    <div className="min-h-0 flex-1 md:hidden">{tab === "Sources" ? (!desktop && <SourcesPanel notebookId={id} onOpenSource={openSource} onOpenGuide={openGuide} />) : tab === "Chat" ? (!desktop && <ChatPanel notebookId={id} onOpenCitation={openCitation} suggestedQuestion={suggestedQuestion} onQuestionConsumed={() => setSuggestedQuestion(null)} />) : <StudioPanel notebookId={id} onAskQuestion={askQuestion} onOpenCitation={openCitation} />}</div>
+    <div className="relative min-h-0 flex-1 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:hidden">
+      {!desktop && <ChatPanel notebookId={id} onOpenCitation={openCitation} suggestedQuestion={suggestedQuestion} onQuestionConsumed={() => setSuggestedQuestion(null)} />}
+      <AnimatePresence initial={false}>
+        {!desktop && tab !== "Chat" && <motion.section
+          key={tab}
+          aria-label={`${tab} panel`}
+          initial={reducedMotion ? { opacity: 0 } : { y: 42, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={reducedMotion ? { opacity: 0 } : { y: 42, opacity: 0 }}
+          transition={reducedMotion ? { duration: 0.01 } : springOptions("sheet")}
+          drag={reducedMotion ? false : "y"}
+          dragDirectionLock
+          dragConstraints={{ top: 0, bottom: 260 }}
+          dragElastic={0.55}
+          dragMomentum={!reducedMotion}
+          onDragEnd={(_event, info) => {
+            if (info.velocity.y > 450 || info.offset.y > 130) setTab("Chat");
+          }}
+          className="absolute inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 h-[min(72dvh,42rem)] overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-950"
+        >
+          <div className="mx-auto my-2 h-1.5 w-10 rounded-full bg-slate-300 dark:bg-slate-600" aria-hidden="true" />
+          {tab === "Sources" ? <SourcesPanel notebookId={id} onOpenSource={openSource} onOpenGuide={openGuide} /> : <StudioPanel notebookId={id} onAskQuestion={askQuestion} onOpenCitation={openCitation} />}
+        </motion.section>}
+      </AnimatePresence>
+      <nav className="absolute inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-slate-200 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90" aria-label="Notebook workspace" role="tablist">
+        {panels.map((panel) => <button key={panel.title} type="button" role="tab" aria-selected={tab === panel.title} onClick={() => setTab(panel.title)} className={`min-h-11 px-3 py-2 text-sm ${tab === panel.title ? "font-semibold text-indigo-600 dark:text-indigo-400" : "text-slate-500"}`}>{panel.title}</button>)}
+      </nav>
+    </div>
     <div className="hidden min-h-0 flex-1 md:flex">
     <Group orientation="horizontal" className="min-h-0 flex-1" id="workspace-panels">
       <Panel id="sources" panelRef={sourcesRef} defaultSize="25%" minSize="15%" collapsible collapsedSize="0%">{desktop && <SourcesPanel notebookId={id} onOpenSource={openSource} onOpenGuide={openGuide} />}</Panel>

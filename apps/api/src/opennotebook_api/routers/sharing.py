@@ -144,7 +144,7 @@ async def read_shared(token: str, request: Request, db: Db) -> PublicNotebook:
     share = await _active_share(token, db)
     await _rate_limit(request, share.token_hash)
     notebook = await db.get(Notebook, share.notebook_id)
-    if notebook is None:
+    if notebook is None or notebook.deleted_at is not None:
         raise HTTPException(404, "Shared notebook is unavailable")
     sources = list(
         (

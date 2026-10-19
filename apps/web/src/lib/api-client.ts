@@ -73,6 +73,7 @@ export const notebookApi = {
   create: (body: NotebookCreate) => apiFetch<Notebook>("/notebooks", { method: "POST", body: JSON.stringify(body) }),
   update: (id: string, body: NotebookUpdate) => apiFetch<Notebook>(`/notebooks/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
   remove: (id: string) => apiFetch<void>(`/notebooks/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  restore: (id: string) => apiFetch<Notebook>(`/notebooks/${encodeURIComponent(id)}/restore`, { method: "POST" }),
 };
 
 export const settingsApi = {
