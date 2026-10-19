@@ -204,6 +204,23 @@ async def media_vector_search(
     if not selected_source_ids:
         return []
     vector = (await embedding.embed([query], "query", dim))[0]
+    if db.bind is not None and db.bind.dialect.name == "sqlite":
+        items = list(
+            (
+                await db.scalars(
+                    select(MediaItem).where(
+                        MediaItem.notebook_id == notebook_id,
+                        MediaItem.source_id.in_(selected_source_ids),
+                        MediaItem.modality == "image",
+                    )
+                )
+            ).all()
+        )
+        items.sort(
+            key=lambda item: 1
+            - sum(a * b for a, b in zip(item.embedding, vector, strict=True))
+        )
+        return items[:limit]
     result = await db.scalars(
         select(MediaItem)
         .where(

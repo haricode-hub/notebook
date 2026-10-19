@@ -46,5 +46,7 @@ test("generate an audio overview, seek its transcript, and download the MP3", as
   expect(download.suggestedFilename()).toMatch(/\.mp3$/);
   expect(readFileSync(await download.path()).subarray(0, 3).toString()).toBe("ID3");
   await player.getByRole("button", { name: "[S1]" }).first().click();
-  await expect(page.getByRole("dialog", { name: "Source viewer" })).toBeVisible();
+  const sourceViewer = page.getByRole("dialog", { name: "Source viewer" });
+  await expect(sourceViewer).toBeVisible();
+  await expect.poll(async () => sourceViewer.locator("audio").evaluate((audio) => (audio as HTMLAudioElement).currentTime)).toBeGreaterThan(0);
 });

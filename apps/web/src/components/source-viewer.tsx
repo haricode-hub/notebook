@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronLeft, ChevronRight, ExternalLink, Pencil, X } from "lucide-react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -101,19 +102,21 @@ export function SourceViewer({ notebookId, selection, onClose, onNavigate, onAsk
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [figureUrl, setFigureUrl] = useState<string | null>(null);
+  const [figureAsset, setFigureAsset] = useState<{ id: string; url: string } | null>(null);
   useEffect(() => {
-    if (!citation?.media_item_id) { setFigureUrl(null); return; }
+    if (!citation?.media_item_id) return;
+    const mediaItemId = citation.media_item_id;
     let active = true;
     let objectUrl: string | null = null;
     void getToken().then(async (token) => {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/notebooks/${notebookId}/media/${citation.media_item_id}/content`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/notebooks/${notebookId}/media/${mediaItemId}/content`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
       if (!response.ok) throw new Error("Could not load figure");
       objectUrl = URL.createObjectURL(await response.blob());
-      if (active) setFigureUrl(objectUrl); else URL.revokeObjectURL(objectUrl);
-    }).catch(() => { if (active) setFigureUrl(null); });
+      if (active) setFigureAsset({ id: mediaItemId, url: objectUrl }); else URL.revokeObjectURL(objectUrl);
+    }).catch(() => { if (active) setFigureAsset(null); });
     return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [citation?.media_item_id, notebookId]);
+  const figureUrl = figureAsset && citation?.media_item_id === figureAsset.id ? figureAsset.url : null;
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") { onClose(); return; }
@@ -164,7 +167,7 @@ export function SourceViewer({ notebookId, selection, onClose, onNavigate, onAsk
           <details className="relative ml-auto text-sm"><summary className="cursor-pointer rounded px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800">Details</summary><div className="absolute right-0 z-20 mt-1 w-60 rounded border bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-900"><p>Type: {data.source.kind.toUpperCase()}</p><p>Status: {data.source.status}</p>{data.source.page_count && <p>Pages: {data.source.page_count}</p>}<p>Added: {new Date(data.source.created_at).toLocaleDateString()}</p></div></details>
         </div>
         <div className="min-h-0 flex-1" role="tabpanel" aria-label={citation?.media_item_id ? "Cited figure" : tab === "guide" ? "Source guide" : data.source.kind === "pdf" && tab === "original" ? "Original PDF" : data.source.kind === "audio" ? "Audio transcript" : "Source text"}>
-          {citation?.media_item_id ? <div className="h-full overflow-auto p-5"><p className="mb-3 text-sm text-slate-500">Figure · page {citation.page_start ?? "unknown"}</p>{figureUrl ? <img src={figureUrl} alt={citation.quote || "Cited figure from source"} className="mx-auto max-h-full max-w-full object-contain" /> : <p role="status">Loading cited figure…</p>}<p className="mt-3 text-sm">{citation.quote}</p></div> :
+          {citation?.media_item_id ? <div className="h-full overflow-auto p-5"><p className="mb-3 text-sm text-slate-500">Figure · page {citation.page_start ?? "unknown"}</p>{figureUrl ? <Image src={figureUrl} alt={citation.quote || "Cited figure from source"} width={1200} height={800} unoptimized className="mx-auto max-h-full max-w-full object-contain" /> : <p role="status">Loading cited figure…</p>}<p className="mt-3 text-sm">{citation.quote}</p></div> :
           tab === "guide" ? <div className="h-full space-y-5 overflow-y-auto p-5 text-sm">{guide.data?.status === "ready" ? <><section><h3 className="font-semibold">Summary</h3><p className="mt-2 leading-relaxed">{guide.data.summary}</p></section><section><h3 className="font-semibold">Key topics</h3><ul className="mt-2 flex flex-wrap gap-2">{guide.data.topics.map((topic) => <li key={topic} className="rounded bg-indigo-50 px-2 py-1 dark:bg-indigo-950">{topic}</li>)}</ul></section><section><h3 className="font-semibold">Suggested questions</h3><div className="mt-2 space-y-2">{guide.data.questions.map((question) => <Button key={question} variant="outline" className="h-auto w-full justify-start whitespace-normal text-left" onClick={() => { onAskQuestion(question); onClose(); }}>{question}</Button>)}</div></section></> : <p role="status" className="text-slate-500">{guide.data?.error ?? "Generating a guide for this source…"}</p>}</div> : data.source.kind === "pdf" && tab === "original" && data.file_url ? <PdfOriginal key={sourceId} content={data} citation={citation} onShowText={() => setTab("text")} /> : <div className="flex h-full min-h-0 flex-col">{data.source.kind === "audio" && data.file_url && <div className="border-b p-3"><TimedAudioSource filePath={data.file_url} timeStart={citation?.time_start ?? null} /></div>}<div className="min-h-0 flex-1"><TextOriginal content={data} citation={citation} /></div></div>}
         </div>
       </>}
