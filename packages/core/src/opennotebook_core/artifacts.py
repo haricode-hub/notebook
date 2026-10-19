@@ -450,7 +450,7 @@ def docx_export(document: ArtifactDocument, citations: list[Citation]) -> bytes:
 
 def pdf_export(document: ArtifactDocument, citations: list[Citation]) -> bytes:
     """Render a safe printable PDF through WeasyPrint in the Linux API image."""
-    from weasyprint import HTML
+    from weasyprint import HTML  # type: ignore[import-untyped]
 
     def render_markdown(markdown: str) -> str:
         blocks: list[str] = []
@@ -494,4 +494,4 @@ def pdf_export(document: ArtifactDocument, citations: list[Citation]) -> bytes:
         section {{ break-inside: avoid; }} code {{ font-family: monospace; }}
         </style></head><body><h1>{html.escape(document.title)}</h1>{sections}
         <h2>Sources</h2><ul>{"".join(sources)}</ul></body></html>"""
-    return HTML(string=markup).write_pdf()
+    return cast(bytes, HTML(string=markup).write_pdf())
