@@ -2,7 +2,8 @@ import asyncio
 import json
 import logging
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from uuid import uuid4
 
@@ -10,6 +11,7 @@ import httpx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from opennotebook_core.config import Settings, get_settings
 from opennotebook_core.db import make_session_factory
@@ -93,7 +95,13 @@ def create_app(
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging()
-    app = FastAPI(title="OpenNotebook Studio API", version="0.1.0")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        yield
+        await app.state.session_factory.kw["bind"].dispose()
+
+    app = FastAPI(title="OpenNotebook Studio API", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
     app.state.session_factory = make_session_factory(settings)
     app.state.jwks_verifier = JWKSVerifier(settings)
@@ -112,6 +120,7 @@ def create_app(
     app.include_router(artifacts.router)
     app.include_router(settings_router.router)
     app.include_router(sharing.router)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[settings.web_origin],
@@ -119,6 +128,7 @@ def create_app(
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     )
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
     probes = checks or {"db": check_db, "redis": check_redis, "embed": check_embed}
     logger = logging.getLogger("opennotebook.api")
 

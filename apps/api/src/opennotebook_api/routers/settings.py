@@ -119,7 +119,7 @@ def settings_response(row: UserSettings | None, settings: Settings) -> SettingsO
         provider=provider,
         chat_model=row.chat_model if row is not None else settings.default_chat_model,
         cheap_model=row.cheap_model if row is not None else settings.default_cheap_model,
-        fallback_model=row.fallback_model if row is not None else "",
+        fallback_model=row.fallback_model if row is not None else settings.fallback_model,
         has_api_key=has_key,
         using_server_key=not has_key and bool(server_key(provider, settings)),
         ollama_base_url=(row.ollama_base_url if row is not None else None)

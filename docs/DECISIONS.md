@@ -125,6 +125,22 @@ The live OpenRouter comparison used the same grounded prompts and retrieved evid
 
 References: [Gemini 3.1 Flash Lite model pricing](https://openrouter.ai/google/gemini-3.1-flash-lite/), [OpenRouter model catalog](https://openrouter.ai/models?modality=text-%3Etext&q=deepseek%20v4%20flash).
 
+## ADR-013: Level 10 retries, fallback, cache, and maintenance
+
+**Status:** Accepted (2026-10-19).
+
+The worker uses arq's bounded `max_tries` setting (default 3) and one-hour job timeout. Transient exceptions are re-raised after the task has recorded its current failure stage, allowing arq's retry/backoff policy to redeliver idempotent jobs. On exhaustion, the app-owned `jobs` row remains failed with an error for the admin/error view and operator inspection. The queue retains its failed result as well. Jobs whose failure paths already raised exceptions continue to use arq's normal retry behavior. The worker creates one async DB session factory at startup and disposes its engine at shutdown; the API also disposes its pool on shutdown.
+
+`LiteLLMProvider` retries the primary model three times with exponential delays and, before any token has been emitted, tries a configured fallback model once. It never switches models mid-answer. The browser's chosen fallback model is passed to chat; guide/artifact provider configuration uses the saved user fallback. The provider logs the model actually attempted, while the saved chat model remains the configured primary model for now.
+
+EmbeddingGemma text vectors use a 512-entry process-local LRU by default, keyed on task kind, dimension, and SHA-256 of input. The bound prevents an unbounded cache; set `EMBED_CACHE_ENTRIES=0` to disable. Existing per-user, content/model/prompt-version summary cache and the live model catalog cache remain in place. DB pool size, overflow, worker retries, and orphan grace period are configurable in `.env`.
+
+The worker schedules a daily orphan sweep. It compares storage object keys against sources, extracted media, and audio artifacts, deleting only unreferenced objects older than the 24-hour default grace period. `scripts/backup_db.ps1` creates a custom-format `pg_dump` from the Compose Postgres container into a local `backups/` directory. Restores should be rehearsed with `pg_restore` on a separate database before upgrading production.
+
+The query shapes and corresponding HNSW/GIN/B-tree indexes are documented in `docs/SQL_REVIEW.md`. Docker/PostgreSQL was not running during this pass, so no live `EXPLAIN (ANALYZE, BUFFERS)` plan is claimed. This is an explicit follow-up on a running populated PostgreSQL database.
+
+Pass 2 verification on this Windows host: all 98 fast/regression tests passed before pytest's configured temp directory cleanup hit a workspace permission error in eight fixture setups; rerunning with a temp directory under the permitted temp root is needed for a clean full-suite result. The new targeted reliability/cache/LLM tests passed. Ruff and mypy passed. `docker compose config -q` passed (Docker emitted only warnings that its user config file is unreadable); the Docker engine remains unavailable, so container backup, shutdown under live load, and DB plan execution are unverified.
+
 
 ### Level 9 multimodal extension to ADR-006 (2026-10-19)
 

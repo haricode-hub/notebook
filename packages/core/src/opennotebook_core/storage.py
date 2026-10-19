@@ -14,6 +14,7 @@ class StorageBackend(Protocol):
     async def put(self, key: str, data: bytes) -> None: ...
     async def get(self, key: str) -> bytes: ...
     async def delete(self, key: str) -> None: ...
+    async def list_objects(self) -> dict[str, float]: ...
     def url(
         self, key: str, *, user_id: str, source_id: str, expires_at: int, signing_key: str
     ) -> str: ...
@@ -74,6 +75,15 @@ class LocalDiskStorage:
     async def delete(self, key: str) -> None:
         self._path(key).unlink(missing_ok=True)
 
+    async def list_objects(self) -> dict[str, float]:
+        if not self.root.exists():
+            return {}
+        return {
+            path.relative_to(self.root).as_posix(): path.stat().st_mtime
+            for path in self.root.rglob("*")
+            if path.is_file()
+        }
+
     def url(
         self, key: str, *, user_id: str, source_id: str, expires_at: int, signing_key: str
     ) -> str:
@@ -92,15 +102,21 @@ class MemoryStorage:
 
     def __init__(self) -> None:
         self.items: dict[str, bytes] = {}
+        self.created_at: dict[str, float] = {}
 
     async def put(self, key: str, data: bytes) -> None:
         self.items[key] = data
+        self.created_at[key] = time.time()
 
     async def get(self, key: str) -> bytes:
         return self.items[key]
 
     async def delete(self, key: str) -> None:
         self.items.pop(key, None)
+        self.created_at.pop(key, None)
+
+    async def list_objects(self) -> dict[str, float]:
+        return dict(self.created_at)
 
     def url(
         self, key: str, *, user_id: str, source_id: str, expires_at: int, signing_key: str

@@ -172,6 +172,7 @@ async def chat_stream(
         update={
             "llm_provider": provider,
             "default_chat_model": model,
+            "fallback_model": view.fallback_model,
             f"{provider}_api_key": key,
             "ollama_base_url": view.ollama_base_url,
         }

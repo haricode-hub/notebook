@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     embed_dim: int = 768
     embed_batch_size: int = Field(default=8, ge=1, le=128)
     embed_concurrency: int = Field(default=2, ge=1, le=8)
+    embed_cache_entries: int = Field(default=512, ge=0, le=10000)
     multimodal_enabled: bool = False
     multimodal_image_enabled: bool = True
     multimodal_audio_enabled: bool = False
@@ -29,6 +30,7 @@ class Settings(BaseSettings):
     )
     default_chat_model: str = ""
     default_cheap_model: str = ""
+    fallback_model: str = ""
     openrouter_api_key: str = ""
     gemini_api_key: str = ""
     openai_api_key: str = ""
@@ -44,6 +46,10 @@ class Settings(BaseSettings):
     settings_encryption_key: str = ""
     ollama_base_url: str = "http://localhost:11434"
     llm_concurrency: int = Field(default=4, ge=1, le=32)
+    job_max_tries: int = Field(default=3, ge=1, le=10)
+    db_pool_size: int = Field(default=10, ge=1, le=50)
+    db_max_overflow: int = Field(default=10, ge=0, le=50)
+    orphan_file_grace_hours: int = Field(default=24, ge=1, le=720)
     chat_context_tokens: int = Field(default=8192, ge=2048)
     chat_max_history: int = Field(default=6, ge=0, le=20)
     chat_rate_limit_per_minute: int = Field(default=30, ge=1)

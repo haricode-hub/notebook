@@ -1,9 +1,11 @@
 import asyncio
 import base64
 import binascii
+import hashlib
 import math
 import os
 import tempfile
+from collections import OrderedDict
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from io import BytesIO
@@ -13,6 +15,29 @@ from fastapi import FastAPI, HTTPException
 from opennotebook_core.config import Settings, get_settings
 from opennotebook_core.embeddings import FakeEmbedding
 from pydantic import BaseModel, Field
+
+
+class EmbeddingCache:
+    """Small process-local LRU scoped by task, dimension, and text hash."""
+
+    def __init__(self, capacity: int) -> None:
+        self.capacity = capacity
+        self.values: OrderedDict[tuple[str, int, str], list[float]] = OrderedDict()
+
+    def get(self, key: tuple[str, int, str]) -> list[float] | None:
+        value = self.values.get(key)
+        if value is None:
+            return None
+        self.values.move_to_end(key)
+        return list(value)
+
+    def put(self, key: tuple[str, int, str], value: list[float]) -> None:
+        if self.capacity <= 0:
+            return
+        self.values[key] = list(value)
+        self.values.move_to_end(key)
+        while len(self.values) > self.capacity:
+            self.values.popitem(last=False)
 
 
 class EmbedRequest(BaseModel):
@@ -84,6 +109,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="OpenNotebook Embedding Service", version="0.1.0", lifespan=lifespan)
     semaphore = asyncio.Semaphore(settings.embed_concurrency)
     fake = FakeEmbedding(settings.embed_dim)
+    cache = EmbeddingCache(settings.embed_cache_entries)
+    app.state.embedding_cache = cache
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
@@ -101,33 +128,50 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def embed(body: EmbedRequest) -> EmbedResponse:
         if len(body.texts) > settings.embed_batch_size:
             raise HTTPException(status_code=413, detail="embedding batch too large")
+        keys: list[tuple[str, int, str]] = [
+            (str(body.kind), int(body.dim), hashlib.sha256(text.encode()).hexdigest())
+            for text in body.texts
+        ]
         async with semaphore:
-            if settings.embed_backend == "fake":
-                vectors = await fake.embed(body.texts, body.kind, body.dim)
-            else:
+            vectors: list[list[float] | None] = [cache.get(key) for key in keys]
+            missing: dict[tuple[str, int, str], str] = {}
+            for key, text in zip(keys, body.texts, strict=True):
+                if cache.get(key) is None:
+                    missing.setdefault(key, text)
+            encoded_by_key: dict[tuple[str, int, str], list[float]] = {}
+            if missing and settings.embed_backend == "fake":
+                encoded_vectors = await fake.embed(list(missing.values()), body.kind, body.dim)
+                encoded_by_key = dict(zip(missing, encoded_vectors, strict=True))
+            elif missing:
                 if model is None:
                     raise HTTPException(status_code=503, detail="Embedding model is loading")
                 prompt = "SearchQuery" if body.kind == "query" else "Document"
-                encoded = await asyncio.to_thread(
+                encoded_tensor = await asyncio.to_thread(
                     model.encode,
-                    body.texts,
+                    list(missing.values()),
                     prompt_name=prompt,
                     truncate_dim=body.dim,
                     normalize_embeddings=True,
                     batch_size=settings.embed_batch_size,
                 )
-                vectors = encoded.tolist()
+                encoded_by_key = dict(zip(missing, encoded_tensor.tolist(), strict=True))
+            for key, vector in encoded_by_key.items():
+                cache.put(key, vector)
+            vectors = [cache.get(key) for key in keys]
+            if any(vector is None for vector in vectors):
+                raise HTTPException(status_code=502, detail="Embedding cache was incomplete")
+            final_vectors = [vector for vector in vectors if vector is not None]
             if any(
                 len(v) != body.dim
                 or not all(math.isfinite(x) for x in v)
                 or abs(math.sqrt(sum(x * x for x in v)) - 1) > 0.001
-                for v in vectors
+                for v in final_vectors
             ):
                 raise HTTPException(
                     status_code=502, detail="Embedding backend returned invalid vectors"
                 )
         return EmbedResponse(
-            vectors=vectors,
+            vectors=final_vectors,
             model="fake" if settings.embed_backend == "fake" else "google/embeddinggemma-2",
             dim=body.dim,
         )

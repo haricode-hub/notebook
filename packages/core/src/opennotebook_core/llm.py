@@ -82,10 +82,10 @@ class LiteLLMProvider:
     async def stream(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
         if not self.settings.default_chat_model:
             raise ValueError("DEFAULT_CHAT_MODEL is required for live LLM calls")
-        model = self.settings.default_chat_model
+        models = [self.settings.default_chat_model]
+        if self.settings.fallback_model and self.settings.fallback_model != models[0]:
+            models.append(self.settings.fallback_model)
         prefix = f"{self.settings.llm_provider}/"
-        if not model.startswith(prefix):
-            model = f"{prefix}{model}"
         keys = {
             "openrouter": self.settings.openrouter_api_key,
             "gemini": self.settings.gemini_api_key,
@@ -93,39 +93,55 @@ class LiteLLMProvider:
             "anthropic": self.settings.anthropic_api_key,
         }
         async with _shared_semaphore(self.settings.llm_concurrency):
-            for attempt in range(3):
-                emitted = False
-                try:
-                    response = await litellm.acompletion(
-                        model=model,
-                        messages=messages,
-                        api_key=keys.get(self.settings.llm_provider) or None,
-                        api_base=(
-                            self.settings.ollama_base_url
-                            if self.settings.llm_provider == "ollama"
-                            else None
-                        ),
-                        stream=True,
-                        timeout=60,
-                    )
+            last_error: Exception | None = None
+            for index, requested_model in enumerate(models):
+                model = requested_model
+                if not model.startswith(prefix):
+                    model = f"{prefix}{model}"
+                for attempt in range(3 if index == 0 else 1):
+                    emitted = False
                     try:
-                        async for part in response:
-                            content = part.choices[0].delta.content
-                            if content:
-                                emitted = True
-                                yield content
-                            usage = getattr(part, "usage", None)
-                            if usage is not None:
-                                logger.info("llm_usage model=%s usage=%s", model, usage)
-                    finally:
-                        close = getattr(response, "aclose", None)
-                        if close is not None:
-                            await close()
-                    return
-                except Exception:
-                    if attempt == 2 or emitted:
-                        raise
-                    await asyncio.sleep(2**attempt)
+                        response = await litellm.acompletion(
+                            model=model,
+                            messages=messages,
+                            api_key=keys.get(self.settings.llm_provider) or None,
+                            api_base=(
+                                self.settings.ollama_base_url
+                                if self.settings.llm_provider == "ollama"
+                                else None
+                            ),
+                            stream=True,
+                            timeout=60,
+                        )
+                        try:
+                            async for part in response:
+                                content = part.choices[0].delta.content
+                                if content:
+                                    emitted = True
+                                    yield content
+                                usage = getattr(part, "usage", None)
+                                if usage is not None:
+                                    logger.info("llm_usage model=%s usage=%s", model, usage)
+                        finally:
+                            close = getattr(response, "aclose", None)
+                            if close is not None:
+                                await close()
+                        return
+                    except Exception as exc:
+                        last_error = exc
+                        if emitted:
+                            raise
+                        if attempt < (2 if index == 0 else 0):
+                            await asyncio.sleep(2**attempt)
+                            continue
+                        if index + 1 < len(models):
+                            logger.warning(
+                                "llm_primary_failed model=%s fallback=%s",
+                                model,
+                                models[index + 1],
+                            )
+            if last_error is not None:
+                raise last_error
 
 
 def make_llm(settings: Settings) -> LLMProvider:
