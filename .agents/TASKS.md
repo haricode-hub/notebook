@@ -2,7 +2,7 @@
 
 ## Overall status (2026-10-19)
 
-**Not all levels are complete in this checkout.** Level 3 is now verified, including the live OpenRouter first-token target (2.346 s). Level 9 Pass B is implemented and its focused acceptance tests pass. Remaining tracked work: Level 0's clean-clone cold-build target (0.10), Level 9's browser/security e2e run (C.1), and Level 10 runtime gates plus a clean Python audit workflow run. Docker Engine is unavailable on this host; Level 10's 10-minute k6 and VPS rehearsal also need their target runtime. See `.agents/PROGRESS.md` for results and limits.
+**Not all levels are complete in this checkout.** Level 3 is verified, including the live OpenRouter first-token target (2.346 s). Level 9 Pass B and its focused tests pass. Level 10 Python, Web, Gitleaks, dependency-audit, typecheck, and test workflows now pass on CI. Remaining work: Level 0's clean-clone cold-build target (0.10), Level 9's browser/security e2e run (C.1), and Level 10's Docker/scale/VPS runtime gates. Docker Engine cannot start on this host; the 10-minute k6 and VPS rehearsal also need their target runtime. See `.agents/PROGRESS.md` for results and limits.
 
 ## Level 0: Foundation
 
@@ -102,4 +102,4 @@
 - [x] Pass 3: authorization sweep, auth hardening, headers, admin/quotas, audit automation
 - [x] Pass 4 implementation: k6 profile, scale Compose/S3, scaling docs, sample notebook, axe checks
 - [ ] Pass 4 runtime gates: 10-minute k6, scaled full e2e, workspace axe, VPS rehearsal
-- [ ] Verify the Python dependency audit passes in CI after switching from unsupported `uv.lock` discovery to exported locked requirements
+- [x] Verify the Python dependency audit passes in CI after switching from unsupported `uv.lock` discovery to exported locked requirements (root + Python 3.12 TTS)
