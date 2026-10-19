@@ -183,10 +183,53 @@ The 60-question set is split into separate files: 48 development and 12 held-out
 
 Initial corpus caveat: current sources include six NIST PDFs, one NIST HTML publication, an EPA lakes report, a NASA Sarasota technical report and slide deck, a NIST webinar transcript, and an instruction-hierarchy research paper (792 PDF pages). The corpus still lacks a scanned PDF and a standalone web article; those remain explicit gaps for subsequent Level 12 passes.
 
-Pass 1 model configuration check (2026-10-19): judge model variable changed from `anthropic/claude-sonnet-4` to `anthropic/claude-sonnet-4.5`. OpenRouter returned HTTP 404 / “No endpoints found” for the former after the answer model produced the first response; no eval result or metric was written. The latter is listed in the current official [OpenRouter catalog](https://openrouter.ai/anthropic/claude-sonnet-4.5) and belongs to a different family than the configured Google answer model. The retry is pending; no baseline number is claimed yet.
+Pass 1 model configuration check (2026-10-19): judge model variable changed from `anthropic/claude-sonnet-4` to `anthropic/claude-sonnet-4.5`. OpenRouter returned HTTP 404 / “No endpoints found” for the former after the answer model produced the first response; no eval result or metric was written. The latter is listed in the current official [OpenRouter catalog](https://openrouter.ai/anthropic/claude-sonnet-4.5) and belongs to a different family than the configured Google answer model. Retry succeeded and both baseline runs completed with Sonnet 4.5; no score from the failed 4.0 attempt was retained.
+
+### Level 12 Pass 2 experiment 1 — citation format instruction (2026-10-19)
+
+Data: development split only (48 questions), same 12-source manifest and hashes, 746 passages, real EmbeddingGemma 2 FP32, answer model `google/gemini-3.1-flash-lite`, judge `anthropic/claude-sonnet-4.5`, dense-only retrieval, top 8. Held-out was not run or inspected.
+
+| Variable | Before | After |
+|---|---|---|
+| Citation syntax instruction | “Cite each factual sentence with [S#].” | “Use separate markers exactly like [S1] [S2]; never combine marker numbers inside one bracket or use commas within a citation.” |
+| Hit-rate@8 (positive questions) | 44/45 = 97.78% | 44/45 = 97.78% |
+| MRR | 0.9315 | 0.9315 |
+| Citation validity | 40/48 = 83.33% | 47/48 = 97.92% |
+| Citation precision | 36/37 = 97.30% | 21/22 = 95.45% |
+| Faithfulness | 45/48 = 93.75% | 46/48 = 95.83% |
+| Relevance | 47/48 = 97.92% | 47/48 = 97.92% |
+| Negative refusal accuracy | 3/3 = 100% | 3/3 = 100% |
+
+Decision: keep the stricter marker syntax because it improved parser-valid citations by 14.59 percentage points and faithfulness by 2.08 points, with unchanged retrieval and relevance. Citation precision decreased by 1.85 points but remains above the 90% acceptance target on dev; d19/d35 need follow-up because the judge found claims unsupported. The remaining invalid citation row is d54, an injection-paper question the dense retriever missed; test hybrid retrieval next. Results: `evals/real/results/dev_20261019T160655Z.json` and `dev_20261019T161701Z.json` (local ignored artifacts).
 
 ### Level 9 multimodal extension to ADR-006 (2026-10-19)
 
 The official [EmbeddingGemma 2 model card and usage guide](https://huggingface.co/google/embeddinggemma-2/blob/c3f2237ce16fe33d1bb9dab8692c29c79865bdeb/embedding_gemma2_documentation.md) documents Sentence Transformers inputs as per-sample dictionaries such as `{"image": image, "text": caption}` (and `{"audio": "path/to/audio.wav"}`). The processor accepts 70, 140, 280, 560, or 1120 visual soft tokens per image; the default is 280. Our first implementation uses 70 to limit latency and keeps the audio tower disabled. The card documents `vision_config=None` and `audio_config=None` passed via `config_kwargs`; leaving vision configured while setting audio to `None` loads text+vision and skips the audio tower. The service accepts image+text items through `/embed-media`; it also accepts WAV audio bytes as a temporary file path when the audio tower is enabled. The model card documents audio as a path/URL or a 1-D float array sampled at 16 kHz. The caller must supply suitable 16 kHz mono WAV; Level 9 indexes extracted figures and existing Whisper transcript chunks, not raw audio windows.
 
 Measurement on this local Windows CPU host (Python 3.13.5, Sentence Transformers 6.1.0, Transformers 5.20.1, cached official checkpoint, one 64x64 PNG): text+vision model load took **6.90 s** and process RSS after load was **2,331.2 MiB**. A single image+caption encode at a 70-token budget took **2.08 s** and RSS reached **2,386.5 MiB** (incremental RSS +55.3 MiB). The output was 768D and L2-normalized. This is one warm local run, not a production capacity guarantee. `MULTIMODAL_ENABLED=false` is the default and retains the text-only model configuration. API and worker only extract/embed figures when enabled. Image and text rankings are independently ordered then merged by reciprocal rank; raw cross-modal similarity values do not enter the merge.
+
+
+### Level 12 Pass 2 experiment 2 ? hybrid RRF retrieval (2026-10-19)
+
+Data: same development-only dataset, corpus, answer/judge models, strict citation prompt, and top-k=8 as experiment 1. Only retrieval mode changed, from dense to hybrid rank fusion (dense and lexical candidate lists, RRF k=60). The hybrid run completed 15 of 48 questions, then OpenRouter returned HTTP 402 because the request output ceiling was 64,000 tokens while the key had budget for 63,145. It wrote no complete result and no aggregate score is available. **This experiment is incomplete and has no before/after quality conclusion.** The held-out split was not run or inspected.
+
+| Variable | Before | After |
+|---|---|---|
+| Retrieval mode | Dense cosine ranking | Dense + lexical RRF, k=60 |
+| Requested output cap | Provider default; 402 reported 64,000 | Not yet evaluated after cap change |
+| Completed questions | 48/48 | 15/48; interrupted by provider budget response |
+| Aggregate metrics | Experiment 1 dev values above | Not computed |
+
+Runner change following the interruption: answer requests now cap output at 1,024 tokens and judge requests at 512; each completed question is checkpointed under a config hash. The capped rerun completed all 48 questions using real Gemma vectors, Google Gemini chat, and the Anthropic Sonnet 4.5 judge.
+
+| Variable | Before (dense, strict prompt) | After (hybrid RRF k=60) |
+|---|---:|---:|
+| Hit-rate@8 (positive) | 44/45 = 97.78% | 45/45 = 100% |
+| MRR | 0.9315 | 0.9526 |
+| Citation validity | 47/48 = 97.92% | 47/48 = 97.92% |
+| Citation precision | 21/22 = 95.45% | 43/44 = 97.73% |
+| Faithfulness | 46/48 = 95.83% | 47/48 = 97.92% |
+| Relevance | 47/48 = 97.92% | 47/48 = 97.92% |
+| Negative refusal accuracy | 3/3 = 100% | 3/3 = 100% |
+
+Decision: retain hybrid RRF k=60 for this configuration; dev retrieval and judge metrics improved or stayed level. This remains development-only evidence; held-out has not been run. Final run artifact: `evals/real/results/dev_20261019T163307Z.json` (ignored local artifact).

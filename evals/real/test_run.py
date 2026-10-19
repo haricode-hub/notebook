@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from run import DOCS, ROOT, family, load_embedder, split_text
+from run import DOCS, ROOT, Passage, family, load_embedder, rrf_rank, split_text
 
 
 def test_corpus_and_splits_are_fixed_and_disjoint() -> None:
@@ -54,3 +54,12 @@ def test_fake_embedding_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
 )
 def test_model_family_resolution(model: str, expected: str) -> None:
     assert family(model) == expected
+
+
+def test_rrf_fuses_rankings_without_comparing_scores() -> None:
+    first = Passage("p1", "doc-a", "alpha content", [])
+    second = Passage("p2", "doc-b", "beta content", [])
+    third = Passage("p3", "doc-c", "gamma content", [])
+    fused = rrf_rank([first, second], [second, third])
+    assert fused[0] is second
+    assert {passage.passage_id for passage in fused} == {"p1", "p2", "p3"}
