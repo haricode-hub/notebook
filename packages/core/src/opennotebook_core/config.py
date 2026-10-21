@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     multimodal_enabled: bool = False
     multimodal_image_enabled: bool = True
     multimodal_audio_enabled: bool = False
-    multimodal_image_max_soft_tokens: Literal[70, 140, 280, 560, 1120] = 70
+    multimodal_image_max_soft_tokens: int = 70
     llm_provider: Literal["openrouter", "gemini", "openai", "anthropic", "ollama", "fake"] = (
         "openrouter"
     )
@@ -78,6 +78,15 @@ class Settings(BaseSettings):
     def valid_embed_dim(cls, value: int) -> int:
         if value not in {128, 256, 512, 768}:
             raise ValueError("EMBED_DIM must be 128, 256, 512, or 768")
+        return value
+
+    @field_validator("multimodal_image_max_soft_tokens")
+    @classmethod
+    def valid_multimodal_image_max_soft_tokens(cls, value: int) -> int:
+        if value not in {70, 140, 280, 560, 1120}:
+            raise ValueError(
+                "MULTIMODAL_IMAGE_MAX_SOFT_TOKENS must be 70, 140, 280, 560, or 1120"
+            )
         return value
 
 

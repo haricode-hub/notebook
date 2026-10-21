@@ -23,6 +23,15 @@ def test_env_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
     assert isinstance(make_storage(settings), MemoryStorage)
 
 
+def test_multimodal_soft_token_env_is_parsed_and_validated(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MULTIMODAL_IMAGE_MAX_SOFT_TOKENS", "70")
+    assert Settings().multimodal_image_max_soft_tokens == 70
+
+    monkeypatch.setenv("MULTIMODAL_IMAGE_MAX_SOFT_TOKENS", "100")
+    with pytest.raises(ValidationError):
+        Settings()
+
+
 def test_backend_selection(tmp_path: Path) -> None:
     local = Settings(storage_path=tmp_path, storage_backend="local", embed_backend="gemma2")
     assert isinstance(make_storage(local), LocalDiskStorage)
