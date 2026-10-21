@@ -1,4 +1,17 @@
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
 import { expect, test } from "@playwright/test";
+
+type AxeViolation = { id: string; impact: string | null; nodes: unknown[] };
+
+async function expectWcagAxePass(page: import("@playwright/test").Page) {
+  await page.addScriptTag({ path: path.resolve(process.cwd(), "node_modules/axe-core/axe.min.js") });
+  const results = await page.evaluate(async () => {
+    const axe = (window as unknown as { axe: { run: (root: Document, options: object) => Promise<{ violations: AxeViolation[] }> } }).axe;
+    return axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] } });
+  });
+  expect(results.violations, JSON.stringify(results.violations.map(({ id, impact, nodes }) => ({ id, impact, count: nodes.length }))).slice(0, 2000)).toEqual([]);
+}
 
 test("forgot password validates email and gives an account-neutral result", async ({ page }) => {
   await page.goto("/forgot-password");
@@ -69,6 +82,52 @@ test("email verification, sign-in, and password reset work through Mailpit", asy
   await page.getByLabel("Password", { exact: true }).fill("initial-test-password-123");
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/notebooks$/);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByLabel("New notebook title").fill("Level 14 panel test");
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await page.getByRole("link", { name: "Level 14 panel test" }).click();
+  await expect(page.getByRole("heading", { name: "Level 14 panel test" })).toBeVisible();
+  const sourceDivider = page.getByRole("separator", { name: "Resize sources and chat panels" });
+  const dividerBefore = await sourceDivider.boundingBox();
+  expect(dividerBefore).toBeTruthy();
+  await page.mouse.move(dividerBefore!.x + dividerBefore!.width / 2, dividerBefore!.y + 100);
+  await page.mouse.down();
+  await page.mouse.move(dividerBefore!.x + 150, dividerBefore!.y + 100, { steps: 2 });
+  await page.mouse.up();
+  const workspaceId = new URL(page.url()).pathname.split("/").at(-1);
+  const savedLayout = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "null"), `open-notebook:workspace-layout:${workspaceId}`) as Record<string, number> | null;
+  expect(savedLayout).toBeTruthy();
+  expect(savedLayout!.sources + savedLayout!.chat + savedLayout!.studio).toBeCloseTo(100);
+  const dividerAfter = await sourceDivider.boundingBox();
+  expect(dividerAfter!.x).toBeGreaterThan(dividerBefore!.x + 30);
+  const savedDividerX = dividerAfter!.x;
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Level 14 panel test" })).toBeVisible();
+  await expect.poll(async () => (await sourceDivider.boundingBox())?.x ?? 0).toBeCloseTo(savedDividerX, 0);
+  await expectWcagAxePass(page);
+
+  const workspaceScreenshots = path.resolve(process.cwd(), "../../docs/levels/level14/screenshots/after-pass8");
+  await mkdir(workspaceScreenshots, { recursive: true });
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await page.screenshot({ path: path.join(workspaceScreenshots, "workspace-1440-light.png"), fullPage: true });
+  await page.getByRole("button", { name: "Toggle theme" }).click();
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  expect(await page.locator("header").evaluate((header) => getComputedStyle(header).backgroundColor)).not.toBe("rgb(255, 255, 255)");
+  await page.screenshot({ path: path.join(workspaceScreenshots, "workspace-1440-dark.png"), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Toggle theme" }).click();
+  await page.reload();
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await expect(page.getByRole("tablist", { name: "Notebook workspace" }).getByRole("tab", { name: "Sources" })).toBeVisible();
+  await expectWcagAxePass(page);
+  await page.screenshot({ path: path.join(workspaceScreenshots, "workspace-390-light.png"), fullPage: true });
+  await page.getByRole("button", { name: "Toggle theme" }).click();
+  await page.reload();
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  expect(await page.locator("header").evaluate((header) => getComputedStyle(header).backgroundColor)).not.toBe("rgb(255, 255, 255)");
+  await page.screenshot({ path: path.join(workspaceScreenshots, "workspace-390-dark.png"), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("button", { name: "Toggle theme" }).click();
   await page.getByRole("button", { name: "Sign out" }).click();
 
   const beforeReset = await mailCount();
