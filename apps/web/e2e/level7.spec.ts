@@ -1,21 +1,18 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 
 async function makeNotebookWithSource(page: Page, prefix: string) {
   const authIp = `198.18.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
   await page.route("**/api/auth/**", (route) => route.continue({ headers: { ...route.request().headers(), "x-forwarded-for": authIp } }));
   await page.goto("/sign-up");
-  await page.getByLabel("Name").fill("Level Seven Tester");
-  await page.getByLabel("Email").fill(`level7-${prefix}-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Level Seven Tester", email: `level7-${prefix}-${Date.now()}@example.test`, password: "strong-test-password-123" });
   const notebook = `Level7 ${prefix}`;
   await page.getByLabel("New notebook title").fill(notebook);
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: notebook }).click();
   await page.getByRole("button", { name: "Add source" }).click();
-  await page.getByLabel("PDF, DOCX, PPTX, TXT or MD").setInputFiles({
+  await page.getByLabel(/PDF, DOCX/).setInputFiles({
     name: `${prefix}.txt`, mimeType: "text/plain",
     buffer: Buffer.from("Photosynthesis converts light energy into chemical energy. Chlorophyll absorbs light. Water and carbon dioxide are converted into glucose and oxygen. The process happens in chloroplasts."),
   });
@@ -32,7 +29,7 @@ async function generate(studio: Locator, recipe: string) {
   const row = studio.getByRole("region", { name: "Studio artifacts" }).getByRole("listitem").first();
   await expect(row.getByText("ready", { exact: true })).toBeVisible({ timeout: 120_000 });
   await row.getByRole("button").first().click();
-  return studio.page().getByRole("dialog", { name: "Artifact viewer" });
+  return studio.page().getByRole("region", { name: "Artifact viewer" });
 }
 
 test("mind map renders on mobile, seeds chat, and exports PNG/SVG", async ({ page }) => {
@@ -73,7 +70,7 @@ test("flashcard known/unknown state persists and Anki CSV exports", async ({ pag
   await page.reload();
   const reopened = page.getByRole("region", { name: "Studio" }).filter({ visible: true });
   await reopened.getByRole("region", { name: "Studio artifacts" }).getByRole("listitem").first().getByRole("button").first().click();
-  await expect(page.getByRole("dialog", { name: "Artifact viewer" }).getByText(/Leitner box 2/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Artifact viewer" }).getByText(/Leitner box 2/)).toBeVisible();
 });
 
 test("quiz saves attempt and opens wrong answer review", async ({ page }) => {
@@ -101,7 +98,7 @@ test("quiz saves attempt and opens wrong answer review", async ({ page }) => {
   }
   const row = page.getByRole("region", { name: "Studio artifacts" }).getByRole("listitem").first();
   await row.getByRole("button").first().click();
-  const viewer = page.getByRole("dialog", { name: "Artifact viewer" });
+  const viewer = page.getByRole("region", { name: "Artifact viewer" });
   const quiz = viewer.getByRole("region", { name: "Quiz" });
   for (let index = 0; index < 10; index += 1) {
     await quiz.getByRole("radio").nth(index % 4 === 0 ? 1 : 0).check();

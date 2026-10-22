@@ -149,3 +149,16 @@
 - [ ] 14.6 Studio: flashcard flip feedback and quiz progress affordance added; artifact screens not yet screenshot-verified
 - [ ] 14.7 Development-only design lab and reset-password Suspense build fix done; broader auth/settings/toast polish remains open
 - [ ] 14.8 Accessibility, performance, Playwright visual evidence, and report
+
+## Level 15: DESIGN.md product UI
+
+- [x] 15.0 Read root `DESIGN.md` and use it as the single visual source of truth
+- [x] 15.1 Inventory routes/components and document findings in `docs/design/AUDIT.md`
+- [x] 15.2 Build semantic light/dark tokens, Source Serif 4/Geist/Geist Mono font setup, and shared icon wrapper
+- [x] 15.3 Add `/design-preview` and CI-friendly `lint:design` audit
+- [x] 15.4 Rework shared primitives, auth, notebook list, source list/viewer, chat, Studio, settings, admin, and share view
+- [x] 15.5 Implement phone, tablet, and desktop workspace layouts while preserving source/chat/artifact flows
+- [x] 15.6 Add command menu, Escape dismissal, and dialog focus containment
+- [x] 15.7 Capture workspace, chat citations, source viewer, Studio, settings, and primitive screens at 375/768/1280/1680 px in light/dark
+- [x] 15.8 Run design audit, web lint, typecheck, unit tests, Docker build, and browser capture flow
+- [ ] 15.9 Run axe over the full redesigned route matrix and rerun the entire legacy e2e suite (dedicated capture passed; full suite remains open)

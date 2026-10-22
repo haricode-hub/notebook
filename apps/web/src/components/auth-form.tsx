@@ -69,30 +69,30 @@ export function AuthForm({ mode, socials, verificationRequired = false }: { mode
       {signUp && <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
         <Input id="name" autoComplete="name" aria-invalid={Boolean(errors.name)} {...register("name", { required: signUp })} />
-        {errors.name && <p className="text-sm text-red-600" role="alert">{errors.name.message}</p>}
+        {errors.name && <p className="text-small text-danger" role="alert">{errors.name.message}</p>}
       </div>}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input id="email" type="email" autoComplete="email" aria-invalid={Boolean(errors.email)} {...register("email")} />
-        {errors.email && <p className="text-sm text-red-600" role="alert">{errors.email.message}</p>}
+        {errors.email && <p className="text-small text-danger" role="alert">{errors.email.message}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
         <Input id="password" type="password" autoComplete={signUp ? "new-password" : "current-password"} aria-invalid={Boolean(errors.password)} {...register("password")} />
-        {errors.password && <p className="text-sm text-red-600" role="alert">{errors.password.message}</p>}
+        {errors.password && <p className="text-small text-danger" role="alert">{errors.password.message}</p>}
       </div>
       {signUp && <div className="space-y-2">
         <Label htmlFor="confirmPassword">Confirm password</Label>
         <Input id="confirmPassword" type="password" autoComplete="new-password" aria-invalid={Boolean(errors.confirmPassword)} {...register("confirmPassword")} />
-        {errors.confirmPassword && <p className="text-sm text-red-600" role="alert">{errors.confirmPassword.message}</p>}
+        {errors.confirmPassword && <p className="text-small text-danger" role="alert">{errors.confirmPassword.message}</p>}
       </div>}
-      {serverError && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200" role="alert">{serverError}</p>}
-      <Button type="submit" disabled={isSubmitting} className="w-full bg-indigo-600 text-white hover:bg-indigo-700">
+      {serverError && <p className="rounded-sm bg-danger-soft p-3 text-body text-danger" role="alert">{serverError}</p>}
+      <Button type="submit" disabled={isSubmitting} className="w-full">
         {isSubmitting ? "Working…" : signUp ? "Create account" : "Sign in"}
       </Button>
-      {!signUp && <div className="flex flex-wrap justify-center gap-4 text-sm">
-        <Link href="/forgot-password" className="min-h-11 inline-flex items-center text-indigo-600 hover:underline dark:text-indigo-400">Forgot password?</Link>
-        <button type="button" className="text-indigo-600 hover:underline dark:text-indigo-400" onClick={async () => {
+      {!signUp && <div className="flex flex-wrap justify-center gap-4 text-body">
+        <Link href="/forgot-password" className="inline-flex items-center text-accent hover:underline">Forgot password?</Link>
+        <button type="button" className="text-accent hover:underline" onClick={async () => {
           const email = getValues("email");
           if (!z.email().safeParse(email).success) { setServerError("Enter your email above first."); return; }
           setServerError("");
@@ -105,14 +105,14 @@ export function AuthForm({ mode, socials, verificationRequired = false }: { mode
           }
         }}>Resend verification email</button>
       </div>}
-      {statusMessage && <p role="status" className="text-center text-sm text-emerald-700 dark:text-emerald-300">{statusMessage}</p>}
-      <p className="text-center text-sm text-slate-600 dark:text-slate-400">
+      {statusMessage && <p role="status" className="text-center text-body text-success">{statusMessage}</p>}
+      <p className="text-center text-body text-fg-secondary">
         {signUp ? "Already have an account? " : "New here? "}
-        <Link href={signUp ? "/sign-in" : "/sign-up"} className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+        <Link href={signUp ? "/sign-in" : "/sign-up"} className="font-medium text-accent hover:underline">
           {signUp ? "Sign in" : "Create an account"}
         </Link>
       </p>
-      {(socials.google || socials.github) && <div className="space-y-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+      {(socials.google || socials.github) && <div className="space-y-2 border-t border-border-subtle pt-4">
         {socials.google && <Button type="button" variant="outline" className="w-full" onClick={() => authClient.signIn.social({ provider: "google" })}>Continue with Google</Button>}
         {socials.github && <Button type="button" variant="outline" className="w-full" onClick={() => authClient.signIn.social({ provider: "github" })}>Continue with GitHub</Button>}
       </div>}

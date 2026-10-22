@@ -1156,7 +1156,7 @@ class WorkerSettings:
         generate_audio_overview,
     ]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
-    max_jobs = 2
+    max_jobs = get_settings().worker_concurrency
     job_timeout = 3600
     max_tries = get_settings().job_max_tries
     cron_jobs = [

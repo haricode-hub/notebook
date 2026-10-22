@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 import { readFileSync } from "node:fs";
 
 test("generate an audio overview, seek its transcript, and download the MP3", async ({ page }) => {
@@ -6,16 +7,12 @@ test("generate an audio overview, seek its transcript, and download the MP3", as
   const authIp = `198.18.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
   await page.route("**/api/auth/**", (route) => route.continue({ headers: { ...route.request().headers(), "x-forwarded-for": authIp } }));
   await page.goto("/sign-up");
-  await page.getByLabel("Name").fill("Level Eight Tester");
-  await page.getByLabel("Email").fill(`level8-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Level Eight Tester", email: `level8-${Date.now()}@example.test`, password: "strong-test-password-123" });
   await page.getByLabel("New notebook title").fill("Audio overview test");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Audio overview test" }).click();
   await page.getByRole("button", { name: "Add source" }).click();
-  await page.getByLabel("PDF, DOCX, PPTX, TXT or MD").setInputFiles({
+  await page.getByLabel(/PDF, DOCX/).setInputFiles({
     name: "audio-evidence.txt", mimeType: "text/plain",
     buffer: Buffer.from("Photosynthesis converts light energy into chemical energy. Chlorophyll absorbs light. Water and carbon dioxide are converted into glucose and oxygen inside chloroplasts."),
   });
@@ -31,7 +28,7 @@ test("generate an audio overview, seek its transcript, and download the MP3", as
   const row = studio.getByRole("region", { name: "Studio artifacts" }).getByRole("listitem").first();
   await expect(row.getByText("ready", { exact: true })).toBeVisible({ timeout: 240_000 });
   await row.getByRole("button").first().click();
-  const viewer = page.getByRole("dialog", { name: "Artifact viewer" });
+  const viewer = page.getByRole("region", { name: "Artifact viewer" });
   const player = viewer.getByRole("region", { name: "Audio overview player" });
   await expect(player.getByRole("region", { name: "Synced transcript" })).toContainText("Maya");
   const seek = player.getByRole("button", { name: /Seek to Alex at/ }).first();

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 
 test("grounded chat cites an uploaded document and respects source selection", async ({ page }) => {
   const authIp = `198.18.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
@@ -7,17 +8,13 @@ test("grounded chat cites an uploaded document and respects source selection", a
   page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
 
   await page.goto("/sign-up");
-  await page.getByLabel("Name").fill("Level Three Tester");
-  await page.getByLabel("Email").fill(`level3-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Level Three Tester", email: `level3-${Date.now()}@example.test`, password: "strong-test-password-123" });
   await page.getByLabel("New notebook title").fill("Launch notes");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Launch notes" }).click();
 
   await page.getByRole("button", { name: "Add source" }).click();
-  await page.getByLabel("PDF, DOCX, PPTX, TXT or MD").setInputFiles({
+  await page.getByLabel(/PDF, DOCX/).setInputFiles({
     name: "launch.txt", mimeType: "text/plain", buffer: Buffer.from("The launch code is BLUEBIRD-42.")
   });
   await page.getByRole("button", { name: "Add", exact: true }).click();

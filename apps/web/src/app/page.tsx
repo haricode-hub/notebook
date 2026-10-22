@@ -1,22 +1,11 @@
+import Link from "next/link";
+import { ArrowRight, BookOpen, Quote } from "lucide-react";
 import { ReadinessView } from "@/components/readiness";
+import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/button";
 import { getReadiness } from "@/lib/api";
 
 export default async function Home() {
   const readiness = await getReadiness().catch(() => null);
-  return (
-    <main className="mx-auto min-h-screen max-w-4xl px-6 py-16">
-      <div className="mb-12">
-        <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600">OpenNotebook Studio</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight">Workspace foundation</h1>
-        <p className="mt-4 max-w-2xl text-neutral-600">The research workspace is starting up. Service readiness appears below.</p>
-        <Button asChild className="mt-6 bg-indigo-600 text-white hover:bg-indigo-700">
-          <Link href="/">Refresh status</Link>
-        </Button>
-      </div>
-      <ReadinessView readiness={readiness} />
-    </main>
-  );
+  return <main className="min-h-screen bg-canvas text-fg"><header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8"><Link href="/" className="inline-flex items-center gap-2 text-body font-medium"><Icon icon={BookOpen} size={18} />OpenNotebook Studio</Link><nav aria-label="Account" className="flex items-center gap-2"><Button asChild variant="ghost"><Link href="/sign-in">Sign in</Link></Button><Button asChild><Link href="/sign-up">Create account</Link></Button></nav></header><div className="mx-auto grid max-w-6xl gap-16 px-6 py-16 lg:grid-cols-2 lg:items-start lg:py-24"><section><h1 className="max-w-xl font-serif text-display font-medium">Read closely. Ask freely. Keep the evidence in view.</h1><p className="mt-6 max-w-xl text-body-lg text-fg-secondary">Bring PDFs, links, notes, audio, and video into one research space. Every answer points back to the passage that supports it.</p><div className="mt-8 flex flex-wrap gap-3"><Button asChild size="lg"><Link href="/sign-up">Create your first notebook <Icon icon={ArrowRight} /></Link></Button><Button asChild size="lg" variant="secondary"><Link href="/sign-in">Open your workspace</Link></Button></div></section><section aria-label="Example research answer" className="rounded-lg border border-border bg-surface p-6"><div className="flex items-center gap-2 text-caption text-fg-tertiary"><Icon icon={Quote} /> Example answer</div><p className="mt-5 max-w-prose font-serif text-title-2 font-medium">The strongest conclusion is the one you can trace back to the source.</p><p className="mt-4 max-w-prose text-body-lg text-fg-secondary">OpenNotebook keeps citations beside each claim, so checking the original passage takes one click.</p><span className="citation-marker mt-4">1</span></section><section className="lg:col-span-2" aria-labelledby="service-status"><div className="mb-3 flex items-center justify-between"><h2 id="service-status" className="text-heading font-semibold">Service status</h2><Button asChild variant="link"><Link href="/">Refresh</Link></Button></div><ReadinessView readiness={readiness} /></section></div></main>;
 }
-import Link from "next/link";
-

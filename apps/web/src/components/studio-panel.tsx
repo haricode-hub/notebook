@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, FilePlus2, Pin, Save, Trash2 } from "lucide-react";
+import { Icon } from "@/components/icons/Icon";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -23,10 +24,11 @@ function exportMarkdown(note: Note, title: string, markdown: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function StudioPanel({ notebookId, onAskQuestion, onOpenCitation }: {
+export function StudioPanel({ notebookId, onAskQuestion, onOpenCitation, onOpenArtifact }: {
   notebookId: string;
   onAskQuestion: (question: string) => void;
   onOpenCitation: (citation: ChatCitation, citations: ChatCitation[]) => void;
+  onOpenArtifact: (artifactId: string) => void;
 }) {
   const client = useQueryClient();
   const notes = useQuery({ queryKey: ["notes", notebookId], queryFn: () => noteApi.list(notebookId) });
@@ -65,25 +67,25 @@ export function StudioPanel({ notebookId, onAskQuestion, onOpenCitation }: {
   };
 
   return <section className="flex h-full min-h-0 flex-col" aria-label="Studio">
-    <div className="border-b border-slate-200 p-3 dark:border-slate-800"><h2 className="font-semibold">Studio</h2><p className="text-xs text-slate-500">Overview and notes</p></div>
+    <div className="border-b border-border-subtle p-3"><h2 className="text-heading font-medium">Studio</h2><p className="text-caption text-fg-secondary">Overview and notes · results open in the center</p></div>
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-      <ArtifactStudio notebookId={notebookId} onOpenCitation={onOpenCitation} onAskQuestion={onAskQuestion} />
-      <section className="rounded-lg border border-slate-200 p-3 dark:border-slate-800" aria-label="Notebook overview">
+      <ArtifactStudio notebookId={notebookId} onOpenArtifact={onOpenArtifact} />
+      <section className="border-y border-border-subtle py-3" aria-label="Notebook overview">
         <h3 className="font-medium">Notebook overview</h3>
-        {overview.data?.status === "ready" ? <><p className="mt-2 text-sm leading-relaxed">{overview.data.summary}</p><div className="mt-2 flex flex-wrap gap-1">{overview.data.topics.map((topic) => <span key={topic} className="rounded bg-indigo-50 px-2 py-0.5 text-xs dark:bg-indigo-950">{topic}</span>)}</div><div className="mt-3 space-y-1">{overview.data.questions.map((question) => <button key={question} type="button" onClick={() => onAskQuestion(question)} className="block w-full rounded border border-slate-200 p-2 text-left text-xs hover:border-indigo-400 dark:border-slate-700">{question}</button>)}</div></> : <p className="mt-2 text-xs text-slate-500">{overview.data?.error ?? "The overview will appear after your sources are ready."}</p>}
+        {overview.data?.status === "ready" ? <><p className="mt-2 text-body leading-relaxed">{overview.data.summary}</p><p className="mt-2 text-caption text-fg-secondary">{overview.data.topics.join(" · ")}</p><div className="mt-3 divide-y divide-border-subtle">{overview.data.questions.map((question) => <button key={question} type="button" onClick={() => onAskQuestion(question)} className="block min-h-11 w-full py-2 text-left text-body hover:text-accent">{question}</button>)}</div></> : <p className="mt-2 text-caption text-fg-secondary">{overview.data?.error ?? "The overview will appear after your sources are ready."}</p>}
       </section>
-      <div className="flex items-center justify-between"><h3 className="font-medium">Notes</h3><Button size="sm" variant="outline" onClick={() => void create()}><FilePlus2 className="size-4" /> New note</Button></div>
-      {notes.isPending ? <div className="h-16 animate-pulse rounded bg-slate-100 dark:bg-slate-800" /> : <ul className="space-y-1">{notes.data?.map((note) => <li key={note.id}><button type="button" onClick={() => { setSelectedId(note.id); setTitle(note.title); setMarkdown(note.content_markdown); }} className={`w-full truncate rounded border px-2 py-2 text-left text-sm ${selectedId === note.id ? "border-indigo-500" : "border-slate-200 dark:border-slate-700"}`}>{note.pinned ? "Pinned · " : ""}{note.title}</button></li>)}</ul>}
-      {selected && <div className="space-y-2 rounded-lg border border-slate-200 p-2 dark:border-slate-700" aria-label="Selected note">
+      <div className="flex items-center justify-between"><h3 className="text-heading font-medium">Notes</h3><Button size="sm" variant="outline" onClick={() => void create()}><Icon icon={FilePlus2} size={16} /> New note</Button></div>
+      {notes.isPending ? <div className="h-16 animate-pulse rounded-md bg-sunken" /> : notes.data?.length ? <ul className="divide-y divide-border-subtle">{notes.data.map((note) => <li key={note.id}><button type="button" onClick={() => { setSelectedId(note.id); setTitle(note.title); setMarkdown(note.content_markdown); }} className={`min-h-11 w-full truncate py-2 text-left text-body ${selectedId === note.id ? "font-medium text-fg" : "text-fg-secondary"}`}>{note.pinned ? "Pinned · " : ""}{note.title}</button></li>)}</ul> : <p className="py-3 text-small text-fg-tertiary">Saved answers and notes will appear here.</p>}
+      {selected && <div className="space-y-2 border-t border-border-subtle py-3" aria-label="Selected note">
         <Input aria-label="Note title" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={200} />
         <NoteEditor key={selected.id} initialMarkdown={selected.content_markdown} onChange={setMarkdown} />
         {selected.citations.length > 0 && <div className="flex flex-wrap gap-1" aria-label="Saved citations">{selected.citations.map((citation) => <Button key={`${citation.n}-${citation.chunk_id}`} size="sm" variant="outline" onClick={() => onOpenCitation(citation, selected.citations)}>S{citation.n}: {citation.source_name}</Button>)}</div>}
         <div className="flex flex-wrap gap-1">
-          <Button size="sm" onClick={() => void save()} disabled={busy || !title.trim()}><Save className="size-3" /> Save</Button>
-          <Button size="sm" variant="outline" onClick={async () => { try { await noteApi.update(notebookId, selected.id, { pinned: !selected.pinned }); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not pin note"); } }}><Pin className="size-3" /> {selected.pinned ? "Unpin" : "Pin"}</Button>
-          <Button size="sm" variant="outline" onClick={() => exportMarkdown(selected, title, markdown)}><Download className="size-3" /> Markdown</Button>
+          <Button size="sm" onClick={() => void save()} disabled={busy || !title.trim()}><Icon icon={Save} size={14} /> Save</Button>
+          <Button size="sm" variant="outline" onClick={async () => { try { await noteApi.update(notebookId, selected.id, { pinned: !selected.pinned }); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not pin note"); } }}><Icon icon={Pin} size={14} /> {selected.pinned ? "Unpin" : "Pin"}</Button>
+          <Button size="sm" variant="outline" onClick={() => exportMarkdown(selected, title, markdown)}><Icon icon={Download} size={14} /> Markdown</Button>
           <Button size="sm" variant="outline" onClick={() => void convert()} disabled={!markdown.trim()}>Convert to source</Button>
-          <Button size="sm" variant="ghost" aria-label="Delete note" onClick={async () => { try { await noteApi.remove(notebookId, selected.id); setSelectedId(null); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not delete note"); } }}><Trash2 className="size-3" /></Button>
+          <Button size="sm" variant="ghost" aria-label="Delete note" onClick={async () => { try { await noteApi.remove(notebookId, selected.id); setSelectedId(null); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not delete note"); } }}><Icon icon={Trash2} size={14} /></Button>
         </div>
       </div>}
     </div>

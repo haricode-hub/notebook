@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     settings_encryption_key: str = ""
     ollama_base_url: str = "http://localhost:11434"
     llm_concurrency: int = Field(default=4, ge=1, le=32)
+    worker_concurrency: int = Field(default=4, ge=1, le=8)
     job_max_tries: int = Field(default=3, ge=1, le=10)
     db_pool_size: int = Field(default=10, ge=1, le=50)
     db_max_overflow: int = Field(default=10, ge=0, le=50)

@@ -1,67 +1,26 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Plus, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BookOpen, Grid2X2, List, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Icon } from "@/components/icons/Icon";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { IconButton } from "@/components/ui/icon-button";
+import { Input, Select } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/feedback";
 import { notebookApi, type Notebook } from "@/lib/api-client";
 
 export default function NotebooksPage() {
   const client = useQueryClient();
-  const [title, setTitle] = useState("");
-  const [editing, setEditing] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
+  const [title, setTitle] = useState(""); const [creating, setCreating] = useState(false); const [editing, setEditing] = useState<string | null>(null); const [draft, setDraft] = useState(""); const [view, setView] = useState<"grid" | "list">("grid"); const [sort, setSort] = useState<"updated" | "title">("updated");
   const query = useQuery({ queryKey: ["notebooks"], queryFn: notebookApi.list });
+  const books = useMemo(() => [...(query.data ?? [])].sort((a, b) => sort === "title" ? a.title.localeCompare(b.title) : b.updated_at.localeCompare(a.updated_at)), [query.data, sort]);
   const refresh = () => client.invalidateQueries({ queryKey: ["notebooks"] });
-  const create = useMutation({ mutationFn: notebookApi.create, onSuccess: () => { setTitle(""); refresh(); toast.success("Notebook created"); }, onError: (error) => toast.error(error.message) });
-  const rename = useMutation({ mutationFn: ({ id, title }: { id: string; title: string }) => notebookApi.update(id, { title }), onSuccess: () => { setEditing(null); refresh(); toast.success("Notebook renamed"); }, onError: (error) => toast.error(error.message) });
-  const remove = useMutation({
-    mutationFn: notebookApi.remove,
-    onMutate: async (id) => {
-      await client.cancelQueries({ queryKey: ["notebooks"] });
-      const previous = client.getQueryData<Notebook[]>(["notebooks"]);
-      client.setQueryData<Notebook[]>(["notebooks"], (items) => items?.filter((book) => book.id !== id));
-      return { previous, book: previous?.find((book) => book.id === id) };
-    },
-    onError: (error, _id, context) => {
-      client.setQueryData(["notebooks"], context?.previous);
-      toast.error(error.message);
-    },
-    onSuccess: (_result, id, context) => {
-      if (!context?.book) return refresh();
-      toast("Moved to Trash", {
-        duration: 10_000,
-        action: {
-          label: "Undo",
-          onClick: () => notebookApi.restore(id).then((book) => {
-            client.setQueryData<Notebook[]>(["notebooks"], (items) => [...(items ?? []), book].sort((a, b) => b.created_at.localeCompare(a.created_at)));
-            toast.success("Notebook restored");
-          }).catch((error: unknown) => toast.error(error instanceof Error ? error.message : "Could not restore notebook")),
-        },
-      });
-    },
-  });
-
-  function deleteNotebook(book: Notebook) {
-    remove.mutate(book.id);
-  }
-
-  return <main className="mx-auto max-w-6xl px-5 py-8 sm:py-12">
-    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-      <div><p className="text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Your library</p><h1 className="mt-2 text-3xl font-semibold">Notebooks</h1><p className="mt-2 text-sm text-slate-500">A place for every research topic.</p></div>
-    </div>
-    <form className="mb-8 flex max-w-xl gap-2" onSubmit={(event) => { event.preventDefault(); if (title.trim()) create.mutate({ title: title.trim(), response_length: "medium" }); }}>
-      <Input aria-label="New notebook title" placeholder="New notebook title" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={200} />
-      <Button type="submit" disabled={!title.trim() || create.isPending} className="bg-indigo-600 text-white hover:bg-indigo-700"><Plus /> Create</Button>
-    </form>
-    {query.isPending ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading notebooks">{[1, 2, 3].map((n) => <div key={n} className="h-40 animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800" />)}</div> : query.isError ? <div role="alert" className="rounded-xl border p-6">Could not load notebooks. <Button variant="link" onClick={() => query.refetch()}>Try again</Button></div> : query.data?.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 px-6 py-20 text-center dark:border-slate-700"><BookOpen className="mx-auto mb-4 size-10 text-indigo-400" /><h2 className="text-xl font-semibold">Start your first notebook</h2><p className="mt-2 text-sm text-slate-500">Give it a name above to open a workspace.</p></div> : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{query.data?.map((book) => <article key={book.id} className="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-indigo-300 dark:border-slate-800 dark:bg-slate-900">
-      <BookOpen className="mb-7 size-6 text-indigo-600 dark:text-indigo-400" />
-      {editing === book.id ? <form onSubmit={(event) => { event.preventDefault(); if (draft.trim()) rename.mutate({ id: book.id, title: draft.trim() }); }} className="flex gap-2"><Input aria-label="Rename notebook" value={draft} onChange={(event) => setDraft(event.target.value)} autoFocus /><Button type="submit" size="sm" disabled={!draft.trim() || rename.isPending}>Save</Button></form> : <Link className="block text-lg font-semibold hover:text-indigo-600" href={`/workspace/${book.id}`}>{book.title}</Link>}
-      <p className="mt-2 text-xs text-slate-500">Updated {new Date(book.updated_at).toLocaleDateString()}</p>
-      <div className="mt-5 flex justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800"><Button variant="ghost" size="sm" onClick={() => { setEditing(book.id); setDraft(book.title); }}>Rename</Button><Button variant="ghost" size="sm" aria-label={`Delete ${book.title}`} onClick={() => deleteNotebook(book)}><Trash2 /></Button></div>
-    </article>)}</div>}
-  </main>;
+  const create = useMutation({ mutationFn: notebookApi.create, onSuccess: () => { setTitle(""); setCreating(false); void refresh(); toast.success("Notebook created"); }, onError: (error) => toast.error(error.message) });
+  const rename = useMutation({ mutationFn: ({ id, title: next }: { id: string; title: string }) => notebookApi.update(id, { title: next }), onSuccess: () => { setEditing(null); void refresh(); toast.success("Notebook renamed"); }, onError: (error) => toast.error(error.message) });
+  const remove = useMutation({ mutationFn: notebookApi.remove, onMutate: async (id) => { await client.cancelQueries({ queryKey: ["notebooks"] }); const previous = client.getQueryData<Notebook[]>(["notebooks"]); client.setQueryData<Notebook[]>(["notebooks"], (items) => items?.filter((book) => book.id !== id)); return { previous, book: previous?.find((book) => book.id === id) }; }, onError: (error, _id, context) => { client.setQueryData(["notebooks"], context?.previous); toast.error(error.message); }, onSuccess: (_result, id, context) => { if (!context?.book) return void refresh(); toast("Moved to Trash", { duration: 10_000, action: { label: "Undo", onClick: () => notebookApi.restore(id).then((book) => { client.setQueryData<Notebook[]>(["notebooks"], (items) => [...(items ?? []), book].sort((a, b) => b.created_at.localeCompare(a.created_at))); toast.success("Notebook restored"); }).catch((error: unknown) => toast.error(error instanceof Error ? error.message : "Could not restore notebook")) } }); } });
+  const submitNew = (event: React.FormEvent) => { event.preventDefault(); if (title.trim()) create.mutate({ title: title.trim(), response_length: "medium" }); };
+  return <main className="mx-auto max-w-6xl px-5 pb-16 pt-12"><div className="mb-10 flex flex-wrap items-end justify-between gap-4"><div><div className="mb-3 inline-flex size-10 items-center justify-center rounded-md bg-sunken text-fg-secondary"><Icon icon={BookOpen} size={20} /></div><h1 className="font-serif text-display font-medium">Your notebooks</h1><p className="mt-2 text-body text-fg-secondary">Continue a question, review a source, or begin new research.</p></div><Button onClick={() => setCreating(true)}><Icon icon={Plus} />New notebook</Button></div><div className="mb-5 flex items-center justify-between border-b border-border-subtle pb-3"><p className="text-small text-fg-secondary">{books.length} {books.length === 1 ? "notebook" : "notebooks"}</p><div className="flex items-center gap-1"><Select aria-label="Sort notebooks" className="w-36" value={sort} onValueChange={(value) => setSort(value as typeof sort)}><option value="updated">Recently edited</option><option value="title">Title</option></Select><IconButton label="Grid view" icon={Grid2X2} variant={view === "grid" ? "secondary" : "ghost"} onClick={() => setView("grid")} /><IconButton label="List view" icon={List} variant={view === "list" ? "secondary" : "ghost"} onClick={() => setView("list")} /></div></div>{query.isPending ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading notebooks">{[1,2,3,4].map((item) => <Skeleton key={item} className="h-50" />)}</div> : query.isError ? <div role="alert" className="border-y border-border-subtle py-8">Could not load notebooks. <Button variant="link" onClick={() => query.refetch()}>Try again</Button></div> : <div className={view === "grid" ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-4" : "divide-y divide-border-subtle border-y border-border-subtle"}>{(creating || books.length === 0) && <form onSubmit={submitNew} className={view === "grid" ? "flex h-50 flex-col justify-between rounded-md border border-dashed border-border-strong bg-surface p-5" : "flex flex-wrap items-center gap-2 py-4"}><div><Icon icon={Plus} size={18} className="text-fg-tertiary" /><h2 className="mt-8 font-serif text-title-3 font-medium">New notebook</h2></div><div className="flex gap-2"><Input autoFocus={creating} aria-label="New notebook title" placeholder="Notebook title" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={200} /><Button type="submit" disabled={!title.trim()} loading={create.isPending}>Create</Button></div></form>}{books.map((book) => <article key={book.id} className={view === "grid" ? "group flex h-50 flex-col rounded-md border border-border bg-surface p-5 transition-colors hover:border-border-strong hover:bg-raised" : "group flex min-h-16 flex-wrap items-center justify-between gap-3 py-4"}><Icon icon={BookOpen} size={18} className="text-fg-tertiary" />{editing === book.id ? <form onSubmit={(event) => { event.preventDefault(); if (draft.trim()) rename.mutate({ id: book.id, title: draft.trim() }); }} className="mt-auto flex w-full gap-2"><Input aria-label="Rename notebook" value={draft} onChange={(event) => setDraft(event.target.value)} autoFocus /><Button type="submit" size="sm" disabled={!draft.trim()} loading={rename.isPending}>Save</Button></form> : <><Link className={view === "grid" ? "mt-auto line-clamp-2 font-serif text-title-3 font-medium hover:text-accent" : "font-serif text-title-3 font-medium hover:text-accent"} href={`/workspace/${book.id}`}>{book.title}</Link><p className="mt-1 text-caption text-fg-tertiary">Edited {new Date(book.updated_at).toLocaleDateString()}</p><div className={view === "grid" ? "mt-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100" : "ml-auto flex gap-1"}><IconButton label={`Rename ${book.title}`} icon={Pencil} size="icon-sm" onClick={() => { setEditing(book.id); setDraft(book.title); }} /><IconButton label={`Delete ${book.title}`} icon={Trash2} size="icon-sm" onClick={() => remove.mutate(book.id)} /></div></>}</article>)}</div>}</main>;
 }

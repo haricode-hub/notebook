@@ -42,12 +42,14 @@ test("sign-up and sign-in show validation errors accessibly", async ({ page }) =
 
 test("email verification, sign-in, and password reset work through Mailpit", async ({ page, request }) => {
   const email = `auth-flow-${Date.now()}@example.test`;
-  const readLatestMailLink = async (previousCount: number) => {
+  const readLatestMailLink = async (recipient: string, kind: "verify" | "reset") => {
     let messageId = "";
     await expect.poll(async () => {
       const listing = await request.get("http://localhost:8025/api/v1/messages");
-      const data = await listing.json() as { messages: Array<{ ID: string }> };
-      if (data.messages.length > previousCount) messageId = data.messages[0]?.ID ?? "";
+      const data = await listing.json() as { messages: Array<{ ID: string; Subject: string; To?: Array<{ Address: string }> }> };
+      const subject = kind === "verify" ? /verify/i : /reset|password/i;
+      messageId = data.messages.find((message) => subject.test(message.Subject)
+        && message.To?.some((to) => to.Address.toLowerCase() === recipient.toLowerCase()))?.ID ?? "";
       return messageId;
     }, { timeout: 10_000 }).not.toBe("");
     const response = await request.get(`http://localhost:8025/api/v1/message/${messageId}`);
@@ -57,13 +59,6 @@ test("email verification, sign-in, and password reset work through Mailpit", asy
     expect(rawLink).toBeTruthy();
     return rawLink!.replaceAll("&amp;", "&").replace(/[),.]$/, "");
   };
-  const mailCount = async () => {
-    const response = await request.get("http://localhost:8025/api/v1/messages");
-    const data = await response.json() as { messages: unknown[] };
-    return data.messages.length;
-  };
-
-  const beforeVerification = await mailCount();
   await page.goto("/sign-up");
   await page.getByLabel("Name").fill("Auth Flow Tester");
   await page.getByLabel("Email").fill(email);
@@ -71,7 +66,7 @@ test("email verification, sign-in, and password reset work through Mailpit", asy
   await page.getByLabel("Confirm password").fill("initial-test-password-123");
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.getByRole("status")).toContainText("Check your email");
-  const verificationLink = await readLatestMailLink(beforeVerification);
+  const verificationLink = await readLatestMailLink(email, "verify");
   await page.goto(verificationLink);
   await page.goto("/notebooks");
   await expect(page).toHaveURL(/\/notebooks/);
@@ -108,6 +103,9 @@ test("email verification, sign-in, and password reset work through Mailpit", asy
 
   const workspaceScreenshots = path.resolve(process.cwd(), "../../docs/levels/level14/screenshots/after-pass8");
   await mkdir(workspaceScreenshots, { recursive: true });
+  if (await page.locator("html").evaluate((element) => element.classList.contains("dark"))) {
+    await page.getByRole("button", { name: "Toggle theme" }).click();
+  }
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   await page.screenshot({ path: path.join(workspaceScreenshots, "workspace-1440-light.png"), fullPage: true });
   await page.getByRole("button", { name: "Toggle theme" }).click();
@@ -118,7 +116,7 @@ test("email verification, sign-in, and password reset work through Mailpit", asy
   await page.getByRole("button", { name: "Toggle theme" }).click();
   await page.reload();
   await expect(page.locator("html")).not.toHaveClass(/dark/);
-  await expect(page.getByRole("tablist", { name: "Notebook workspace" }).getByRole("tab", { name: "Sources" })).toBeVisible();
+  await expect(page.getByRole("tablist", { name: "Workspace panels" }).getByRole("tab", { name: "Sources" })).toBeVisible();
   await expectWcagAxePass(page);
   await page.screenshot({ path: path.join(workspaceScreenshots, "workspace-390-light.png"), fullPage: true });
   await page.getByRole("button", { name: "Toggle theme" }).click();
@@ -130,12 +128,11 @@ test("email verification, sign-in, and password reset work through Mailpit", asy
   await page.getByRole("button", { name: "Toggle theme" }).click();
   await page.getByRole("button", { name: "Sign out" }).click();
 
-  const beforeReset = await mailCount();
   await page.goto("/forgot-password");
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Send reset link" }).click();
   await expect(page.getByRole("status")).toContainText("If an account can receive email");
-  const resetLink = await readLatestMailLink(beforeReset);
+  const resetLink = await readLatestMailLink(email, "reset");
   await page.goto(resetLink);
   await page.getByLabel("New password", { exact: true }).fill("updated-test-password-456");
   await page.getByLabel("Confirm new password").fill("updated-test-password-456");

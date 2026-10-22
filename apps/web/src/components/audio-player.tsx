@@ -1,9 +1,11 @@
 "use client";
 
+import { Icon } from "@/components/icons/Icon";
 import { Download } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatCitation } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/input";
 import { audioApi } from "@/lib/api-client";
 
 export type AudioTranscriptLine = {
@@ -46,15 +48,15 @@ export function AudioPlayer({ notebookId, artifactId, transcript, citations, onO
     anchor.click();
   };
   return <section className="space-y-3" aria-label="Audio overview player">
-    {url ? <audio ref={audioRef} aria-label="Audio overview" controls src={url} className="w-full" onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)} /> : <p className="text-sm text-slate-500">{error || "Loading audio…"}</p>}
+    {url ? <audio ref={audioRef} aria-label="Audio overview" controls src={url} className="w-full" onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)} /> : <p className="text-body text-fg-secondary">{error || "Loading audio…"}</p>}
     <div className="flex items-center gap-2">
-      <label className="text-sm">Speed <select aria-label="Playback speed" className="rounded border p-1 dark:bg-slate-900" value={rate} onChange={(event) => { const next = Number(event.target.value); setRate(next); if (audioRef.current) audioRef.current.playbackRate = next; }}><option value={0.75}>0.75×</option><option value={1}>1×</option><option value={1.25}>1.25×</option><option value={1.5}>1.5×</option><option value={2}>2×</option></select></label>
-      <Button size="sm" variant="outline" disabled={!url} onClick={download}><Download className="size-3" /> Download MP3</Button>
+      <label className="flex items-center gap-2 text-body">Speed <Select aria-label="Playback speed" className="w-24" value={String(rate)} onValueChange={(value) => { const next = Number(value); setRate(next); if (audioRef.current) audioRef.current.playbackRate = next; }}><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></Select></label>
+      <Button size="sm" variant="outline" disabled={!url} onClick={download}><Icon icon={Download} className="size-3" /> Download MP3</Button>
     </div>
-    <div role="region" className="max-h-[55vh] space-y-2 overflow-y-auto" aria-label="Synced transcript">
-      {transcript.map((line, index) => <div key={`${line.start}-${index}`} className={`rounded-lg border p-2 ${index === activeLine ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40" : "border-slate-200 dark:border-slate-800"}`}>
-        <button type="button" className="text-left text-sm" aria-label={`Seek to ${line.speaker} at ${Math.floor(line.start)} seconds`} onClick={() => { const audio = audioRef.current; if (audio) { audio.currentTime = line.start; setCurrent(line.start); void audio.play(); } }}><span className="mr-2 font-semibold">{line.speaker}</span><span className="mr-2 text-xs text-slate-500">{Math.floor(line.start / 60)}:{String(Math.floor(line.start % 60)).padStart(2, "0")}</span>{line.text}</button>
-        <div className="mt-1 flex gap-1">{line.citation_refs.map((ref) => { const citation = citationMap.get(ref); return citation ? <button type="button" key={ref} className="rounded border px-1.5 text-xs text-indigo-700 dark:text-indigo-300" onClick={() => onOpenCitation(citation, citations)}>[S{ref}]</button> : null; })}</div>
+    <div role="region" className="audio-transcript-scroll space-y-2 overflow-y-auto" aria-label="Synced transcript">
+      {transcript.map((line, index) => <div key={`${line.start}-${index}`} className={`rounded-lg border p-2 ${index === activeLine ? "border-accent bg-accent-soft" : "border-border-subtle"}`}>
+        <button type="button" className="text-left text-body" aria-label={`Seek to ${line.speaker} at ${Math.floor(line.start)} seconds`} onClick={() => { const audio = audioRef.current; if (audio) { audio.currentTime = line.start; setCurrent(line.start); void audio.play(); } }}><span className="mr-2 font-semibold">{line.speaker}</span><span className="mr-2 text-caption text-fg-secondary">{Math.floor(line.start / 60)}:{String(Math.floor(line.start % 60)).padStart(2, "0")}</span>{line.text}</button>
+        <div className="mt-1 flex gap-1">{line.citation_refs.map((ref) => { const citation = citationMap.get(ref); return citation ? <button type="button" key={ref} className="rounded border px-1.5 text-caption text-accent" onClick={() => onOpenCitation(citation, citations)}>[S{ref}]</button> : null; })}</div>
       </div>)}
     </div>
   </section>;

@@ -48,9 +48,16 @@ export function matchingPdfItems(items: string[], quote: string): Set<number> {
     const first = excerpt.slice(0, 80);
     const last = excerpt.slice(-80);
     start = page.indexOf(first);
-    end = page.indexOf(last, Math.max(0, start));
-    if (start < 0 || end < 0) return new Set();
-    end += last.length;
+    const lastStart = page.indexOf(last, Math.max(0, start));
+    if (start < 0) {
+      start = lastStart;
+      if (start < 0) return new Set();
+      end = start + last.length;
+    } else if (lastStart < start) {
+      end = start + first.length;
+    } else {
+      end = lastStart + last.length;
+    }
   }
   return new Set(offsets.flatMap((item, index) => item.end > start && item.start < end ? [index] : []));
 }

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 
 test("upload a PDF and watch it become ready", async ({ page }) => {
   const authIp = `198.18.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
@@ -6,11 +7,7 @@ test("upload a PDF and watch it become ready", async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
   await page.goto("/sign-up");
-  await page.getByLabel("Name").fill("Level Two Tester");
-  await page.getByLabel("Email").fill(`level2-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Level Two Tester", email: `level2-${Date.now()}@example.test`, password: "strong-test-password-123" });
   await page.getByLabel("New notebook title").fill("PDF research");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "PDF research" }).click();
@@ -19,7 +16,7 @@ test("upload a PDF and watch it become ready", async ({ page }) => {
   const pdf = await pdfPage.pdf();
   await pdfPage.close();
   await page.getByRole("button", { name: "Add source" }).click();
-  await page.getByLabel("PDF, DOCX, PPTX, TXT or MD").setInputFiles({ name: "research.pdf", mimeType: "application/pdf", buffer: pdf });
+  await page.getByLabel(/PDF, DOCX/).setInputFiles({ name: "research.pdf", mimeType: "application/pdf", buffer: pdf });
   await page.getByRole("button", { name: "Add", exact: true }).click();
   const card = page.locator("li:visible").filter({ hasText: "research.pdf" });
   await expect(card).toBeVisible();
@@ -33,11 +30,7 @@ test("source events reconnect after a drop and an expired token response", async
   const authIp = `198.18.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
   await page.route("**/api/auth/**", (route) => route.continue({ headers: { ...route.request().headers(), "x-forwarded-for": authIp } }));
   await page.goto("/sign-up");
-  await page.getByLabel("Name").fill("Reconnect Tester");
-  await page.getByLabel("Email").fill(`level2-reconnect-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Reconnect Tester", email: `level2-reconnect-${Date.now()}@example.test`, password: "strong-test-password-123" });
   await page.getByLabel("New notebook title").fill("Live sources");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   let connections = 0;

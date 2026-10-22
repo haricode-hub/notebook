@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 
 test("live OpenRouter guide appears within 60 seconds of upload", async ({ page }) => {
   test.skip(process.env.RUN_LIVE_GUIDE !== "1", "Requires a configured live OpenRouter worker");
@@ -9,17 +10,13 @@ test("live OpenRouter guide appears within 60 seconds of upload", async ({ page 
   page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
 
   await page.goto("/sign-up");
-  await page.getByLabel("Name").fill("Live Guide Timer");
-  await page.getByLabel("Email").fill(`live-guide-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Live Guide Timer", email: `live-guide-${Date.now()}@example.test`, password: "strong-test-password-123" });
   await page.getByLabel("New notebook title").fill("Live guide timing");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Live guide timing" }).click();
 
   await page.getByRole("button", { name: "Add source" }).click();
-  await page.getByLabel("PDF, DOCX, PPTX, TXT or MD").setInputFiles({
+  await page.getByLabel(/PDF, DOCX/).setInputFiles({
     name: "timed-source.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("The archive opens on Tuesday. Its index records 430 pamphlets and five early maps. The earliest map was drawn in 1894."),

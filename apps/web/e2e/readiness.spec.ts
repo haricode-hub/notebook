@@ -6,10 +6,10 @@ test("shows healthy API and embed with no console errors", async ({ page }, test
     if (message.type() === "error") errors.push(message.text());
   });
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Workspace foundation" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Make every source count." })).toBeVisible();
   await expect(page.getByLabel("API ok")).toBeVisible();
   await expect(page.getByLabel("Embeddings ok")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Refresh status" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Refresh" })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("readiness.png"), fullPage: true });
   expect(errors).toEqual([]);
 });

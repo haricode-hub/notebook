@@ -142,6 +142,16 @@ async def test_invalid_json_gets_exactly_one_repair_and_fabricated_refs_fail() -
 
 
 @pytest.mark.asyncio
+async def test_artifact_accepts_fenced_json_with_model_preamble() -> None:
+    wrapped = f"Here is the requested artifact:\n```json\n{fixture_document('faq')}\n```\n"
+    document, citations = await generate_artifact(
+        "faq", [sample_chunk()], {"evidence": "Launch.txt"}, {}, ScriptedLLM([wrapped])
+    )
+    assert document.recipe == "faq"
+    assert citations[0]["n"] == 1
+
+
+@pytest.mark.asyncio
 async def test_map_reduce_fifty_pages_all_recipes_under_ninety_seconds() -> None:
     chunks = [sample_chunk(number) for number in range(1, 51)]
     for recipe in RECIPES_REGISTRY:

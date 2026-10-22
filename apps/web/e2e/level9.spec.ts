@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 
 test("discover a source and share a notebook read-only", async ({ page, context }) => {
   test.setTimeout(180_000);
@@ -12,11 +13,7 @@ test("discover a source and share a notebook read-only", async ({ page, context 
   await page.route("**/notebooks/*/sources/import", (route) => route.fulfill({ status: 202, contentType: "application/json", body: "[]" }));
 
   await page.goto("/sign-up");
-  await page.getByLabel("Name").fill("Level Nine Tester");
-  await page.getByLabel("Email").fill(`level9-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Level Nine Tester", email: `level9-${Date.now()}@example.test`, password: "strong-test-password-123" });
   await page.getByLabel("New notebook title").fill("Level Nine share fixture");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Level Nine share fixture" }).click();
@@ -30,7 +27,7 @@ test("discover a source and share a notebook read-only", async ({ page, context 
   await page.getByRole("button", { name: "Import 1 selected" }).click();
 
   await page.getByRole("button", { name: "Add source" }).click();
-  await page.getByLabel("PDF, DOCX, PPTX, TXT, MD, MP3, WAV, M4A").setInputFiles({
+  await page.getByLabel(/PDF, DOCX/).setInputFiles({
     name: "share-fixture.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("The chart records a steady rise in quarterly revenue."),

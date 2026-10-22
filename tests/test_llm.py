@@ -44,6 +44,57 @@ async def test_litellm_routes_selected_provider_key(monkeypatch: pytest.MonkeyPa
 
 
 @pytest.mark.asyncio
+async def test_litellm_structured_stream_requests_json_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: dict[str, Any] = {}
+
+    async def fake_completion(**kwargs: Any) -> AsyncIterator[Any]:
+        observed.update(kwargs)
+
+        async def parts() -> AsyncIterator[Any]:
+            yield SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="{}"))])
+
+        return parts()
+
+    monkeypatch.setattr(litellm, "acompletion", fake_completion)
+    provider = LiteLLMProvider(
+        Settings(llm_provider="openrouter", default_chat_model="cheap")
+    )
+    messages = [{"role": "user", "content": "json"}]
+    assert [part async for part in provider.stream_json(messages)] == ["{}"]
+    assert observed["response_format"] == {"type": "json_object"}
+
+
+@pytest.mark.asyncio
+async def test_litellm_retries_without_json_mode_when_router_has_no_matching_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requests: list[dict[str, Any]] = []
+
+    async def fake_completion(**kwargs: Any) -> AsyncIterator[Any]:
+        requests.append(kwargs)
+        if "response_format" in kwargs:
+            raise RuntimeError(
+                "No endpoints found: Filter by Parameters removed all candidates"
+            )
+
+        async def parts() -> AsyncIterator[Any]:
+            yield SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="{}"))])
+
+        return parts()
+
+    monkeypatch.setattr(litellm, "acompletion", fake_completion)
+    provider = LiteLLMProvider(
+        Settings(llm_provider="openrouter", default_chat_model="cheap")
+    )
+    messages = [{"role": "user", "content": "json"}]
+    assert [part async for part in provider.stream_json(messages)] == ["{}"]
+    assert "response_format" in requests[0]
+    assert "response_format" not in requests[1]
+
+
+@pytest.mark.asyncio
 async def test_litellm_uses_fallback_after_primary_retries(monkeypatch: pytest.MonkeyPatch) -> None:
     observed: list[str] = []
 

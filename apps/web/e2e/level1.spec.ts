@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 
 test("sign up, create notebook, use workspace, change theme, sign out", async ({ page }) => {
   const authIp = `198.18.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
@@ -11,11 +12,7 @@ test("sign up, create notebook, use workspace, change theme, sign out", async ({
   await page.goto("/notebooks");
   await expect(page).toHaveURL(/\/sign-in\?next=/);
   await page.getByRole("link", { name: "Create an account" }).click();
-  await page.getByLabel("Name").fill("Level One Tester");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Level One Tester", email, password: "strong-test-password-123" });
   await page.reload();
   await expect(page.getByRole("heading", { name: "Notebooks" })).toBeVisible();
   await page.getByLabel("New notebook title").fill("My research");
@@ -25,12 +22,15 @@ test("sign up, create notebook, use workspace, change theme, sign out", async ({
   await expect(page.getByRole("heading", { name: "My research" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Sources" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Chat" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Studio" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Studio", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Collapse sources" }).click();
   await page.getByRole("button", { name: "Collapse sources" }).click();
   await page.getByRole("button", { name: "Preferences" }).click();
   await page.getByLabel("Assistant persona").fill("Explain clearly");
   await page.getByRole("button", { name: "Save" }).click();
+  if (await page.locator("html").evaluate((element) => element.classList.contains("dark"))) {
+    await page.getByRole("button", { name: "Toggle theme" }).click();
+  }
   await page.getByRole("button", { name: "Toggle theme" }).click();
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.route("**/settings/models?provider=*", async (route) => {
@@ -52,13 +52,14 @@ test("sign up, create notebook, use workspace, change theme, sign out", async ({
   await page.getByRole("link", { name: "OpenNotebook Studio" }).click();
   await page.getByRole("link", { name: "My research" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole("tab", { name: "Sources" })).toBeVisible();
-  await page.getByRole("tab", { name: "Studio" }).click();
-  await expect(page.getByRole("heading", { name: "Studio" })).toBeVisible();
+  const mobileTabs = page.getByRole("tablist", { name: "Workspace panels" });
+  await expect(mobileTabs.getByRole("tab", { name: "Sources" })).toBeVisible();
+  await mobileTabs.getByRole("tab", { name: "Studio" }).click();
+  await expect(page.getByRole("heading", { name: "Studio", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill("strong-test-password-123");
+  await page.getByLabel("Password", { exact: true }).fill("strong-test-password-123");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/notebooks$/);
   await page.reload();

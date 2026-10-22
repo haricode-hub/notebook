@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 
 test("guides, cited notes, conversion, and overview questions work together", async ({ page }) => {
   test.setTimeout(180_000);
@@ -9,17 +10,13 @@ test("guides, cited notes, conversion, and overview questions work together", as
   page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
 
   await page.goto("/sign-up");
-  await page.getByLabel("Name").fill("Level Five Tester");
-  await page.getByLabel("Email").fill(`level5-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Level Five Tester", email: `level5-${Date.now()}@example.test`, password: "strong-test-password-123" });
   await page.getByLabel("New notebook title").fill("Guide notebook");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Guide notebook" }).click();
 
   await page.getByRole("button", { name: "Add source" }).click();
-  await page.getByLabel("PDF, DOCX, PPTX, TXT or MD").setInputFiles({
+  await page.getByLabel(/PDF, DOCX/).setInputFiles({
     name: "launch.txt", mimeType: "text/plain", buffer: Buffer.from("The launch code is BLUEBIRD-42. The launch takes place on Tuesday.")
   });
   await page.getByRole("button", { name: "Add", exact: true }).click();

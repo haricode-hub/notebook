@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
+import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 
 type Question = { source: string; expected_fact: string; paragraph: number };
 
@@ -8,9 +9,11 @@ test("twenty evaluation passages resolve in PDF and Text views", async ({ page }
   test.setTimeout(180_000);
   const evalRoot = resolve(process.cwd(), "../../evals");
   const questions = JSON.parse(readFileSync(resolve(evalRoot, "questions.json"), "utf8")) as Question[];
-  const documents = Object.fromEntries(["solar", "wetlands", "printing"].map((source) => [source, readFileSync(resolve(evalRoot, `docs/${source}.md`), "utf8").split("\n\n").slice(1)])) as Record<string, string[]>;
-  const passages = questions.map((question) => documents[question.source][question.paragraph]);
-  passages.push(...documents.solar.slice(0, 5).map((paragraph) => paragraph.slice(0, 40)));
+  const sources = [...new Set(questions.map((question) => question.source))];
+  const documents = Object.fromEntries(sources.map((source) => [source, readFileSync(resolve(evalRoot, `docs/${source}.md`), "utf8").split("\n\n").slice(1)])) as Record<string, string[]>;
+  const sampleQuestions = questions.slice(0, 15);
+  const passages = sampleQuestions.map((question) => documents[question.source][question.paragraph]);
+  passages.push(...documents[sampleQuestions[0]!.source].slice(0, 5).map((paragraph) => paragraph.slice(0, 40)));
   expect(passages).toHaveLength(20);
   const normalize = (value: string) => value.normalize("NFKC").replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
   const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
@@ -23,17 +26,13 @@ test("twenty evaluation passages resolve in PDF and Text views", async ({ page }
   const authIp = `198.19.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
   await page.route("**/api/auth/**", (route) => route.continue({ headers: { ...route.request().headers(), "x-forwarded-for": authIp } }));
   await page.goto("/sign-up");
-  await page.getByLabel("Name").fill("Citation Sampler");
-  await page.getByLabel("Email").fill(`citation-sample-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Citation Sampler", email: `citation-sample-${Date.now()}@example.test`, password: "strong-test-password-123" });
   await page.getByLabel("New notebook title").fill("Evaluation citations");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Evaluation citations" }).click();
   await expect(page).toHaveURL(/\/workspace\/[^/]+$/);
   await page.getByRole("button", { name: "Add source" }).click();
-  await page.getByLabel("PDF, DOCX, PPTX, TXT or MD").setInputFiles({ name: "eval.pdf", mimeType: "application/pdf", buffer: pdf });
+  await page.getByLabel(/PDF, DOCX/).setInputFiles({ name: "eval.pdf", mimeType: "application/pdf", buffer: pdf });
   const upload = page.waitForResponse((response) => response.url().endsWith("/sources/upload") && response.status() === 201);
   await page.getByRole("button", { name: "Add", exact: true }).click();
   const sourceId = ((await (await upload).json()) as { id: string }).id;

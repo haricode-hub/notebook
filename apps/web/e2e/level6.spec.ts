@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
+import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 test("generate a study guide, export it, and open its source citation", async ({ page }) => {
@@ -10,17 +11,13 @@ test("generate a study guide, export it, and open its source citation", async ({
   page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
 
   await page.goto("/sign-up");
-  await page.getByLabel("Name").fill("Level Six Tester");
-  await page.getByLabel("Email").fill(`level6-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Level Six Tester", email: `level6-${Date.now()}@example.test`, password: "strong-test-password-123" });
   await page.getByLabel("New notebook title").fill("Studio artifacts");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Studio artifacts" }).click();
 
   await page.getByRole("button", { name: "Add source" }).click();
-  await page.getByLabel("PDF, DOCX, PPTX, TXT or MD").setInputFiles({
+  await page.getByLabel(/PDF, DOCX/).setInputFiles({
     name: "launch.txt", mimeType: "text/plain",
     buffer: Buffer.from("The launch code is BLUEBIRD-42. It identifies the research mission. The launch takes place on Tuesday."),
   });
@@ -39,8 +36,9 @@ test("generate a study guide, export it, and open its source citation", async ({
   const artifact = studio.getByRole("region", { name: "Studio artifacts" }).getByRole("listitem").first();
   await expect(artifact.getByText("ready", { exact: true })).toBeVisible({ timeout: 120_000 });
   await artifact.getByRole("button").first().click();
-  const viewer = page.getByRole("dialog", { name: "Artifact viewer" });
+  const viewer = page.getByRole("region", { name: "Artifact viewer" });
   await expect(viewer).toContainText("BLUEBIRD-42");
+  await expect(page.getByRole("dialog", { name: "Artifact viewer" })).toHaveCount(0);
   await expect(viewer.getByRole("button", { name: "Source 1: launch.txt" }).first()).toBeVisible();
 
   const markdownDownload = page.waitForEvent("download");

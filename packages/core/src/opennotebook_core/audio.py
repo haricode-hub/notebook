@@ -87,7 +87,36 @@ class AudioLLM(Protocol):
 
 
 async def _collect(llm: AudioLLM, messages: list[dict[str, str]]) -> str:
-    return "".join([piece async for piece in llm.stream(messages)])
+    json_stream = getattr(llm, "stream_json", None)
+    stream = json_stream(messages) if callable(json_stream) else llm.stream(messages)
+    return "".join([piece async for piece in stream])
+
+
+def _extract_json_object(raw: str) -> str:
+    cleaned = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", raw.strip(), flags=re.I)
+    start = cleaned.find("{")
+    if start < 0:
+        return cleaned
+    depth = 0
+    quoted = escaped = False
+    for index in range(start, len(cleaned)):
+        char = cleaned[index]
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+        elif char == '"':
+            quoted = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return cleaned[start : index + 1]
+    return cleaned
 
 
 async def _validated[T: BaseModel](
@@ -96,10 +125,16 @@ async def _validated[T: BaseModel](
     schema: type[T],
     validate: Callable[[T], None] | None = None,
 ) -> T:
+    schema_json = json.dumps(schema.model_json_schema(), ensure_ascii=False)
+    messages = [dict(message) for message in messages]
+    messages[0]["content"] += (
+        "\nReturn one JSON object that validates against this exact JSON Schema. "
+        f"Do not add fields or wrap the object. Schema: {schema_json}"
+    )
     raw = await _collect(llm, messages)
     for attempt in range(2):
         try:
-            cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.I)
+            cleaned = _extract_json_object(raw)
             value = schema.model_validate_json(cleaned)
             if validate:
                 validate(value)
@@ -112,7 +147,10 @@ async def _validated[T: BaseModel](
                 {"role": "assistant", "content": raw[:12000]},
                 {
                     "role": "user",
-                    "content": f"Repair this to match the strict JSON schema. {str(exc)[:500]}",
+                    "content": (
+                        "Repair this to match the strict JSON schema. "
+                        f"Validation error: {str(exc)[:500]}. Schema: {schema_json}"
+                    ),
                 },
             ]
             raw = await _collect(llm, messages)

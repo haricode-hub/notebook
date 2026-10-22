@@ -5,6 +5,8 @@ Global context for every session. Read this first, then read the level file you 
 ## Project
 "OpenNotebook Studio": a source-grounded research workspace (NotebookLM clone). Users add sources, chat with an AI that answers ONLY from those sources with clickable citations, and generate study artifacts (guides, mind maps, quizzes, audio overview).
 
+
+
 ## Target load and philosophy
 - Target: about 5 concurrent users on one small server (2-4 vCPU, 8 GB RAM recommended because of the local embedding model; no GPU needed when using cloud LLMs).
 - Build the simplest correct thing, behind interfaces, so scaling later is a config change, not a rewrite.
@@ -117,6 +119,9 @@ docker-compose.yml, Makefile, .env.example
 7. Use Context7 MCP for current docs (Next.js, Better Auth, shadcn, FastAPI, LiteLLM/OpenRouter, pgvector, sentence-transformers, EmbeddingGemma 2); use Playwright MCP to verify the UI yourself.
 8. Next.js: Server Components by default; `"use client"` only where needed (chat, viewer, editors). Browser-only libs (react-pdf, React Flow, Tiptap) load via `next/dynamic` with `ssr: false` when required.
 9. If blocked 3 attempts on the same problem: log it, pick the simplest workaround, write an ADR, move on.
+
+""
+All UI work must follow DESIGN.md exactly. Read it before touching any component. Never hard-code colors, sizes, radii or shadows.""
 
 ## Session protocol
 1. Read `.agents/PLAN.md`, `.agents/TASKS.md`, last 40 lines of `.agents/PROGRESS.md`, and the current level file.

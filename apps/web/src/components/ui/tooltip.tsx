@@ -1,0 +1,3 @@
+import type { ReactNode } from "react";
+import { cn } from "@/lib/cn";
+export function Tooltip({ label, children, side = "bottom", className }: { label: string; children: ReactNode; side?: "top" | "bottom"; className?: string }) { return <span className={cn("group/tooltip relative inline-flex", className)}>{children}<span role="tooltip" className={cn("pointer-events-none absolute left-1/2 z-50 hidden -translate-x-1/2 whitespace-nowrap rounded-xs bg-fg px-2 py-1 text-caption text-surface shadow-md group-hover/tooltip:block group-focus-within/tooltip:block", side === "bottom" ? "top-full mt-2" : "bottom-full mb-2")}>{label}</span></span>; }

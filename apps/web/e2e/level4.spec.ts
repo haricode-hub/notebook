@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 
 test("citation opens and highlights the original PDF and extracted text", async ({ page }) => {
   test.setTimeout(180_000);
@@ -10,16 +11,12 @@ test("citation opens and highlights the original PDF and extracted text", async 
   const pdf = await page.pdf({ format: "A4" });
 
   await page.goto("/sign-up");
-  await page.getByLabel("Name").fill("Level Four Tester");
-  await page.getByLabel("Email").fill(`level4-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Level Four Tester", email: `level4-${Date.now()}@example.test`, password: "strong-test-password-123" });
   await page.getByLabel("New notebook title").fill("PDF citations");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "PDF citations" }).click();
   await page.getByRole("button", { name: "Add source" }).click();
-  await page.getByLabel("PDF, DOCX, PPTX, TXT or MD").setInputFiles({ name: "launch.pdf", mimeType: "application/pdf", buffer: pdf });
+  await page.getByLabel(/PDF, DOCX/).setInputFiles({ name: "launch.pdf", mimeType: "application/pdf", buffer: pdf });
   await page.getByRole("button", { name: "Add", exact: true }).click();
   const card = page.locator("li:visible").filter({ hasText: "launch.pdf" });
   await expect(card.getByText(/^ready$/i)).toBeVisible({ timeout: 90_000 });
@@ -89,7 +86,7 @@ test("citation opens and highlights the original PDF and extracted text", async 
   const largePdf = await documentPage.pdf({ format: "A4" });
   await documentPage.close();
   await page.getByRole("button", { name: "Add source" }).click();
-  await page.getByLabel("PDF, DOCX, PPTX, TXT or MD").setInputFiles({ name: "large.pdf", mimeType: "application/pdf", buffer: largePdf });
+  await page.getByLabel(/PDF, DOCX/).setInputFiles({ name: "large.pdf", mimeType: "application/pdf", buffer: largePdf });
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await page.locator("li:visible").filter({ hasText: "large.pdf" }).getByRole("button", { name: "Open" }).click();
   const largeViewer = page.getByRole("dialog", { name: "Source viewer" });

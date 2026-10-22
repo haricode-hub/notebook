@@ -8,6 +8,7 @@ test("Tailwind dark utilities follow the app's manual theme class", async ({ pag
     const surface = document.createElement("div");
     surface.className = "bg-white dark:bg-slate-950";
     document.body.append(surface);
+    document.documentElement.classList.remove("dark");
     const light = getComputedStyle(surface).backgroundColor;
     document.documentElement.classList.add("dark");
     const dark = getComputedStyle(surface).backgroundColor;

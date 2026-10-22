@@ -4,7 +4,7 @@ import logging
 import re
 import weakref
 from collections.abc import AsyncIterator
-from typing import Protocol
+from typing import Any, Protocol
 
 import litellm
 
@@ -82,6 +82,17 @@ class LiteLLMProvider:
         self.last_usage: dict[str, int | float] = {}
 
     async def stream(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        async for piece in self._stream(messages, json_mode=False):
+            yield piece
+
+    async def stream_json(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        """Ask OpenAI-compatible providers for syntactically valid JSON output."""
+        async for piece in self._stream(messages, json_mode=True):
+            yield piece
+
+    async def _stream(
+        self, messages: list[dict[str, str]], *, json_mode: bool
+    ) -> AsyncIterator[str]:
         if not self.settings.default_chat_model:
             raise ValueError("DEFAULT_CHAT_MODEL is required for live LLM calls")
         models = [self.settings.default_chat_model]
@@ -106,7 +117,7 @@ class LiteLLMProvider:
                 for attempt in range(3 if index == 0 else 1):
                     emitted = False
                     try:
-                        response = await litellm.acompletion(
+                        request: dict[str, Any] = dict(
                             model=model,
                             messages=messages,
                             api_key=keys.get(self.settings.llm_provider) or None,
@@ -123,6 +134,32 @@ class LiteLLMProvider:
                             stream=True,
                             timeout=60,
                         )
+                        if json_mode:
+                            request["response_format"] = {"type": "json_object"}
+                        try:
+                            response = await litellm.acompletion(**request)
+                        except Exception as exc:
+                            error_text = str(exc).casefold()
+                            unsupported_json_mode = any(
+                                word in error_text
+                                for word in ("response_format", "json_object", "json mode")
+                            ) and any(
+                                word in error_text
+                                for word in ("unsupported", "not support", "invalid", "unknown")
+                            )
+                            no_compatible_json_endpoint = (
+                                "no endpoints found" in error_text
+                                and "filter by parameters" in error_text
+                            )
+                            if not json_mode or not (
+                                unsupported_json_mode or no_compatible_json_endpoint
+                            ):
+                                raise
+                            logger.info(
+                                "llm_json_mode_unavailable model=%s; using prompt mode", model
+                            )
+                            request.pop("response_format", None)
+                            response = await litellm.acompletion(**request)
                         try:
                             async for part in response:
                                 content = part.choices[0].delta.content
@@ -151,6 +188,8 @@ class LiteLLMProvider:
                     except Exception as exc:
                         last_error = exc
                         if emitted:
+                            raise
+                        if getattr(exc, "status_code", None) in {400, 401, 403, 404, 422}:
                             raise
                         if attempt < (2 if index == 0 else 0):
                             await asyncio.sleep(2**attempt)

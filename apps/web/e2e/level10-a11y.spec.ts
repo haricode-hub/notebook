@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
+import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 
 type AxeResult = { violations: { id: string; impact: string | null; help: string }[] };
 
@@ -25,11 +26,7 @@ test("axe reports no critical accessibility issues in a signed-in workspace", as
   await page.goto("/notebooks");
   await expect(page).toHaveURL(/\/sign-in\?next=/);
   await page.getByRole("link", { name: "Create an account" }).click();
-  await page.getByLabel("Name").fill("Level 10 Accessibility Check");
-  await page.getByLabel("Email").fill(`level10-a11y-${Date.now()}@example.test`);
-  await page.getByLabel("Password").fill("strong-test-password-123");
-  await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/notebooks$/);
+  await signUpAndVerifyIfConfigured(page, { name: "Level 10 Accessibility Check", email: `level10-a11y-${Date.now()}@example.test`, password: "strong-test-password-123" });
   await page.getByLabel("New notebook title").fill("Accessibility workspace");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Accessibility workspace" }).click();

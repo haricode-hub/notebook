@@ -48,15 +48,16 @@ export default function MindMapView({ root, citations, onOpenCitation, onAskQues
   const selectedCitations = citations.filter((citation) => selected?.source_refs.includes(citation.n));
   const exportMap = async (format: "png" | "svg") => {
     if (!canvas.current) return;
-    const data = format === "png" ? await toPng(canvas.current, { backgroundColor: "#ffffff", pixelRatio: 2 }) : await toSvg(canvas.current, { backgroundColor: "#ffffff" });
+    const backgroundColor = getComputedStyle(document.body).backgroundColor;
+    const data = format === "png" ? await toPng(canvas.current, { backgroundColor, pixelRatio: 2 }) : await toSvg(canvas.current, { backgroundColor });
     const response = await fetch(data);
     download(await response.blob(), `mind-map.${format}`);
   };
   return <section className="space-y-2" aria-label="Mind map">
     <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => void exportMap("png")}>Export PNG</Button><Button size="sm" variant="outline" onClick={() => void exportMap("svg")}>Export SVG</Button></div>
-    <div ref={canvas} className="h-[55vh] min-h-72 w-full rounded border bg-white" data-testid="mindmap-canvas">
+    <div ref={canvas} className="mindmap-canvas-size min-h-72 w-full rounded-md border border-border bg-raised" data-testid="mindmap-canvas">
       <ReactFlow nodes={graph.nodes} edges={graph.edges} fitView minZoom={0.15} maxZoom={2} onNodeClick={(_, node) => setSelected({ ...node.data, id: node.id })}><Background /><Controls /></ReactFlow>
     </div>
-    {selected && <aside className="rounded border p-3" aria-label="Selected mind map node"><h3 className="font-semibold">{selected.label}</h3><p className="my-2 text-sm">{selected.summary}</p><div className="flex flex-wrap gap-2">{selectedCitations.map((citation) => <button key={citation.n} type="button" className="text-xs text-indigo-700 underline" onClick={() => onOpenCitation(citation, citations)}>[S{citation.n}] {citation.source_name}</button>)}</div><div className="mt-2 flex gap-2"><Button size="sm" onClick={() => onAskQuestion(`Explain “${selected.label}” using my sources. ${selected.summary}`)}>Ask about this</Button>{selected.has_children && <Button size="sm" variant="outline" onClick={() => setCollapsed((old) => { const next = new Set(old); if (next.has(selected.id)) next.delete(selected.id); else next.add(selected.id); return next; })}>{selected.collapsed ? "Expand" : "Collapse"}</Button>}</div></aside>}
+    {selected && <aside className="rounded border p-3" aria-label="Selected mind map node"><h3 className="font-semibold">{selected.label}</h3><p className="my-2 text-body">{selected.summary}</p><div className="flex flex-wrap gap-2">{selectedCitations.map((citation) => <button key={citation.n} type="button" className="text-caption text-accent underline" onClick={() => onOpenCitation(citation, citations)}>[S{citation.n}] {citation.source_name}</button>)}</div><div className="mt-2 flex gap-2"><Button size="sm" onClick={() => onAskQuestion(`Explain “${selected.label}” using my sources. ${selected.summary}`)}>Ask about this</Button>{selected.has_children && <Button size="sm" variant="outline" onClick={() => setCollapsed((old) => { const next = new Set(old); if (next.has(selected.id)) next.delete(selected.id); else next.add(selected.id); return next; })}>{selected.collapsed ? "Expand" : "Collapse"}</Button>}</div></aside>}
   </section>;
 }

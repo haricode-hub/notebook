@@ -6,6 +6,8 @@
     "lint": "pnpm --filter web lint",
     "typecheck": "pnpm --filter web typecheck",
     "test": "pnpm --filter web test",
-    "build": "pnpm --filter web build"
+    "build": "pnpm --filter web build",
+    "design:audit": "node scripts/design-audit.mjs",
+    "lint:design": "node scripts/design-audit.mjs"
   }
 }

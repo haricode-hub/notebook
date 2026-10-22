@@ -309,3 +309,11 @@ Answer: use a critically damped default (damping ratio near 1, response around 0
 Implementation mapping: `src/design/springs.ts` uses Motion's duration/bounce form: default 0.35 s with no bounce; sheet 0.3 s with no bounce absent a momentum gesture; move 0.4 s; and bounce 0.2 only when the caller explicitly marks momentum. `src/design/tokens.css` defines light/dark surface, material, typography, spacing, focus, and preference tokens. `motion@14.4.0` is installed and locked. No spring-driven screen transitions are claimed until those components are wired and measured.
 
 Sources: [official apple-design skill](https://github.com/emilkowalski/skills/blob/main/skills/apple-design/SKILL.md), [Next.js 16 Proxy convention](../apps/web/node_modules/next/dist/docs/01-app/01-getting-started/16-proxy.md). The latter confirms the installed app uses `proxy.ts`, not the pre-16 `middleware.ts` convention.
+
+## ADR-022: Studio generators open in the center workspace
+
+**Status:** Implemented locally (2026-10-21); live model generation remains unverified because the local server OpenRouter key is empty.
+
+Follow the user's Studio reference: show the existing recipe registry as compact, two-column dark tiles with a colored category icon and a short description. Selecting a recipe opens its options; after queuing, progress and the interactive result render in the center workspace where chat normally appears. Keep the Studio sidebar available for choosing generators and reopening saved artifacts. Closing the result returns to chat. Reuse the existing recipe schemas, worker jobs, citation renderer, and interactive renderers; do not advertise recipes that are not registered.
+
+The specific design choice is to use colored icons on neutral tiles, which keeps the Studio scannable while retaining the app's flat black-and-charcoal direction. The selected artifact replaces the center chat view temporarily, rather than opening a full-screen modal.

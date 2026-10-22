@@ -33,7 +33,7 @@ describe("source citation highlighting", () => {
       const fact = `FACT-${index}`;
       const start = text.indexOf(fact);
       const html = blocks.map((block) => renderToStaticMarkup(<SourceTextBlock block={block} start={start} end={start + fact.length} />)).join("");
-      expect(html).toContain(`<mark data-citation-highlight="true" class="rounded bg-amber-300 px-0.5 text-slate-950">${fact}</mark>`);
+      expect(html).toContain(`<mark data-citation-highlight="true" class="rounded-xs bg-warning-soft px-0.5 text-fg">${fact}</mark>`);
     }
   });
 
