@@ -10,7 +10,7 @@ from typing import Any
 from arq.connections import RedisSettings
 from arq.cron import cron
 from arq.worker import Retry
-from opennotebook_core.artifacts import generate_artifact
+from opennotebook_core.artifacts import FakeArtifactLLM, generate_artifact
 from opennotebook_core.audio import (
     AudioJobCancelled,
     AudioLLM,
@@ -750,9 +750,17 @@ async def generate_text_artifact(ctx: dict[str, Any], artifact_id: str) -> str:
                 ).all()
             )
             row = await session.get(UserSettings, artifact.user_id)
-            llm, model = ctx.get("artifact_llm") or configured_summary_llm(
-                settings, row, model_override=str(artifact.options_json.get("model_override") or "")
-            )
+            artifact_llm = ctx.get("artifact_llm")
+            if artifact_llm is None and settings.llm_provider == "fake":
+                llm, model = FakeArtifactLLM(), "fake"
+            elif artifact_llm is not None:
+                llm, model = artifact_llm
+            else:
+                llm, model = configured_summary_llm(
+                    settings,
+                    row,
+                    model_override=str(artifact.options_json.get("model_override") or ""),
+                )
             recipe = artifact.recipe
             options = {
                 **artifact.options_json,

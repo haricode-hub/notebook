@@ -28,27 +28,31 @@ test("sign up, create notebook, use workspace, change theme, sign out", async ({
   await page.getByRole("button", { name: "Preferences" }).click();
   await page.getByLabel("Assistant persona").fill("Explain clearly");
   await page.getByRole("button", { name: "Save" }).click();
-  if (await page.locator("html").evaluate((element) => element.classList.contains("dark"))) {
+  if (await page.locator("html").evaluate((element) => element.dataset.theme === "dark")) {
     await page.getByRole("button", { name: "Toggle theme" }).click();
   }
   await page.getByRole("button", { name: "Toggle theme" }).click();
-  await expect(page.locator("html")).toHaveClass(/dark/);
-  await page.route("**/settings/models?provider=*", async (route) => {
+  await expect.poll(() => page.locator("html").getAttribute("data-theme")).toBe("dark");
+  await page.route("**/settings/models**", async (route) => {
     const provider = new URL(route.request().url()).searchParams.get("provider");
     await route.fulfill({ json: { models: provider === "gemini"
       ? [{ id: "gemini-live", name: "Gemini Live" }]
       : [{ id: "vendor/alpha", name: "Alpha" }, { id: "vendor/beta", name: "Beta" }] } });
   });
   await page.getByRole("link", { name: "Settings" }).click();
-  await expect(page.getByRole("heading", { name: "Model settings" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await page.getByLabel("Search chat model").fill("Alpha");
-  await expect(page.getByLabel("Chat model", { exact: true }).getByRole("option", { name: /Alpha/ })).toBeAttached();
-  await expect(page.getByLabel("Chat model", { exact: true }).getByRole("option", { name: /Beta/ })).toHaveCount(0);
-  await page.getByLabel("LLM provider").selectOption("gemini");
-  await page.getByLabel("Chat model", { exact: true }).selectOption("gemini-live");
+  await page.getByLabel("Chat model", { exact: true }).click();
+  await expect(page.getByRole("option", { name: /Alpha/ })).toBeVisible();
+  await expect(page.getByRole("option", { name: /Beta/ })).toHaveCount(0);
+  await page.getByRole("option", { name: /Alpha/ }).click();
+  await page.getByLabel("LLM provider").click();
+  await page.getByRole("option", { name: "Gemini", exact: true }).click();
+  await page.getByLabel("Chat model", { exact: true }).click();
+  await page.getByRole("option", { name: /Gemini Live/ }).click();
   await page.getByRole("button", { name: "Save settings" }).click();
   await page.reload();
-  await expect(page.getByLabel("LLM provider")).toHaveValue("gemini");
+  await expect(page.getByLabel("LLM provider")).toContainText("Gemini");
   await page.getByRole("link", { name: "OpenNotebook Studio" }).click();
   await page.getByRole("link", { name: "My research" }).click();
   await page.setViewportSize({ width: 390, height: 844 });

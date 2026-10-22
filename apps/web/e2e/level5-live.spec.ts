@@ -15,14 +15,14 @@ test("live OpenRouter guide appears within 60 seconds of upload", async ({ page 
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Live guide timing" }).click();
 
-  await page.getByRole("button", { name: "Add source" }).click();
+  await page.getByRole("button", { name: "Add source" }).first().click();
   await page.getByLabel(/PDF, DOCX/).setInputFiles({
     name: "timed-source.txt",
     mimeType: "text/plain",
     buffer: Buffer.from("The archive opens on Tuesday. Its index records 430 pamphlets and five early maps. The earliest map was drawn in 1894."),
   });
   const started = Date.now();
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("dialog", { name: "Add sources" }).getByRole("button", { name: "Add source", exact: true }).click();
   const card = page.getByRole("region", { name: "Sources" }).filter({ visible: true }).locator("li").filter({ hasText: "timed-source.txt" });
   await expect(card.getByText(/^ready$/i)).toBeVisible({ timeout: 60_000 });
   await card.getByRole("button", { name: "Guide" }).click();

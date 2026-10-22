@@ -83,12 +83,12 @@
   --text-tertiary: #726d64;
   --text-disabled: #8c867d;
   --text-on-accent: #ffffff;
-  --accent: #c2573a;
+  --accent: #bd4e32;
   --accent-hover: #a9492f;
   --accent-active: #923f28;
   --accent-soft: #f6e6de;
   --accent-soft-text: #8f3e27;
-  --focus-ring: #c2573a66;
+  --focus-ring: #bd4e3266;
   --success: #3f7a55;
   --success-soft: #e3efe6;
   --warning: #8c590e;
@@ -190,7 +190,7 @@ button, [role="button"] { touch-action: manipulation; }
 }
 .ui-icon-button.header-icon > svg { width: 1.125rem; height: 1.125rem; }
 .pressable { transform-origin: center; transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
-.pressable:not(:disabled):active { transform: scale(0.98); }
+.pressable:not(:disabled):active { transform: scale(0.98); transition-duration: 0ms; }
 .reading-column { width: min(100%, var(--reading-width)); margin-inline: auto; }
 .chat-empty { min-height: 50vh; }
 .serif-title { font-family: var(--font-serif); font-weight: 500; }

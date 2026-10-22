@@ -31,10 +31,10 @@ test("twenty evaluation passages resolve in PDF and Text views", async ({ page }
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Evaluation citations" }).click();
   await expect(page).toHaveURL(/\/workspace\/[^/]+$/);
-  await page.getByRole("button", { name: "Add source" }).click();
+  await page.getByRole("button", { name: "Add source" }).first().click();
   await page.getByLabel(/PDF, DOCX/).setInputFiles({ name: "eval.pdf", mimeType: "application/pdf", buffer: pdf });
   const upload = page.waitForResponse((response) => response.url().endsWith("/sources/upload") && response.status() === 201);
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("dialog", { name: "Add sources" }).getByRole("button", { name: "Add source", exact: true }).click();
   const sourceId = ((await (await upload).json()) as { id: string }).id;
 
   const text = passages.join("\n\n");

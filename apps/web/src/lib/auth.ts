@@ -1,9 +1,9 @@
 import { betterAuth } from "better-auth";
 import { jwt } from "better-auth/plugins";
 import { Pool } from "pg";
+import { accountEmailDeliveryConfigured } from "@/lib/account-email-config";
 
 const publicOrigin = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-const smtpConfigured = Boolean(process.env.SMTP_HOST);
 
 async function deliverAccountEmail(input: { to: string; subject: string; text: string; html?: string }) {
   const token = process.env.ACCOUNT_INTERNAL_TOKEN;
@@ -38,7 +38,7 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: smtpConfigured,
+    requireEmailVerification: accountEmailDeliveryConfigured,
     sendResetPassword: async ({ user, url }) => deliverAccountEmail({
       to: user.email,
       subject: "Reset your OpenNotebook Studio password",
@@ -48,7 +48,7 @@ export const auth = betterAuth({
     revokeSessionsOnPasswordReset: true,
   },
   emailVerification: {
-    sendOnSignUp: smtpConfigured,
+    sendOnSignUp: accountEmailDeliveryConfigured,
     sendOnSignIn: false,
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => deliverAccountEmail({

@@ -15,9 +15,9 @@ test("citation opens and highlights the original PDF and extracted text", async 
   await page.getByLabel("New notebook title").fill("PDF citations");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "PDF citations" }).click();
-  await page.getByRole("button", { name: "Add source" }).click();
+  await page.getByRole("button", { name: "Add source" }).first().click();
   await page.getByLabel(/PDF, DOCX/).setInputFiles({ name: "launch.pdf", mimeType: "application/pdf", buffer: pdf });
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("dialog", { name: "Add sources" }).getByRole("button", { name: "Add source", exact: true }).click();
   const card = page.locator("li:visible").filter({ hasText: "launch.pdf" });
   await expect(card.getByText(/^ready$/i)).toBeVisible({ timeout: 90_000 });
 
@@ -85,9 +85,9 @@ test("citation opens and highlights the original PDF and extracted text", async 
   await documentPage.setContent(`<html><body>${Array.from({ length: 300 }, (_, index) => `<section style="${index === 299 ? "" : "break-after:page"}">Page ${index + 1}</section>`).join("")}</body></html>`);
   const largePdf = await documentPage.pdf({ format: "A4" });
   await documentPage.close();
-  await page.getByRole("button", { name: "Add source" }).click();
+  await page.getByRole("button", { name: "Add source" }).first().click();
   await page.getByLabel(/PDF, DOCX/).setInputFiles({ name: "large.pdf", mimeType: "application/pdf", buffer: largePdf });
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("dialog", { name: "Add sources" }).getByRole("button", { name: "Add source", exact: true }).click();
   await page.locator("li:visible").filter({ hasText: "large.pdf" }).getByRole("button", { name: "Open" }).click();
   const largeViewer = page.getByRole("dialog", { name: "Source viewer" });
   await expect(largeViewer.getByLabel("PDF page count")).toContainText("300", { timeout: 30_000 });

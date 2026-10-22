@@ -63,7 +63,7 @@ try {
   await page.getByRole("link", { name: "Research notebook" }).click();
   const notebookId = new URL(page.url()).pathname.split("/").at(-1);
   if (!notebookId) throw new Error("Could not read notebook id from workspace URL");
-  await page.getByRole("button", { name: "Open command menu" }).click();
+  await page.getByRole("button", { name: "Commands" }).click();
   await expect(page.getByRole("dialog", { name: "Go to" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Go to" })).toHaveCount(0);

@@ -270,5 +270,24 @@ async def test_artifact_api_worker_selection_failure_retry_and_exports(
         assert pdf.content.startswith(b"%PDF-")
         opened = Document(BytesIO(docx.content))
         assert "BLUEBIRD-42" in "\n".join(paragraph.text for paragraph in opened.paragraphs)
+        default_fake = await client.post(
+            path,
+            headers=owner,
+            json={"recipe": "study_guide", "source_ids": ["evidence"]},
+        )
+        assert default_fake.status_code == 202
+        default_fake_id = default_fake.json()["id"]
+        await generate_text_artifact(
+            {
+                "settings": settings,
+                "session_factory": app.state.session_factory,
+                "redis": queue,
+            },
+            default_fake_id,
+        )
+        default_fake_output = (await client.get(f"{path}/{default_fake_id}", headers=owner)).json()
+        assert default_fake_output["status"] == "ready"
+        assert default_fake_output["model_name"] == "fake"
+        assert "BLUEBIRD-42" in default_fake_output["output"]["sections"][0]["markdown"]
         assert (await client.delete(f"{path}/{artifact_id}", headers=owner)).status_code == 204
         assert (await client.get(f"{path}/{artifact_id}", headers=owner)).status_code == 404

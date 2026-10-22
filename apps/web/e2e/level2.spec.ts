@@ -15,9 +15,9 @@ test("upload a PDF and watch it become ready", async ({ page }) => {
   await pdfPage.setContent("<h1>Research notes</h1><p>Grounded answers cite their original sources.</p>");
   const pdf = await pdfPage.pdf();
   await pdfPage.close();
-  await page.getByRole("button", { name: "Add source" }).click();
+  await page.getByRole("button", { name: "Add source" }).first().click();
   await page.getByLabel(/PDF, DOCX/).setInputFiles({ name: "research.pdf", mimeType: "application/pdf", buffer: pdf });
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("dialog", { name: "Add sources" }).getByRole("button", { name: "Add source", exact: true }).click();
   const card = page.locator("li:visible").filter({ hasText: "research.pdf" });
   await expect(card).toBeVisible();
   await expect(card.getByText(/^ready$/i)).toBeVisible({ timeout: 60_000 });

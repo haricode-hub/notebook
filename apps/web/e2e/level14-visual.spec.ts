@@ -12,7 +12,7 @@ for (const viewport of [{ name: "1440", width: 1440, height: 1000 }, { name: "39
       await page.emulateMedia({ colorScheme: theme });
       await page.goto("/sign-in");
       await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
-      await page.locator("html").evaluate((html, mode) => html.classList.toggle("dark", mode === "dark"), theme);
+      await page.locator("html").evaluate((html, mode) => { html.dataset.theme = mode; }, theme);
       const target = path.join(snapshots, stage, `${viewport.name}-${theme}.png`);
       await mkdir(path.dirname(target), { recursive: true });
       await page.screenshot({ path: target, fullPage: true });

@@ -15,11 +15,11 @@ test("guides, cited notes, conversion, and overview questions work together", as
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Guide notebook" }).click();
 
-  await page.getByRole("button", { name: "Add source" }).click();
+  await page.getByRole("button", { name: "Add source" }).first().click();
   await page.getByLabel(/PDF, DOCX/).setInputFiles({
     name: "launch.txt", mimeType: "text/plain", buffer: Buffer.from("The launch code is BLUEBIRD-42. The launch takes place on Tuesday.")
   });
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("dialog", { name: "Add sources" }).getByRole("button", { name: "Add source", exact: true }).click();
   const sources = page.getByRole("region", { name: "Sources" }).filter({ visible: true });
   const card = sources.locator("li").filter({ hasText: "launch.txt" });
   await expect(card.getByText(/^ready$/i)).toBeVisible({ timeout: 60_000 });
@@ -37,7 +37,7 @@ test("guides, cited notes, conversion, and overview questions work together", as
   await expect(chat.getByRole("button", { name: "Source 1: launch.txt" })).toBeVisible({ timeout: 30_000 });
   await chat.getByRole("button", { name: "Save to note" }).click();
   const studio = page.getByRole("region", { name: "Studio" }).filter({ visible: true });
-  const savedNote = studio.locator("ul").last().locator("li").first();
+  const savedNote = studio.getByRole("list", { name: "Notes" }).getByRole("listitem").first();
   await expect(savedNote).toBeVisible();
   await savedNote.getByRole("button").click();
   await studio.getByRole("button", { name: "S1: launch.txt" }).click();

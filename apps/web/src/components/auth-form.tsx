@@ -87,7 +87,7 @@ export function AuthForm({ mode, socials, verificationRequired = false }: { mode
         {errors.confirmPassword && <p className="text-small text-danger" role="alert">{errors.confirmPassword.message}</p>}
       </div>}
       {serverError && <p className="rounded-sm bg-danger-soft p-3 text-body text-danger" role="alert">{serverError}</p>}
-      <Button type="submit" disabled={isSubmitting} className="w-full">
+      <Button type="submit" disabled={isSubmitting} className="h-11 w-full">
         {isSubmitting ? "Working…" : signUp ? "Create account" : "Sign in"}
       </Button>
       {!signUp && <div className="flex flex-wrap justify-center gap-4 text-body">

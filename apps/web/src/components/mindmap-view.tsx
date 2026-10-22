@@ -36,6 +36,20 @@ function download(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function dataUrlToBlob(dataUrl: string) {
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) throw new Error("The mind map export returned invalid data.");
+  const header = dataUrl.slice(0, comma);
+  const payload = dataUrl.slice(comma + 1);
+  const mimeType = header.match(/^data:([^;,]+)/)?.[1] ?? "application/octet-stream";
+  if (header.includes(";base64")) {
+    const binary = atob(payload);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    return new Blob([bytes], { type: mimeType });
+  }
+  return new Blob([decodeURIComponent(payload)], { type: mimeType });
+}
+
 export default function MindMapView({ root, citations, onOpenCitation, onAskQuestion }: {
   root: TreeNode; citations: ChatCitation[];
   onOpenCitation: (citation: ChatCitation, citations: ChatCitation[]) => void;
@@ -44,17 +58,23 @@ export default function MindMapView({ root, citations, onOpenCitation, onAskQues
   const canvas = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<(FlowNodeData & { id: string }) | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const [exportError, setExportError] = useState<string | null>(null);
   const graph = useMemo(() => flatten(root, citations, collapsed), [root, citations, collapsed]);
   const selectedCitations = citations.filter((citation) => selected?.source_refs.includes(citation.n));
   const exportMap = async (format: "png" | "svg") => {
     if (!canvas.current) return;
-    const backgroundColor = getComputedStyle(document.body).backgroundColor;
-    const data = format === "png" ? await toPng(canvas.current, { backgroundColor, pixelRatio: 2 }) : await toSvg(canvas.current, { backgroundColor });
-    const response = await fetch(data);
-    download(await response.blob(), `mind-map.${format}`);
+    setExportError(null);
+    try {
+      const backgroundColor = getComputedStyle(document.body).backgroundColor;
+      const data = format === "png" ? await toPng(canvas.current, { backgroundColor, pixelRatio: 2 }) : await toSvg(canvas.current, { backgroundColor });
+      download(dataUrlToBlob(data), `mind-map.${format}`);
+    } catch {
+      setExportError(`Could not export the mind map as ${format.toUpperCase()}. Try again after the map finishes rendering.`);
+    }
   };
   return <section className="space-y-2" aria-label="Mind map">
     <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => void exportMap("png")}>Export PNG</Button><Button size="sm" variant="outline" onClick={() => void exportMap("svg")}>Export SVG</Button></div>
+    {exportError && <p role="alert" className="text-small text-danger">{exportError}</p>}
     <div ref={canvas} className="mindmap-canvas-size min-h-72 w-full rounded-md border border-border bg-raised" data-testid="mindmap-canvas">
       <ReactFlow nodes={graph.nodes} edges={graph.edges} fitView minZoom={0.15} maxZoom={2} onNodeClick={(_, node) => setSelected({ ...node.data, id: node.id })}><Background /><Controls /></ReactFlow>
     </div>

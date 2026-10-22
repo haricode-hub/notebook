@@ -13,11 +13,11 @@ test("grounded chat cites an uploaded document and respects source selection", a
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Launch notes" }).click();
 
-  await page.getByRole("button", { name: "Add source" }).click();
+  await page.getByRole("button", { name: "Add source" }).first().click();
   await page.getByLabel(/PDF, DOCX/).setInputFiles({
     name: "launch.txt", mimeType: "text/plain", buffer: Buffer.from("The launch code is BLUEBIRD-42.")
   });
-  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("dialog", { name: "Add sources" }).getByRole("button", { name: "Add source", exact: true }).click();
   const card = page.locator("li:visible").filter({ hasText: "launch.txt" });
   await expect(card.getByText(/^ready$/i)).toBeVisible({ timeout: 60_000 });
 
@@ -28,7 +28,7 @@ test("grounded chat cites an uploaded document and respects source selection", a
   await expect(chip).toBeVisible();
   await chip.hover();
   await expect(page.getByRole("note")).toContainText("BLUEBIRD-42");
-  await expect(page.getByLabel("Model fake")).toBeVisible();
+  await expect(page.locator('[aria-label^="Model "]')).toBeVisible();
 
   await page.reload();
   await expect(page.getByRole("button", { name: "Source 1: launch.txt" })).toBeVisible();
@@ -43,8 +43,8 @@ test("grounded chat cites an uploaded document and respects source selection", a
   await expect(page.getByRole("button", { name: "Source 1: launch.txt" })).toHaveCount(1);
 
   await page.getByRole("button", { name: "Clear chat" }).click();
-  await expect(page.getByText("Ask about your sources")).toBeVisible();
+  await expect(page.getByLabel("Ask your sources")).toBeVisible();
   await page.reload();
-  await expect(page.getByText("Ask about your sources")).toBeVisible();
+  await expect(page.getByLabel("Ask your sources")).toBeVisible();
   expect(consoleErrors).toEqual([]);
 });

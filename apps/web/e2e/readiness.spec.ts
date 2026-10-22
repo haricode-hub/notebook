@@ -6,7 +6,7 @@ test("shows healthy API and embed with no console errors", async ({ page }, test
     if (message.type() === "error") errors.push(message.text());
   });
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Make every source count." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Read closely. Ask freely. Keep the evidence in view." })).toBeVisible();
   await expect(page.getByLabel("API ok")).toBeVisible();
   await expect(page.getByLabel("Embeddings ok")).toBeVisible();
   await expect(page.getByRole("link", { name: "Refresh" })).toBeVisible();

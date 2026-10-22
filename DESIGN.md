@@ -59,12 +59,12 @@ All colors are CSS variables in `app/globals.css`, exposed to Tailwind (see §13
 | `--text-tertiary` | `#8A8478` | Placeholders, timestamps, disabled-ish hints |
 | `--text-disabled` | `#B4AEA3` | Disabled text |
 | `--text-on-accent` | `#FFFFFF` | Text on accent fills |
-| `--accent` | `#C2573A` | Primary action, current selection, links |
+| `--accent` | `#BD4E32` | Primary action, current selection, links |
 | `--accent-hover` | `#A9492F` | Hover on accent |
 | `--accent-active` | `#923F28` | Pressed on accent |
 | `--accent-soft` | `#F6E6DE` | Accent tint backgrounds (selected chip, citation hover) |
 | `--accent-soft-text` | `#8F3E27` | Text on `--accent-soft` |
-| `--focus-ring` | `#C2573A66` | 2px focus ring (40% accent) |
+| `--focus-ring` | `#BD4E3266` | 2px focus ring (40% accent) |
 
 ### 2.2 Dark theme (`[data-theme="dark"]` and `prefers-color-scheme: dark` unless user forced light)
 

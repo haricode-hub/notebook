@@ -89,7 +89,7 @@ export default function PdfOriginal({ content, citation, onShowText }: {
           {virtualizer.getVirtualItems().map((item) => {
             const page = item.index + 1;
             return <div key={item.key} data-index={item.index} data-pdf-page={page} ref={virtualizer.measureElement} className="absolute left-0 top-0 flex w-full justify-center pb-4" style={{ transform: `translateY(${item.start}px)` }}>
-              <div className="bg-raised shadow-sm"><Page pageNumber={page} width={Math.max(300, Math.min(width - 32, 790) * zoom)} renderAnnotationLayer renderTextLayer onGetTextSuccess={({ items }) => onText(page, items.map((item) => "str" in item ? item.str : ""))} customTextRenderer={({ str, itemIndex }) => matches[page]?.has(itemIndex) ? `<mark data-citation-highlight class="bg-warning-soft text-fg">${escapeHtml(str)}</mark>` : escapeHtml(str)} /></div>
+              <div className="bg-raised shadow-sm"><Page key={`${page}:${citation?.chunk_id ?? citation?.n ?? "none"}:${pageItems[page]?.length ?? 0}`} pageNumber={page} width={Math.max(300, Math.min(width - 32, 790) * zoom)} renderAnnotationLayer renderTextLayer onGetTextSuccess={({ items }) => onText(page, items.map((item) => "str" in item ? item.str : ""))} customTextRenderer={({ str, itemIndex }) => matches[page]?.has(itemIndex) ? `<mark data-citation-highlight class="bg-warning-soft text-fg">${escapeHtml(str)}</mark>` : escapeHtml(str)} /></div>
             </div>;
           })}
         </div>

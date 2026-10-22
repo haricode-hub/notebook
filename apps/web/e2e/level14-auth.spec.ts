@@ -22,7 +22,7 @@ test("forgot password validates email and gives an account-neutral result", asyn
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ status: true }) });
   });
   await page.getByRole("button", { name: "Send reset link" }).click();
-  await expect(page.getByRole("status")).toContainText("If an account can receive email");
+  await expect(page.getByRole("status")).toContainText("If the account can receive email");
   await expect(page.getByRole("link", { name: "Back to sign in" })).toBeVisible();
 });
 
@@ -66,6 +66,8 @@ test("email verification, sign-in, and password reset work through Mailpit", asy
   await page.getByLabel("Confirm password").fill("initial-test-password-123");
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page.getByRole("status")).toContainText("Check your email");
+  await page.goto("/notebooks");
+  await expect(page).toHaveURL(/\/sign-in/);
   const verificationLink = await readLatestMailLink(email, "verify");
   await page.goto(verificationLink);
   await page.goto("/notebooks");
@@ -90,7 +92,7 @@ test("email verification, sign-in, and password reset work through Mailpit", asy
   await page.mouse.move(dividerBefore!.x + 150, dividerBefore!.y + 100, { steps: 2 });
   await page.mouse.up();
   const workspaceId = new URL(page.url()).pathname.split("/").at(-1);
-  const savedLayout = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "null"), `open-notebook:workspace-layout:${workspaceId}`) as Record<string, number> | null;
+  const savedLayout = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "null"), `open-notebook:workspace-layout:v3:${workspaceId}`) as Record<string, number> | null;
   expect(savedLayout).toBeTruthy();
   expect(savedLayout!.sources + savedLayout!.chat + savedLayout!.studio).toBeCloseTo(100);
   const dividerAfter = await sourceDivider.boundingBox();
@@ -103,26 +105,26 @@ test("email verification, sign-in, and password reset work through Mailpit", asy
 
   const workspaceScreenshots = path.resolve(process.cwd(), "../../docs/levels/level14/screenshots/after-pass8");
   await mkdir(workspaceScreenshots, { recursive: true });
-  if (await page.locator("html").evaluate((element) => element.classList.contains("dark"))) {
+  if (await page.locator("html").evaluate((element) => element.dataset.theme === "dark")) {
     await page.getByRole("button", { name: "Toggle theme" }).click();
   }
-  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.screenshot({ path: path.join(workspaceScreenshots, "workspace-1440-light.png"), fullPage: true });
   await page.getByRole("button", { name: "Toggle theme" }).click();
-  await expect(page.locator("html")).toHaveClass(/dark/);
-  expect(await page.locator("header").evaluate((header) => getComputedStyle(header).backgroundColor)).not.toBe("rgb(255, 255, 255)");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect(await page.getByRole("banner").evaluate((header) => getComputedStyle(header).backgroundColor)).not.toBe("rgb(255, 255, 255)");
   await page.screenshot({ path: path.join(workspaceScreenshots, "workspace-1440-dark.png"), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Toggle theme" }).click();
   await page.reload();
-  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.getByRole("tablist", { name: "Workspace panels" }).getByRole("tab", { name: "Sources" })).toBeVisible();
   await expectWcagAxePass(page);
   await page.screenshot({ path: path.join(workspaceScreenshots, "workspace-390-light.png"), fullPage: true });
   await page.getByRole("button", { name: "Toggle theme" }).click();
   await page.reload();
-  await expect(page.locator("html")).toHaveClass(/dark/);
-  expect(await page.locator("header").evaluate((header) => getComputedStyle(header).backgroundColor)).not.toBe("rgb(255, 255, 255)");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect(await page.getByRole("banner").evaluate((header) => getComputedStyle(header).backgroundColor)).not.toBe("rgb(255, 255, 255)");
   await page.screenshot({ path: path.join(workspaceScreenshots, "workspace-390-dark.png"), fullPage: true });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole("button", { name: "Toggle theme" }).click();
@@ -131,7 +133,7 @@ test("email verification, sign-in, and password reset work through Mailpit", asy
   await page.goto("/forgot-password");
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Send reset link" }).click();
-  await expect(page.getByRole("status")).toContainText("If an account can receive email");
+  await expect(page.getByRole("status")).toContainText("If the account can receive email");
   const resetLink = await readLatestMailLink(email, "reset");
   await page.goto(resetLink);
   await page.getByLabel("New password", { exact: true }).fill("updated-test-password-456");
