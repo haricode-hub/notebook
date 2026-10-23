@@ -29,6 +29,15 @@ try {
     if (/\/sources$/.test(pathname)) void response.json().then((data) => { if (Array.isArray(data)) captured.sources = data; }).catch(() => {});
     if (/\/sources\/[^/]+\/content$/.test(pathname)) void response.json().then((data) => { captured.content = data; }).catch(() => {});
   });
+  const existingTestEmail = process.env.E2E_EXISTING_TEST_EMAIL;
+  if (existingTestEmail) {
+    if (!existingTestEmail.endsWith("@example.test")) throw new Error("Existing account must be a synthetic test account");
+    await page.goto(`${baseURL}/sign-in`);
+    await page.getByLabel("Email").fill(existingTestEmail);
+    await page.getByLabel("Password", { exact: true }).fill(password);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page).toHaveURL(/\/notebooks$/);
+  } else {
   await page.goto(`${baseURL}/sign-up`);
   await page.getByLabel("Name").fill("Researcher");
   await page.getByLabel("Email").fill(email);
@@ -58,6 +67,8 @@ try {
     }
   }
 
+  }
+  await page.getByRole("button", { name: "New notebook", exact: true }).click();
   await page.getByLabel("New notebook title").fill("Research notebook");
   await page.getByRole("button", { name: "Create", exact: true }).click();
   await page.getByRole("link", { name: "Research notebook" }).click();
@@ -90,6 +101,8 @@ try {
     for (const theme of ["light", "dark"]) {
       await page.evaluate((value) => { localStorage.setItem("theme", value); document.documentElement.setAttribute("data-theme", value); }, theme);
       if (viewport.width < 768) await page.getByRole("tablist", { name: "Workspace panels" }).getByRole("tab", { name: "Chat" }).click();
+      await expect(page.getByRole("heading", { name: "Turn your sources into understanding." })).toBeVisible();
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await page.screenshot({ path: path.join(output, `workspace-${viewport.label}-${theme}.png`), fullPage: true });
     }
   }
@@ -115,7 +128,7 @@ try {
       const clearChat = page.getByRole("button", { name: "Clear chat" });
       if (await clearChat.isEnabled()) {
         await Promise.all([page.waitForResponse((response) => response.request().method() === "DELETE" && response.url().includes("/chat")), clearChat.click()]);
-        await expect(page.getByText("Start with the evidence.", { exact: true })).toBeVisible();
+        await expect(page.getByText("Turn your sources into understanding.", { exact: true })).toBeVisible();
         await page.waitForTimeout(5_000);
       }
       await page.getByLabel("Ask your sources").fill("What does the note say?");
@@ -149,10 +162,10 @@ try {
       await settingsPage.close();
     }
   }
-  await page.getByLabel("Choose sources for chat").click();
+  await page.locator("details > summary").click();
   await expect(page.getByText("Sources used in chat")).toBeVisible();
   await expect(page.locator("details").filter({ hasText: "Sources used in chat" }).getByText("research-notes.txt", { exact: true })).toBeVisible();
-  await page.getByLabel("Choose sources for chat").click();
+  await page.locator("details > summary").click();
   await page.getByRole("button", { name: "Preferences", exact: true }).click();
   const preferences = page.getByRole("dialog", { name: "Notebook preferences" });
   await expect(preferences.getByLabel("Assistant persona")).toBeVisible();

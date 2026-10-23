@@ -2,17 +2,17 @@
 
 > Single source of truth for all UI. Every screen, component and future feature MUST follow this file.
 > If something is not covered here, extend this file first (see §15), then build.
-> Direction: **warm editorial** — paper-like surfaces, serif headings, calm reading-first layout, one terracotta accent.
-> Influences: Notion (warm minimalism, soft surfaces), Claude (editorial reading, terracotta accent), Linear (precision, density, restraint), Mintlify (long-form readability).
+> Direction: **Research desk** ? neutral paper, deep teal ink, compact controls, and connected source excerpts.
+> Identity: a working research notebook. Use familiar interaction conventions without reproducing another assistant?s palette or welcome screen.
 
 ---
 
 ## 0. Design principles (read before every UI task)
 
 1. **Content is the interface.** Sources, notes and answers are the hero. Chrome (nav, toolbars, borders) stays quiet.
-2. **One accent, used sparingly.** Terracotta marks the single most important action or the current selection — never decoration.
+2. **One accent, used sparingly.** Teal marks the single most important action or the current selection — never decoration.
 3. **Hierarchy through type and space, not boxes.** Prefer whitespace and font weight over borders, shadows and background fills.
-4. **Warm, not beige.** Neutrals are slightly warm. Never pure `#FFFFFF` canvas or pure `#000000` text.
+4. **Paper, not beige.** Neutrals have a subtle green-grey cast. Never pure `#FFFFFF` canvas or pure `#000000` text.
 5. **Quiet motion.** Motion confirms an action; it never performs.
 6. **Calm density.** Tool-like information density (Linear) with reading comfort (Notion). Nothing cramped, nothing floaty.
 7. **Every pixel is a token.** No hard-coded hex, px, radius or shadow in components. Only tokens from this file.
@@ -45,51 +45,51 @@ All colors are CSS variables in `app/globals.css`, exposed to Tailwind (see §13
 
 | Token | Hex | Role |
 |---|---|---|
-| `--bg-canvas` | `#F7F5F0` | App background (paper) |
-| `--bg-surface` | `#FDFCF9` | Panels, cards, chat area |
+| `--bg-canvas` | `#F3F5F4` | App background (paper) |
+| `--bg-surface` | `#FCFDFC` | Panels, cards, chat area |
 | `--bg-raised` | `#FFFFFF` | Popovers, menus, dialogs, inputs |
-| `--bg-sunken` | `#F0EDE6` | Wells, code blocks, selected list row base |
-| `--bg-hover` | `#EEEAE2` | Hover fill for rows, ghost buttons |
-| `--bg-active` | `#E7E2D8` | Pressed / active fill |
-| `--border-subtle` | `#ECE8E0` | Dividers inside panels |
-| `--border-default` | `#E2DDD2` | Panel edges, inputs, cards |
-| `--border-strong` | `#CFC8BA` | Hover border on inputs, focused outlines (non-accent) |
-| `--text-primary` | `#1F1D1A` | Headings, body |
-| `--text-secondary` | `#5C574F` | Labels, metadata, secondary body |
-| `--text-tertiary` | `#8A8478` | Placeholders, timestamps, disabled-ish hints |
-| `--text-disabled` | `#B4AEA3` | Disabled text |
+| `--bg-sunken` | `#EDF1EF` | Wells, code blocks, selected list row base |
+| `--bg-hover` | `#E7EDEB` | Hover fill for rows, ghost buttons |
+| `--bg-active` | `#DDE6E2` | Pressed / active fill |
+| `--border-subtle` | `#E4EAE7` | Dividers inside panels |
+| `--border-default` | `#D4DFDA` | Panel edges, inputs, cards |
+| `--border-strong` | `#B7C7BF` | Hover border on inputs, focused outlines (non-accent) |
+| `--text-primary` | `#202B27` | Headings, body |
+| `--text-secondary` | `#52625B` | Labels, metadata, secondary body |
+| `--text-tertiary` | `#66766E` | Placeholders, timestamps, disabled-ish hints |
+| `--text-disabled` | `#84938B` | Disabled text |
 | `--text-on-accent` | `#FFFFFF` | Text on accent fills |
-| `--accent` | `#BA4D31` | Primary action, current selection, links; 4.60:1 against the canvas for WCAG AA text contrast |
-| `--accent-hover` | `#A9492F` | Hover on accent |
-| `--accent-active` | `#923F28` | Pressed on accent |
-| `--accent-soft` | `#F6E6DE` | Accent tint backgrounds (selected chip, citation hover) |
-| `--accent-soft-text` | `#8F3E27` | Text on `--accent-soft` |
-| `--focus-ring` | `#BA4D3166` | 2px focus ring (40% accent) |
+| `--accent` | `#176B5B` | Primary action, current selection, links; WCAG AA text contrast on paper surfaces |
+| `--accent-hover` | `#115747` | Hover on accent |
+| `--accent-active` | `#0D483B` | Pressed on accent |
+| `--accent-soft` | `#E0EFEA` | Accent tint backgrounds (selected chip, citation hover) |
+| `--accent-soft-text` | `#165747` | Text on `--accent-soft` |
+| `--focus-ring` | `#176B5B` | 2px opaque focus ring |
 
 ### 2.2 Dark theme (`[data-theme="dark"]` and `prefers-color-scheme: dark` unless user forced light)
 
 | Token | Hex |
 |---|---|
-| `--bg-canvas` | `#161513` |
-| `--bg-surface` | `#1C1B18` |
-| `--bg-raised` | `#24221F` |
-| `--bg-sunken` | `#121110` |
-| `--bg-hover` | `#2A2824` |
-| `--bg-active` | `#322F2A` |
-| `--border-subtle` | `#262420` |
-| `--border-default` | `#302D28` |
-| `--border-strong` | `#423E37` |
-| `--text-primary` | `#ECE8E1` |
-| `--text-secondary` | `#ABA59B` |
-| `--text-tertiary` | `#7B766D` |
-| `--text-disabled` | `#57534C` |
-| `--text-on-accent` | `#1A0F0B` |
-| `--accent` | `#E08463` |
-| `--accent-hover` | `#EA9676` |
-| `--accent-active` | `#D07254` |
-| `--accent-soft` | `#3A2419` |
-| `--accent-soft-text` | `#F0B49C` |
-| `--focus-ring` | `#E0846380` |
+| `--bg-canvas` | `#151817` |
+| `--bg-surface` | `#1B1F1D` |
+| `--bg-raised` | `#242A27` |
+| `--bg-sunken` | `#111513` |
+| `--bg-hover` | `#2B322E` |
+| `--bg-active` | `#333D37` |
+| `--border-subtle` | `#29322C` |
+| `--border-default` | `#364139` |
+| `--border-strong` | `#4A5A50` |
+| `--text-primary` | `#E8EFEA` |
+| `--text-secondary` | `#ADBCB2` |
+| `--text-tertiary` | `#94A79B` |
+| `--text-disabled` | `#77867D` |
+| `--text-on-accent` | `#10281F` |
+| `--accent` | `#8ACBB6` |
+| `--accent-hover` | `#A3DBC9` |
+| `--accent-active` | `#70B59E` |
+| `--accent-soft` | `#203B31` |
+| `--accent-soft-text` | `#B2E3D2` |
+| `--focus-ring` | `#8ACBB6` |
 
 Dark-mode rules: no pure black; elevation = lighter surface, **not** shadow; reduce image brightness to 90%.
 
@@ -456,5 +456,13 @@ When adding any new feature (e.g. flashcards, quiz, collaboration, new source ty
 6. Never introduce a second accent. Feature differentiation comes from icons and labels, not color.
 
 ## 16. Changelog
-- v1.0 — Initial warm-editorial system (3-pane shell, sources, chat with citations, studio, notes, audio).
-- v1.1 — Darkened the light terracotta accent slightly to meet WCAG AA text contrast on the canvas, measured at 4.60:1.
+- v1.0 — Initial editorial system (3-pane shell, sources, chat with citations, studio, notes, audio).
+- v1.1 — Darkened the light accent slightly to meet WCAG AA text contrast on the canvas, measured at 4.60:1.
+
+### Research desk refinement (2026-10-23)
+User-directed identity update supersedes earlier cream/terracotta references. Interface titles in notebook, auth, and chat start screens use Geist; Source Serif remains for reading content. Home top padding is 24px, heading-to-toolbar gap 24px, notebook cards 160px. Chat starts at the top with 24px vertical padding rather than a 50vh empty region.
+
+`components/icons/ResearchIllustration.tsx` is an original, decorative source-to-notebook diagram, not sample evidence. It uses only surface, border and accent tokens; width token `--research-illustration-width: 12rem`, stroke token `--illustration-stroke: 1.5`. Show once in the empty chat state. Suggested questions are full-width, left-aligned rows, with hover/focus accent and a 4px arrow translation. Notebook covers have a quiet spine. Studio tools use accent text on hover, never colored tiles. Motion uses existing fast/base durations, `--motion-nudge: 0.25rem`, and is disabled under reduced motion.
+
+- v1.2 ? Research desk identity, teal light/dark palettes, compact notebook/chat spacing, source-to-note illustration and restrained action feedback.
+- v1.3 ? Landing workflow illustrations show source intake, citation inspection and study output. The chat composer keeps its source scope, send/stop action and grounding note in one compact control with one accent focus ring; workflow motion is transform/opacity-only and removed under reduced motion.

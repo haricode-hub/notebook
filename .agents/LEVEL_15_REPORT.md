@@ -3,11 +3,11 @@
 Date: 2026-10-22  
 Branch: `level-15-framer-inspired-ui`  
 Design source: repository-root `DESIGN.md`  
-Status: implementation and requested visual checks complete; changes remain uncommitted.
+Status: implementation and requested visual checks complete; changes remain uncommitted. Full legacy e2e and route-matrix axe coverage remain open.
 
 ## Result
 
-Reworked the app to follow the warm editorial system in `DESIGN.md`: paper-toned semantic surfaces, Source Serif 4 editorial headings, Geist UI text, Geist Mono metadata, restrained rust accent, standardized lucide wrapper, and consistent form/feedback primitives. Existing API calls and product state flows were preserved. The workspace adapts to three-pane desktop, chat plus one switchable side pane on tablets, and bottom tabs on phones. Added a command menu, plus keyboard and focus behavior for dialogs.
+Reworked the app to follow the research-desk system in `DESIGN.md`: neutral paper surfaces, deep teal actions, Source Serif 4 reading typography, Geist UI text, Geist Mono metadata, standardized lucide wrapper, and consistent form/feedback primitives. Existing API calls and product state flows were preserved. The workspace adapts to three-pane desktop, chat plus one switchable side pane on tablets, and bottom tabs on phones. Added a command menu, plus keyboard and focus behavior for dialogs.
 
 ## Visual evidence
 
@@ -26,7 +26,7 @@ See the inventory and before/after summary in [`docs/design/AUDIT.md`](../docs/d
 | Production image build | `docker compose build web` | Next.js production build completed and emitted all app routes, including `/design-preview` | PASS | Docker Desktop |
 | Web container smoke | `docker compose up -d --no-deps web`; `curl http://localhost:3000/` | Container healthy; HTTP 200 | PASS | Docker Desktop |
 | Browser screenshot and citation flow | `node e2e/level15-capture.mjs` | 48 screenshots; source citation opened viewer with highlighted text; Settings loaded; Ctrl+K opened the command menu; command/design dialogs dismissed with Escape; 0 browser console/page errors | PASS (FAKE chat answer) | Chrome + Docker |
-| Follow-up visual fixes | browser computed style + `node apps/web/e2e/level15-capture.mjs` | Primary button foreground is white over terracotta; composer source menu is wired to source selection; disabled send uses sunken/disabled tokens; regenerated 48 screenshots in repo path | PASS (FAKE chat answer) | Chrome + Docker |
+| Follow-up visual fixes | browser computed style + `node apps/web/e2e/level15-capture.mjs` | Primary button foreground is white over deep teal; composer source menu is wired to source selection; disabled send uses sunken/disabled tokens; regenerated 48 screenshots in repo path | PASS (FAKE chat answer) | Chrome + Docker |
 | Pane, form, and header refinement | `corepack pnpm --filter web typecheck`, `corepack pnpm --filter web test`, `corepack pnpm --filter web lint`, `corepack pnpm lint:design`, production build, screenshot flow | Sources/Chat/Studio default split 18/54/28; Sources toolbar fits at 1280 px; all 21 tests pass; 72 files audited; 48 browser screenshots regenerated at 375/768/1280/1680 in light and dark modes | PASS (FAKE chat answer) | Windows local + Docker + Chrome |
 
 The image build logs Better Auth's expected build-time warning about missing `BETTER_AUTH_SECRET` during static generation; the build completed, and the compose runtime uses the project environment.
@@ -45,6 +45,8 @@ The image build logs Better Auth's expected build-time warning about missing `BE
 - The full older Playwright suite was not rerun in this pass; prior Level 15 results document legacy failures and remain open. The dedicated current UI capture flow passed.
 - The two lint warnings are the existing TanStack Virtual APIs in the PDF and source virtualized readers; React Compiler skips memoization at those calls.
 - The capture answer uses a FAKE fixture. No live LLM quality or provider behavior is inferred from it.
+- The focused research-desk browser journey could not complete account verification because the running Compose environment uses external SMTP rather than Mailpit. This remains an environment/setup issue, not a reason to weaken authentication.
 - The visual matrix is measured, but final design approval still belongs to a human reviewing the screenshots.
+- The follow-up polish adds a compact composer state treatment and three original workflow illustrations on the landing page. Static checks pass; dedicated browser coverage for these new states is still pending.
 
 No tokens outside `DESIGN.md` were added. No deliberate visual rule violations are recorded.

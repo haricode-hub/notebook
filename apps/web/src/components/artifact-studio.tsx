@@ -176,12 +176,12 @@ export function ArtifactStudio({ notebookId, onOpenArtifact }: {
     setCreating(false);
   };
   return <section aria-label="Studio artifacts" className="space-y-3">
-    <div className="flex items-end justify-between gap-2 border-b border-border-subtle pb-2 border-border-subtle"><div><h3 className="font-medium">Create with Studio</h3><p className="text-caption text-fg-secondary">Build from selected sources, or queue every feature in parallel.</p></div><Button size="sm" variant="outline" disabled={!readySources.length || creating || !recipes.data?.length} onClick={() => void startAll()}>{creating ? "Queuing…" : "Generate all"}</Button></div>
+    <div className="flex items-end justify-between gap-2 border-b border-border-subtle pb-2 border-border-subtle"><div><h3 className="font-medium">Create with Studio</h3><p className="text-caption text-fg-secondary">Make study materials from your selected sources.</p></div><Button size="sm" variant="outline" disabled={!readySources.length || creating || !recipes.data?.length} onClick={() => void startAll()}>{creating ? "Queuing…" : "Generate all"}</Button></div>
     <ul className="grid grid-cols-2 gap-2">
       {(recipes.data ?? Object.entries(labels).map(([id, title]) => ({ id, title, renderer_id: "markdown_sections_v1" }))).map((item) => {
         const visual = recipeStyles[item.id] ?? { icon: Map, color: "text-fg-secondary" };
         const RecipeIcon = visual.icon;
-        return <li key={item.id}><button type="button" aria-describedby={`studio-recipe-${item.id}`} disabled={!readySources.length} onClick={() => { setRecipe(item.id); setSourceIds(readySources.map((source) => source.id)); }} className="group flex min-h-18 w-full flex-col items-start justify-center gap-1.5 rounded-md border border-border bg-surface px-3 py-2 text-left transition-colors duration-fast hover:border-border-strong hover:bg-hover focus-ring disabled:cursor-not-allowed disabled:opacity-45">
+        return <li key={item.id}><button type="button" aria-describedby={`studio-recipe-${item.id}`} disabled={!readySources.length} onClick={() => { setRecipe(item.id); setSourceIds(readySources.map((source) => source.id)); }} className="studio-tool group flex min-h-18 w-full flex-col items-start justify-center gap-1.5 rounded-md border border-border bg-surface px-3 py-2 text-left transition-colors duration-fast hover:border-border-strong hover:bg-hover focus-ring disabled:cursor-not-allowed disabled:opacity-45">
           <span className="flex items-center gap-2"><Icon icon={RecipeIcon} aria-hidden="true" className={`text-fg-secondary ${visual.color}`} /><span className="text-body font-medium">{item.title}</span></span>
           <span id={`studio-recipe-${item.id}`} className="line-clamp-2 text-caption leading-snug text-fg-secondary">{descriptions[item.id] ?? "Create a source-grounded study artifact."}</span>
         </button></li>;

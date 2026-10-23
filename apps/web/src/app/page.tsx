@@ -3,6 +3,7 @@ import { ArrowDown, ArrowRight, BookOpenCheck, Check, ChevronDown, Quote } from 
 import { Icon } from "@/components/icons/Icon";
 import { SiteFooter } from "@/components/public-site/site-footer";
 import { SiteHeader } from "@/components/public-site/site-header";
+import { CitationIllustration, SourceIllustration, StudyIllustration } from "@/components/public-site/research-flow-illustrations";
 import { Button } from "@/components/ui/button";
 import { comingSoonLabel, getVisibleServices, serviceCapabilities } from "@/lib/services";
 
@@ -21,7 +22,7 @@ const faqs = [
 
 export default function Home() {
   const availableServices = getVisibleServices().filter((service) => service.status === "available");
-  return <div className="min-h-screen bg-canvas text-fg">
+  return <div className="landing-shell min-h-screen bg-surface text-fg">
     <SiteHeader />
     <main id="main-content">
       <section className="mx-auto grid max-w-6xl gap-12 px-5 pb-16 pt-14 sm:px-8 sm:pb-20 sm:pt-20 lg:grid-cols-2 lg:items-center lg:gap-16 lg:py-24" aria-labelledby="hero-title">
@@ -35,7 +36,7 @@ export default function Home() {
           </div>
           <p className="mt-4 text-caption text-fg-tertiary">One service is available today. More can be added as they are built.</p>
         </div>
-        <div className="relative mx-auto w-full max-w-xl" role="group" aria-label="Illustrative Open Notebook workspace preview">
+        <div className="landing-legacy-preview relative mx-auto w-full max-w-xl" role="group" aria-label="Illustrative Open Notebook workspace preview">
           <div className="overflow-hidden rounded-lg border border-border bg-surface">
             <div className="flex h-11 items-center justify-between border-b border-border-subtle px-4"><div className="inline-flex items-center gap-2 text-small font-medium"><Icon icon={BookOpenCheck} size={16} />Notebook</div><span className="text-caption text-fg-tertiary">Research workspace</span></div>
             <div className="grid min-h-64 sm:grid-cols-[9.5rem_1fr]">
@@ -45,6 +46,7 @@ export default function Home() {
           </div>
           <p className="mt-2 text-right text-caption text-fg-tertiary">Illustrative workspace preview</p>
         </div>
+        <div className="research-hero-flow" role="group" aria-label="How research moves through OpenNotebook Studio"><div className="research-hero-intro"><span className="research-hero-kicker">The evidence trail</span><span className="research-hero-rule" /></div><div className="research-hero-step"><SourceIllustration/><div><span className="font-mono text-caption text-fg-tertiary">01 / source</span><p className="mt-1 text-small text-fg-secondary">Bring the material into one notebook.</p></div></div><div className="research-hero-step"><CitationIllustration/><div><span className="font-mono text-caption text-fg-tertiary">02 / passage</span><p className="mt-1 text-small text-fg-secondary">Follow each answer back to its evidence.</p></div></div><div className="research-hero-step"><StudyIllustration/><div><span className="font-mono text-caption text-fg-tertiary">03 / study</span><p className="mt-1 text-small text-fg-secondary">Keep the useful result as a study artifact.</p></div></div></div>
       </section>
 
       <section id="services" className="scroll-mt-8 border-y border-border-subtle bg-surface" aria-labelledby="services-title">

@@ -1,3 +1,5 @@
+2026-10-23: Follow-up UI polish implemented for the chat composer and public landing page. The composer now uses one accent focus ring, compact internal grounding note, aligned source/send controls, stronger disabled send state, and preserved textarea growth, source selection, keyboard send, stop, and touch targets. Added original source, citation, and study-artifact illustrations with purposeful transform/opacity motion and reduced-motion fallbacks. Design audit passed 87 files; typecheck passed; Vitest passed 10 files/25 tests; ESLint passed with the two existing TanStack Virtual warnings.
+2026-10-23: Implemented the approved research-desk polish pass from the existing draft. Reviewed the teal neutral-paper direction, compact notebook cards, source-to-notebook chat illustration, compact suggested questions, button/tool hover feedback, prompt-arrow motion, reduced-motion handling, and stale design documentation. Design audit passed over 86 files; web typecheck passed; Vitest passed 10 files/25 tests; ESLint passed with the two existing TanStack Virtual warnings; git diff --check passed. Focused Playwright reached signup but did not find a verification email because running containers use external SMTP (smtp.resend.com:465) while the test queries local Mailpit; no email settings or authentication behavior were changed. Full legacy e2e and broader Level 15 axe matrix remain open.
 # Progress
 
 2026-10-17: Started Level 0 from the provided AGENTS.md and level specification. The repository contained only the build pack, so implementation begins from an empty scaffold.
@@ -54,28 +56,28 @@
 
 2026-10-20: Level 14 Pass 3 added the Motion-driven mobile Sources/Studio sheet with drag constraints, elastic resistance, release velocity and accessible bottom tabs; notebooks now soft-delete, hide immediately, restore only for the owner during the 30-second grace, and purge with their stored files on a 15-second worker sweep. `tests/test_level14_soft_delete.py`: 3 passed; focused Ruff and mypy passed; web typecheck passed, web unit tests 11 passed, ESLint exited 0 with the same 3 warnings. Four auth screenshots were captured at 1440x1000 and 390x844, light/dark. Desktop panel rubber-band/momentum snap and full workspace browser journeys remain open; the Docker stack could not run here.
 
-## Level 14 Pass 4 — Chat panel
+## Level 14 Pass 4 ? Chat panel
 - Updated composer to grow up to 180px and keeps Enter/Shift+Enter behavior; added sticky material header/composer and scroll-edge fades.
 - Streaming no longer auto-scrolls when the reader is above the latest message; added a jump-to-latest action and removed the pulsing placeholder.
 - Focused checks: web typecheck passed; 5 files/11 unit tests passed; ESLint passed with two existing TanStack Virtual warnings in PDF components.
 - Captured four before and four after auth-page screenshots at 1440x1000/390x844 in light/dark. Signed-in workspace screenshots and chat citation journey are blocked because DB/API services are unavailable.
 - Commit: pending.
 
-## Level 14 Pass 5 — Source viewer transitions
+## Level 14 Pass 5 ? Source viewer transitions
 - Added reduced-motion-aware drawer entry (opacity + horizontal transform) and short citation/tab content fade to the existing viewer.
 - Screenshot checkpoints: before-pass5 copied from prior auth UI, after-pass5 captured; four Playwright viewport/theme cases passed. These are auth screenshots only because workspace backend services are unavailable.
 - Web typecheck passed; all 11 web unit tests passed.
 - Citation click-to-viewer, PDF/text highlight, and viewport positioning e2e remains blocked without DB/API.
 - Commit: pending.
 
-## Level 14 Pass 6 — Studio interactions
+## Level 14 Pass 6 ? Studio interactions
 - Added a transform-only 3D flashcard flip with reduced-motion support and explicit question/answer state; quiz now shows progress and 44 px answer rows.
 - Mind map export and native audio scrubber already existed and were retained.
 - Checks: typecheck passed; 5 web test files/11 tests passed; lint passed with two existing PDF virtualization warnings.
 - Playwright auth screenshot matrix: 4/4 passed; generated artifact states unavailable without DB/API services.
 - Commit: pending.
 
-## Level 14 Pass 7 — Settings, auth, design lab
+## Level 14 Pass 7 ? Settings, auth, design lab
 - Added a development-only design lab for color tokens, Material tones, interaction feedback, and detected OS preferences.
 - Wrapped reset-password query-parameter handling in Suspense; optimized production build now completes and prerenders /reset-password.
 - Build emitted Better Auth database-schema connection errors during static collection because PostgreSQL is unavailable; static build still exited successfully. Auth DB/session behavior is unverified.
