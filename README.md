@@ -14,6 +14,8 @@ docker compose run --rm auth-migrate
 
 Open [http://localhost:3000](http://localhost:3000), create an account, and create a notebook. API readiness is at [http://localhost:8000/readyz](http://localhost:8000/readyz).
 
+The root route is the public product page. It links to the protected notebook workspace and public policy pages. For a hosted deployment, set `NEXT_PUBLIC_SITE_URL` to the public web origin before building the web image. Set `NEXT_PUBLIC_SUPPORT_EMAIL` to a monitored address before inviting public users; the contact page clearly reports when this is not configured.
+
 To try the sample corpus, sign in and obtain a short-lived Better Auth JWT from `/api/auth/token`. Then run:
 
 ```sh
@@ -44,5 +46,6 @@ The web app uses Next.js App Router and Better Auth. FastAPI verifies its JWTs a
 - [Scaling and deployment](docs/SCALING.md)
 - [Level specifications](docs/levels)
 - [Operational progress](.agents/PROGRESS.md)
+- [Public site audit and launch items](docs/PLATFORM_LANDING_AUDIT.md)
 
 For Windows without GNU Make, execute the relevant recipes in [Makefile](Makefile) with `uv` and `pnpm` directly.

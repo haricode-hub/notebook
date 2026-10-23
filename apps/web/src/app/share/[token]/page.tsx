@@ -1,4 +1,5 @@
 import { SharedMarkdown } from "@/components/shared-markdown";
+import type { Metadata } from "next";
 
 type Props = { params: Promise<{ token: string }> };
 type SharedNotebook = {
@@ -9,6 +10,7 @@ type SharedNotebook = {
 };
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { robots: { index: false, follow: false, noarchive: true } };
 
 export default async function SharedNotebookPage({ params }: Props) {
   const { token } = await params;

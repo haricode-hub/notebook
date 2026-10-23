@@ -32,7 +32,7 @@ export function AuthForm({ mode, socials, verificationRequired = false }: { mode
   const [serverError, setServerError] = useState("");
   const [statusMessage, setStatusMessage] = useState(() => search.get("password-reset") === "1" ? "Your password has been updated. Sign in with your new password." : "");
   const validationSchema = signUp ? signUpSchema : signInSchema;
-  const { register, handleSubmit, getValues, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const { register, handleSubmit, getValues, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(validationSchema),
     defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
   });
@@ -51,6 +51,7 @@ export function AuthForm({ mode, socials, verificationRequired = false }: { mode
         return;
       }
       if (signUp && verificationRequired) {
+        reset({ name: "", email: "", password: "", confirmPassword: "" });
         setStatusMessage("Your account was created. Check your email for a verification link before signing in.");
         return;
       }

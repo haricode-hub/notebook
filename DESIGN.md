@@ -59,12 +59,12 @@ All colors are CSS variables in `app/globals.css`, exposed to Tailwind (see §13
 | `--text-tertiary` | `#8A8478` | Placeholders, timestamps, disabled-ish hints |
 | `--text-disabled` | `#B4AEA3` | Disabled text |
 | `--text-on-accent` | `#FFFFFF` | Text on accent fills |
-| `--accent` | `#BD4E32` | Primary action, current selection, links |
+| `--accent` | `#BA4D31` | Primary action, current selection, links; 4.60:1 against the canvas for WCAG AA text contrast |
 | `--accent-hover` | `#A9492F` | Hover on accent |
 | `--accent-active` | `#923F28` | Pressed on accent |
 | `--accent-soft` | `#F6E6DE` | Accent tint backgrounds (selected chip, citation hover) |
 | `--accent-soft-text` | `#8F3E27` | Text on `--accent-soft` |
-| `--focus-ring` | `#BD4E3266` | 2px focus ring (40% accent) |
+| `--focus-ring` | `#BA4D3166` | 2px focus ring (40% accent) |
 
 ### 2.2 Dark theme (`[data-theme="dark"]` and `prefers-color-scheme: dark` unless user forced light)
 
@@ -331,7 +331,7 @@ Card `--bg-surface`, `--radius-md`, 1px border, padding 16. Title `body-strong`,
 - Blockquote: 2px left `--border-strong`, padding-left 14, `--text-secondary`.
 - Inline code: mono 13, bg `--bg-sunken`, padding 1/5, `--radius-xs`. Code blocks: bg `--bg-sunken`, 1px `--border-subtle`, `--radius-md`, padding 14, copy button top-right ghost.
 - Tables: full width, header `small` 600 `--text-secondary`, row 1px `--border-subtle` dividers, no zebra, no outer border.
-- Links `--accent`, underline on hover.
+- Links use `--accent` and underline on hover; links embedded in prose keep the underline visible so they remain distinguishable from surrounding text in both themes.
 
 ### 8.12 Top bar
 h52, bg `--bg-canvas` (blends), no bottom border (panes create separation). Left: 24px logo mark (monochrome) + notebook title in **serif 18/24 500** (`title-1` is too large for the bar), click to rename inline. Right: `Share` secondary sm, settings ghost icon, theme toggle, avatar 28.
@@ -457,3 +457,4 @@ When adding any new feature (e.g. flashcards, quiz, collaboration, new source ty
 
 ## 16. Changelog
 - v1.0 — Initial warm-editorial system (3-pane shell, sources, chat with citations, studio, notes, audio).
+- v1.1 — Darkened the light terracotta accent slightly to meet WCAG AA text contrast on the canvas, measured at 4.60:1.
