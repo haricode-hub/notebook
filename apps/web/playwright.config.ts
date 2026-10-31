@@ -1,4 +1,7 @@
+import { setDefaultResultOrder } from "node:dns";
 import { defineConfig } from "@playwright/test";
+
+if (process.platform === "win32") setDefaultResultOrder("ipv4first");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -9,5 +12,8 @@ export default defineConfig({
     browserName: "chromium",
     channel: "chrome",
     headless: true,
+    launchOptions: process.platform === "win32"
+      ? { args: ["--host-resolver-rules=MAP localhost 127.0.0.1"] }
+      : undefined,
   },
 });

@@ -18,10 +18,12 @@ from opennotebook_core.artifacts import (
     docx_export,
     markdown_export,
     pdf_export,
+    quiz_pdf_export,
 )
 from opennotebook_core.audio import AudioOverview
 from opennotebook_core.models import Artifact, FlashcardProgress, Job, QuizAttempt, Source
 from opennotebook_core.prompts.artifact_v2 import VERSION
+from opennotebook_core.prompts.audio_v1 import VERSION as AUDIO_VERSION
 from opennotebook_core.prompts.chat_v1 import Citation
 from opennotebook_core.storage import make_storage
 from opennotebook_core.study import schedule_review, score_quiz
@@ -239,7 +241,7 @@ async def create_artifact(
         status="queued",
         stage="queued",
         progress=0,
-        prompt_version="audio-v1" if body.recipe == "audio_overview" else VERSION,
+        prompt_version=AUDIO_VERSION if body.recipe == "audio_overview" else VERSION,
     )
     db.add(artifact)
     await db.flush()
@@ -291,6 +293,8 @@ async def regenerate_artifact(
     artifact.stage = "queued"
     artifact.progress = 0
     artifact.error = None
+    if artifact.recipe == "audio_overview":
+        artifact.prompt_version = AUDIO_VERSION
     if artifact.recipe == "audio_overview" and artifact.output_json:
         old_key = str(artifact.output_json.get("storage_key") or "")
         if old_key:
@@ -374,25 +378,37 @@ async def export_artifact(
     artifact = await _owned_artifact(db, notebook_id, user.id, artifact_id)
     if artifact.status != "ready" or artifact.output_json is None:
         raise HTTPException(409, "Artifact is not ready")
-    if artifact.recipe in {"mindmap", "flashcards", "quiz"}:
-        raise HTTPException(409, "Use the interactive viewer export for this artifact")
-    document = ArtifactDocument.model_validate(artifact.output_json)
-    citations = cast(
-        list[Citation],
-        [ChatCitation.model_validate(item).model_dump() for item in artifact.citations_json],
-    )
-    if format == "md":
-        data = markdown_export(document, citations).encode()
-        media_type = "text/markdown; charset=utf-8"
-    elif format == "docx":
-        data = docx_export(document, citations)
-        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    else:
+    if artifact.recipe == "quiz" and format == "pdf":
+        quiz = QuizArtifact.model_validate(artifact.output_json)
+        citations = cast(
+            list[Citation],
+            [ChatCitation.model_validate(item).model_dump() for item in artifact.citations_json],
+        )
         try:
-            data = pdf_export(document, citations)
+            data = quiz_pdf_export(quiz, citations)
         except OSError as exc:
             raise HTTPException(503, "PDF export is unavailable in this runtime") from exc
         media_type = "application/pdf"
+    elif artifact.recipe in {"mindmap", "flashcards", "quiz"}:
+        raise HTTPException(409, "Use the interactive viewer export for this artifact")
+    else:
+        document = ArtifactDocument.model_validate(artifact.output_json)
+        citations = cast(
+            list[Citation],
+            [ChatCitation.model_validate(item).model_dump() for item in artifact.citations_json],
+        )
+        if format == "md":
+            data = markdown_export(document, citations).encode()
+            media_type = "text/markdown; charset=utf-8"
+        elif format == "docx":
+            data = docx_export(document, citations)
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        else:
+            try:
+                data = pdf_export(document, citations)
+            except OSError as exc:
+                raise HTTPException(503, "PDF export is unavailable in this runtime") from exc
+            media_type = "application/pdf"
     filename = f"{artifact.recipe}-{artifact.id[:8]}.{format}"
     return Response(
         data,

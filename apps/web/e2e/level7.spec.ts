@@ -70,7 +70,7 @@ test("flashcard known/unknown state persists and Anki CSV exports", async ({ pag
   await page.reload();
   const reopened = page.getByRole("region", { name: "Studio" }).filter({ visible: true });
   await expect(reopened.getByRole("heading", { name: "Generated documents" })).toBeVisible();
-  await reopened.getByRole("region", { name: "Studio artifacts" }).getByRole("list").last().getByRole("button", { name: "Flashcards", exact: true }).click();
+  await reopened.getByRole("region", { name: "Studio artifacts" }).getByRole("list").last().getByRole("listitem").first().getByRole("button").first().click();
   await expect(page.getByRole("region", { name: "Artifact viewer" }).getByText(/Leitner box 2/)).toBeVisible();
 });
 

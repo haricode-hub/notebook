@@ -45,14 +45,14 @@ test("email verification, sign-in, and password reset work through Mailpit", asy
   const readLatestMailLink = async (recipient: string, kind: "verify" | "reset") => {
     let messageId = "";
     await expect.poll(async () => {
-      const listing = await request.get("http://localhost:8025/api/v1/messages");
+      const listing = await request.get("http://127.0.0.1:8025/api/v1/messages");
       const data = await listing.json() as { messages: Array<{ ID: string; Subject: string; To?: Array<{ Address: string }> }> };
       const subject = kind === "verify" ? /verify/i : /reset|password/i;
       messageId = data.messages.find((message) => subject.test(message.Subject)
         && message.To?.some((to) => to.Address.toLowerCase() === recipient.toLowerCase()))?.ID ?? "";
       return messageId;
     }, { timeout: 10_000 }).not.toBe("");
-    const response = await request.get(`http://localhost:8025/api/v1/message/${messageId}`);
+    const response = await request.get(`http://127.0.0.1:8025/api/v1/message/${messageId}`);
     const message = await response.json() as { Text?: string; HTML?: string };
     const body = `${message.Text ?? ""}\n${message.HTML ?? ""}`;
     const rawLink = body.match(/https?:\/\/[^\s<>"']+/)?.[0];

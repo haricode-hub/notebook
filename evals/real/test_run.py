@@ -3,7 +3,8 @@
 import json
 
 import pytest
-from run import DOCS, ROOT, Passage, family, load_embedder, rrf_rank, split_text
+
+from evals.real.run import DOCS, ROOT, Passage, family, load_embedder, rrf_rank, split_text
 
 
 def test_corpus_and_splits_are_fixed_and_disjoint() -> None:

@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/controls";
 import { Dialog } from "@/components/ui/dialog";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { artifactApi, getToken, sourceApi, type Artifact, type ChatCitation } from "@/lib/api-client";
+import type { QuizQuestionSize } from "@/components/quiz-view";
 
 const labels: Record<string, string> = {
   briefing: "Briefing doc", study_guide: "Study guide", faq: "FAQ", timeline: "Timeline", report: "Custom report", mindmap: "Mind map", flashcards: "Flashcards", quiz: "Quiz", audio_overview: "Audio overview",
@@ -31,6 +32,7 @@ const recipeStyles: Record<string, { icon: typeof FileText; color: string }> = {
   quiz: { icon: CircleHelp, color: "text-fg-secondary" },
   audio_overview: { icon: AudioLines, color: "text-fg-secondary" },
 };
+const artifactStageLabel = (stage: string) => stage === "script_retry" ? "Retrying with alternate model" : stage.replaceAll("_", " ");
 const MindMapView = dynamic(() => import("@/components/mindmap-view"), { ssr: false });
 const FlashcardsView = dynamic(() => import("@/components/flashcards-view"), { ssr: false });
 const QuizView = dynamic(() => import("@/components/quiz-view"), { ssr: false });
@@ -83,6 +85,24 @@ async function saveExport(notebookId: string, artifact: Artifact, format: "md" |
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function printQuiz(quiz: { title: string; questions: { question: string; options: string[]; answer_index: number; explanation: string }[] }, citations: ChatCitation[], questionSize: QuizQuestionSize) {
+  const entities: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => entities[character] ?? character);
+  const printWindow = window.open("", "_blank", "popup,width=900,height=700");
+  if (!printWindow) {
+    toast.error("Allow pop-ups for this site to print the quiz.");
+    return;
+  }
+  const questionFontSize = questionSize === "largest" ? "18pt" : questionSize === "large" ? "16pt" : "14pt";
+  const questions = quiz.questions.map((question, index) => `<section><h2 style="font-size:${questionFontSize}">${index + 1}. ${escapeHtml(question.question)}</h2><ol type="A">${question.options.map((option) => `<li>${escapeHtml(option)}</li>`).join("")}</ol></section>`).join("");
+  const answers = quiz.questions.map((question, index) => `<li><strong>${index + 1}. ${escapeHtml(question.options[question.answer_index])}</strong><p>${escapeHtml(question.explanation)}</p></li>`).join("");
+  const sources = citations.map((citation) => `<li>[S${citation.n}] ${escapeHtml(citation.source_name)}${citation.page_start ? `, page ${citation.page_start}` : ""}</li>`).join("");
+  printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(quiz.title)}</title><style>@page{size:auto;margin:16mm}body{font:11pt/1.5 Arial,sans-serif;color:#202b27}h1{font-size:22pt}h2{font-size:12pt;margin:1.5em 0 .5em}section{break-inside:avoid}li{padding:.15em 0}.answer-key{break-before:page}</style></head><body><h1>${escapeHtml(quiz.title)}</h1><h2>Questions</h2>${questions}<div class="answer-key"><h2>Answer key and explanations</h2><ol>${answers}</ol></div><h2>Sources</h2><ul>${sources}</ul></body></html>`);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+
 function ArtifactViewer({ notebookId, artifact, onClose, onOpenCitation, onAskQuestion, onChanged }: {
   notebookId: string;
   artifact: Artifact;
@@ -92,6 +112,7 @@ function ArtifactViewer({ notebookId, artifact, onClose, onOpenCitation, onAskQu
   onChanged: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
+  const [questionSize, setQuestionSize] = useState<QuizQuestionSize>("standard");
   const exportAs = async (format: "md" | "docx" | "pdf") => {
     try { await saveExport(notebookId, artifact, format); }
     catch (error) { toast.error(error instanceof Error ? error.message : "Could not export artifact"); }
@@ -102,8 +123,8 @@ function ArtifactViewer({ notebookId, artifact, onClose, onOpenCitation, onAskQu
       <div className="flex flex-wrap gap-1">
         {!(["mindmap", "flashcards", "quiz"].includes(artifact.recipe)) && <><Button size="sm" variant="secondary" onClick={() => void exportAs("md")}><Icon icon={Download} size={14} />Markdown</Button>
         <Button size="sm" variant="secondary" onClick={() => void exportAs("docx")}><Icon icon={Download} size={14} />DOCX</Button></>}
-        {!( ["mindmap", "flashcards", "quiz"].includes(artifact.recipe)) && <Button size="sm" variant="secondary" onClick={() => void exportAs("pdf")}><Icon icon={Download} size={14} />Server PDF</Button>}
-        <Button size="sm" variant="secondary" onClick={() => window.print()}><Icon icon={Download} size={14} />Print / PDF</Button>
+        {!( ["mindmap", "flashcards"].includes(artifact.recipe)) && <Button size="sm" variant="secondary" onClick={() => void exportAs("pdf")}><Icon icon={Download} size={14} />Download PDF</Button>}
+        <Button size="sm" variant="secondary" onClick={() => artifact.recipe === "quiz" && artifact.output && "questions" in artifact.output ? printQuiz(artifact.output, artifact.citations, questionSize) : window.print()}><Icon icon={Download} size={14} />Print / PDF</Button>
         <Button size="sm" variant="secondary" disabled={busy} onClick={async () => { setBusy(true); try { await artifactApi.regenerate(notebookId, artifact.id); await onChanged(); toast.success("Regenerating artifact"); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not regenerate"); } finally { setBusy(false); } }}><Icon icon={RotateCcw} size={14} />Regenerate</Button>
         <Button size="sm" variant="ghost" aria-label="Back to chat" onClick={onClose}>Back to chat</Button>
       </div>
@@ -116,7 +137,10 @@ function ArtifactViewer({ notebookId, artifact, onClose, onOpenCitation, onAskQu
       </section>)}
       {artifact.recipe === "mindmap" && artifact.output && "root" in artifact.output && <MindMapView root={artifact.output.root} citations={artifact.citations} onOpenCitation={(citation, citations) => { onClose(); onOpenCitation(citation, citations); }} onAskQuestion={(question) => { onClose(); onAskQuestion(question); }} />}
       {artifact.recipe === "flashcards" && artifact.output && "cards" in artifact.output && <FlashcardsView notebookId={notebookId} artifactId={artifact.id} cards={artifact.output.cards} citations={artifact.citations} />}
-      {artifact.recipe === "quiz" && artifact.output && "questions" in artifact.output && <QuizView notebookId={notebookId} artifactId={artifact.id} questions={artifact.output.questions} citations={artifact.citations} onOpenCitation={(citation, citations) => { onClose(); onOpenCitation(citation, citations); }} />}
+      {artifact.recipe === "quiz" && artifact.output && "questions" in artifact.output && <>
+        <div className="mb-4 flex items-center justify-end gap-2"><label htmlFor="quiz-question-size" className="text-small text-fg-secondary">Question size</label><Select id="quiz-question-size" aria-label="Question size" className="w-32" value={questionSize} onValueChange={(value) => setQuestionSize(value as QuizQuestionSize)}><option value="standard">Standard</option><option value="large">Large</option><option value="largest">Largest</option></Select></div>
+        <QuizView notebookId={notebookId} artifactId={artifact.id} questions={artifact.output.questions} citations={artifact.citations} questionSize={questionSize} onOpenCitation={(citation, citations) => { onClose(); onOpenCitation(citation, citations); }} />
+      </>}
       {artifact.recipe === "audio_overview" && artifact.output && "transcript" in artifact.output && <AudioPlayer notebookId={notebookId} artifactId={artifact.id} transcript={artifact.output.transcript} citations={artifact.citations} onOpenCitation={(citation, citations) => { onClose(); onOpenCitation(citation, citations); }} />}
       <h2 className="mb-2 font-serif text-title-3 font-semibold">Sources</h2>
       <div className="flex flex-wrap gap-2">{artifact.citations.map((citation) => <button type="button" key={citation.n} className="rounded-sm border border-border bg-raised px-2 py-1 text-small text-fg-secondary hover:bg-hover" onClick={() => { onClose(); onOpenCitation(citation, artifact.citations); }}>[S{citation.n}] {citation.source_name}{citation.page_start ? `, p. ${citation.page_start}` : ""}</button>)}</div>
@@ -124,9 +148,10 @@ function ArtifactViewer({ notebookId, artifact, onClose, onOpenCitation, onAskQu
   </section>;
 }
 
-export function ArtifactStudio({ notebookId, onOpenArtifact }: {
+export function ArtifactStudio({ notebookId, onOpenArtifact, onOpenLibrary }: {
   notebookId: string;
   onOpenArtifact: (artifactId: string) => void;
+  onOpenLibrary: () => void;
 }) {
   const client = useQueryClient();
   const artifacts = useQuery({ queryKey: ["artifacts", notebookId], queryFn: () => artifactApi.list(notebookId), refetchInterval: (query) => query.state.data?.some((artifact) => artifact.status === "queued" || artifact.status === "running") ? 3000 : false });
@@ -189,8 +214,8 @@ export function ArtifactStudio({ notebookId, onOpenArtifact }: {
     </ul>
     {!readySources.length && <p className="text-small text-fg-secondary">Add a source and wait for it to be ready to generate a document.</p>}
     {artifacts.data?.length ? <div><h3 className="mb-2 border-b border-border-subtle pb-2 text-heading font-semibold">Generated documents</h3><ul className="divide-y divide-border-subtle">{artifacts.data.map((artifact) => <li key={artifact.id} className="py-3">
-      <div className="flex items-start justify-between gap-2"><div><button type="button" onClick={() => onOpenArtifact(artifact.id)} className="text-left text-body font-medium hover:text-accent">{artifact.output?.title ?? labels[artifact.recipe] ?? artifact.recipe}</button>{artifact.output && "sections" in artifact.output && artifact.output.sections[0] && <p className="mt-1 line-clamp-2 text-caption leading-relaxed text-fg-secondary">{artifact.output.sections[0].markdown}</p>}</div><span className="text-caption text-fg-tertiary">{artifact.status}</span></div>
-      {artifact.status === "running" || artifact.status === "queued" ? <div className="mt-2"><div className="mb-1 text-caption text-fg-secondary">{artifact.stage} · {artifact.progress}%</div><div className="h-1.5 rounded-full bg-sunken"><div className="h-full rounded-full bg-accent transition-[width] duration-base" style={{ width: `${artifact.progress}%` }} /></div></div> : null}
+      <div className="flex items-start justify-between gap-2"><div><button type="button" aria-label={`View ${artifact.output?.title ?? labels[artifact.recipe] ?? artifact.recipe} in Library`} onClick={onOpenLibrary} className="text-left text-body font-medium hover:text-accent">{artifact.output?.title ?? labels[artifact.recipe] ?? artifact.recipe}</button>{artifact.output && "sections" in artifact.output && artifact.output.sections[0] && <p className="mt-1 line-clamp-2 text-caption leading-relaxed text-fg-secondary">{artifact.output.sections[0].markdown}</p>}</div><span className={`text-caption ${artifact.status === "failed" ? "text-danger" : "text-fg-tertiary"}`}>{artifact.status === "ready" ? "Complete" : artifact.status === "queued" || artifact.status === "running" ? "Running" : artifact.status}</span></div>
+      {artifact.status === "running" || artifact.status === "queued" ? <div className="mt-2"><div className="mb-1 text-caption text-fg-secondary">{artifactStageLabel(artifact.stage)} · {artifact.progress}%</div><div className="h-1.5 rounded-full bg-sunken"><div className="h-full rounded-full bg-accent transition-[width] duration-base" style={{ width: `${artifact.progress}%` }} /></div></div> : null}
       {artifact.error && <p className="mt-1 text-small text-danger" role="alert">{artifact.error}</p>}
       <div className="mt-1 flex gap-1">{artifact.status === "failed" && <Button size="sm" variant="outline" onClick={async () => { try { await artifactApi.regenerate(notebookId, artifact.id); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not retry"); } }}>Retry</Button>}{artifact.recipe === "audio_overview" && ["queued", "running"].includes(artifact.status) && <Button size="sm" variant="outline" onClick={async () => { try { await artifactApi.cancel(notebookId, artifact.id); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not cancel audio"); } }}><Icon icon={Ban} size={14} /> Cancel</Button>}{["ready", "failed", "cancelled"].includes(artifact.status) && <Button size="sm" variant="ghost" aria-label={`Delete ${artifact.recipe} artifact`} onClick={async () => { try { await artifactApi.remove(notebookId, artifact.id); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not delete"); } }}><Icon icon={Trash2} size={14} /></Button>}</div>
     </li>)}</ul></div> : null}
@@ -222,7 +247,7 @@ export function StudioArtifactView({ notebookId, artifactId, onClose, onOpenCita
   const artifact = artifacts.data?.find((item) => item.id === artifactId);
   const refresh = async () => { await client.invalidateQueries({ queryKey: ["artifacts", notebookId] }); };
   if (!artifact) return <section className="flex h-full flex-col" aria-label="Studio result"><div className="border-b-0 p-3"><Button size="sm" variant="ghost" onClick={onClose}>Back to chat</Button></div>{artifacts.isPending ? <div className="m-auto h-10 w-2/3 animate-pulse rounded bg-sunken" aria-label="Loading generated artifact" /> : <div className="m-auto space-y-3 p-6 text-center"><p className="text-body text-fg-secondary">This artifact was deleted or is no longer available.</p><Button variant="outline" onClick={onClose}>Return to chat</Button></div>}</section>;
-  if (artifact.status === "queued" || artifact.status === "running") return <section className="flex h-full flex-col" aria-label="Studio result"><div className="flex items-center justify-between border-b-0 p-3"><div><p className="text-caption uppercase tracking-wide text-fg-secondary">Studio</p><h2 className="font-semibold">{labels[artifact.recipe] ?? artifact.recipe}</h2></div><Button size="sm" variant="ghost" onClick={onClose}>Back to chat</Button></div><div className="m-auto w-full max-w-lg space-y-3 p-6"><h3 className="text-title-2 font-semibold">Creating {labels[artifact.recipe] ?? artifact.recipe}</h3><p className="text-body text-fg-secondary">{artifact.stage} · {artifact.progress}%</p><div className="h-2 overflow-hidden rounded-full bg-sunken"><div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${artifact.progress}%` }} /></div></div></section>;
+  if (artifact.status === "queued" || artifact.status === "running") return <section className="flex h-full flex-col" aria-label="Studio result"><div className="flex items-center justify-between border-b-0 p-3"><div><p className="text-caption uppercase tracking-wide text-fg-secondary">Studio</p><h2 className="font-semibold">{labels[artifact.recipe] ?? artifact.recipe}</h2></div><Button size="sm" variant="ghost" onClick={onClose}>Back to chat</Button></div><div className="m-auto w-full max-w-lg space-y-3 p-6"><h3 className="text-title-2 font-semibold">Creating {labels[artifact.recipe] ?? artifact.recipe}</h3><p className="text-body text-fg-secondary">{artifactStageLabel(artifact.stage)} · {artifact.progress}%</p><div className="h-2 overflow-hidden rounded-full bg-sunken"><div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${artifact.progress}%` }} /></div></div></section>;
   if (artifact.status !== "ready") return <section className="flex h-full flex-col" aria-label="Studio result"><div className="flex items-center justify-between border-b-0 p-3"><h2 className="font-semibold">{labels[artifact.recipe] ?? artifact.recipe}</h2><Button size="sm" variant="ghost" onClick={onClose}>Back to chat</Button></div><div className="m-auto max-w-lg space-y-3 p-6"><p className="font-medium text-danger">Generation failed</p><p role="alert" className="text-body text-fg-secondary">{artifact.error ?? "The generated result could not be created."}</p><Button onClick={async () => { try { await artifactApi.regenerate(notebookId, artifact.id); await refresh(); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not retry"); } }}>Retry</Button></div></section>;
   return <ArtifactViewer notebookId={notebookId} artifact={artifact} onClose={onClose} onOpenCitation={onOpenCitation} onAskQuestion={onAskQuestion} onChanged={refresh} />;
 }

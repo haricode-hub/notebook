@@ -24,11 +24,12 @@ function exportMarkdown(note: Note, title: string, markdown: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function StudioPanel({ notebookId, onAskQuestion, onOpenCitation, onOpenArtifact }: {
+export function StudioPanel({ notebookId, onAskQuestion, onOpenCitation, onOpenArtifact, onOpenLibrary }: {
   notebookId: string;
   onAskQuestion: (question: string) => void;
   onOpenCitation: (citation: ChatCitation, citations: ChatCitation[]) => void;
   onOpenArtifact: (artifactId: string) => void;
+  onOpenLibrary: () => void;
 }) {
   const client = useQueryClient();
   const notes = useQuery({ queryKey: ["notes", notebookId], queryFn: () => noteApi.list(notebookId) });
@@ -69,7 +70,7 @@ export function StudioPanel({ notebookId, onAskQuestion, onOpenCitation, onOpenA
   return <section className="flex h-full min-h-0 flex-col" aria-label="Studio">
     <div className="border-b border-border-subtle p-3"><h2 className="text-heading font-medium">Studio</h2><p className="text-caption text-fg-secondary">Overview and notes · results open in the center</p></div>
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-      <ArtifactStudio notebookId={notebookId} onOpenArtifact={onOpenArtifact} />
+      <ArtifactStudio notebookId={notebookId} onOpenArtifact={onOpenArtifact} onOpenLibrary={onOpenLibrary} />
       <section className="border-y border-border-subtle py-3" aria-label="Notebook overview">
         <h3 className="font-medium">Notebook overview</h3>
         {overview.data?.status === "ready" ? <><p className="mt-2 text-body leading-relaxed">{overview.data.summary}</p><p className="mt-2 text-caption text-fg-secondary">{overview.data.topics.join(" · ")}</p><div className="mt-3 divide-y divide-border-subtle">{overview.data.questions.map((question) => <button key={question} type="button" onClick={() => onAskQuestion(question)} className="block min-h-11 w-full py-2 text-left text-body hover:text-accent">{question}</button>)}</div></> : <p className="mt-2 text-caption text-fg-secondary">{overview.data?.error ?? "The overview will appear after your sources are ready."}</p>}

@@ -48,12 +48,12 @@ try {
   if (new URL(page.url()).pathname !== "/notebooks") {
     let id = "";
     await expect.poll(async () => {
-      const result = await (await page.request.get("http://localhost:8025/api/v1/messages")).json().catch(() => ({ messages: [] }));
+      const result = await (await page.request.get("http://127.0.0.1:8025/api/v1/messages")).json().catch(() => ({ messages: [] }));
       id = result.messages?.find((message) => /verify/i.test(message.Subject ?? "")
         && message.To?.some((recipient) => recipient.Address?.toLowerCase() === email.toLowerCase()))?.ID ?? "";
       return id;
     }, { timeout: 15_000 }).not.toBe("");
-    const message = await (await page.request.get(`http://localhost:8025/api/v1/message/${id}`)).json();
+    const message = await (await page.request.get(`http://127.0.0.1:8025/api/v1/message/${id}`)).json();
     const link = `${message.Text ?? ""}\n${message.HTML ?? ""}`.match(/https?:\/\/[^\s<>"']+/)?.[0];
     if (!link) throw new Error("Mailpit verification URL was not found");
     await page.goto(link.replaceAll("&amp;", "&").replace(/[),.]$/, ""));

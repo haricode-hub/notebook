@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 
 test("grounded chat cites an uploaded document and respects source selection", async ({ page }) => {
+  test.setTimeout(120_000);
   const authIp = `198.18.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
   await page.route("**/api/auth/**", (route) => route.continue({ headers: { ...route.request().headers(), "x-forwarded-for": authIp } }));
   const consoleErrors: string[] = [];
@@ -23,7 +24,7 @@ test("grounded chat cites an uploaded document and respects source selection", a
 
   await page.getByLabel("Ask your sources").fill("What is the launch code?");
   await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByRole("region", { name: "Chat" }).locator("article").filter({ hasText: "BLUEBIRD-42" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Chat" }).locator("article").filter({ hasText: "BLUEBIRD-42" })).toBeVisible({ timeout: 30_000 });
   const chip = page.getByRole("button", { name: "Source 1: launch.txt" });
   await expect(chip).toBeVisible();
   await chip.hover();

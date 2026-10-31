@@ -52,8 +52,8 @@ async def test_faithfulness_removes_injected_unsupported_line() -> None:
         [{"ref": 1, "source": "Biology.txt", "text": "Cells transfer energy through respiration."}],
         {"length": "short", "tone": "conversational"},
     )
-    assert target == 450
-    assert word_count(kept) <= 450
+    assert target == 240
+    assert word_count(kept) <= target
     assert all("Mars" not in line.text for line in kept)
     assert llm.calls == 3
 
@@ -79,6 +79,70 @@ async def test_audio_json_schema_gets_one_repair_attempt() -> None:
         {"length": "short"},
     )
     assert lines and llm.calls == 4
+
+
+@pytest.mark.asyncio
+async def test_audio_repairs_empty_refs_only_when_excerpt_is_unambiguous() -> None:
+    class EmptyIntroRef(FakeLLMForAudio):
+        async def stream(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
+            import json
+
+            task = json.loads(messages[1]["content"].split("\nAim for the target word count")[0])[
+                "task"
+            ]
+            async for part in super().stream(messages):
+                if task == "script":
+                    payload = json.loads(part)
+                    payload["lines"][0]["citation_refs"] = []
+                    yield json.dumps(payload)
+                else:
+                    yield part
+
+    evidence = [{"ref": 1, "source": "Biology.txt", "text": "Cells transfer energy."}]
+    llm = EmptyIntroRef()
+    _script, lines, _target = await generate_script(llm, evidence, {"length": "short"})
+    assert llm.calls == 3
+    assert all(line.citation_refs == [1] for line in lines)
+
+    with pytest.raises(ValueError, match="invalid JSON after repair"):
+        await generate_script(
+            EmptyIntroRef(),
+            [*evidence, {"ref": 2, "source": "Other.txt", "text": "A separate finding."}],
+            {"length": "short"},
+        )
+
+
+@pytest.mark.asyncio
+async def test_audio_uses_supported_length_when_grounding_removes_lines() -> None:
+    class SparseSupport(FakeLLMForAudio):
+        async def stream(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
+            import json
+
+            task = json.loads(messages[1]["content"].split("\nAim for the target word count")[0])[
+                "task"
+            ]
+            if task != "faithfulness_check":
+                async for part in super().stream(messages):
+                    yield part
+                return
+            self.calls += 1
+            lines = json.loads(messages[1]["content"])["lines"]
+            yield json.dumps(
+                {
+                    "results": [
+                        {"index": index, "supported": index < 2, "reason": "Source check"}
+                        for index in range(len(lines))
+                    ]
+                }
+            )
+
+    _script, kept, target = await generate_script(
+        SparseSupport(),
+        [{"ref": 1, "source": "Biology.txt", "text": "Cells transfer energy."}],
+        {"length": "short"},
+    )
+    assert len(kept) == 2
+    assert target == word_count(kept) < target_word_count("short")
 
 
 @pytest.mark.asyncio
@@ -223,7 +287,7 @@ async def test_audio_overview_api_worker_storage_and_download(
         )
         ready = (await client.get(f"{path}/{artifact_id}", headers=owner)).json()
         assert ready["status"] == "ready", ready.get("error")
-        assert ready["prompt_version"] == "audio-v1"
+        assert ready["prompt_version"] == "audio-v2"
         assert all("Mars" not in line["text"] for line in ready["output"]["transcript"])
         audio = await client.get(f"{path}/{artifact_id}/audio", headers=owner)
         assert audio.status_code == 200 and audio.content.startswith(b"ID3")

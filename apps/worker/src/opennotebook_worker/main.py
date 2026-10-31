@@ -4,13 +4,15 @@ import os
 import tempfile
 import time
 import uuid
+import wave
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from typing import Any
 
 from arq.connections import RedisSettings
 from arq.cron import cron
 from arq.worker import Retry
-from opennotebook_core.artifacts import FakeArtifactLLM, generate_artifact
+from opennotebook_core.artifacts import ArtifactLLM, FakeArtifactLLM, generate_artifact
 from opennotebook_core.audio import (
     AudioJobCancelled,
     AudioLLM,
@@ -751,6 +753,7 @@ async def generate_text_artifact(ctx: dict[str, Any], artifact_id: str) -> str:
             )
             row = await session.get(UserSettings, artifact.user_id)
             artifact_llm = ctx.get("artifact_llm")
+            llm: ArtifactLLM
             if artifact_llm is None and settings.llm_provider == "fake":
                 llm, model = FakeArtifactLLM(), "fake"
             elif artifact_llm is not None:
@@ -849,21 +852,29 @@ async def generate_audio_overview(ctx: dict[str, Any], artifact_id: str) -> str:
             row = await session.get(UserSettings, artifact.user_id)
             configured_audio_llm = ctx.get("audio_llm")
             llm: AudioLLM
+            fallback_audio_llm: AudioLLM | None = None
             if configured_audio_llm is None:
                 if settings.llm_provider == "fake":
                     llm, model = FakeLLMForAudio(), "fake"
                 else:
+                    model_override = str(artifact.options_json.get("model_override") or "")
                     llm, model = configured_summary_llm(
                         settings,
                         row,
-                        model_override=str(artifact.options_json.get("model_override") or ""),
+                        model_override=model_override,
                     )
+                    fallback_model = row.chat_model if row is not None else settings.default_chat_model
+                    if not model_override and fallback_model and fallback_model != model:
+                        fallback_audio_llm, _ = configured_summary_llm(
+                            settings, row, model_override=fallback_model
+                        )
             elif isinstance(configured_audio_llm, tuple):
                 llm, model = configured_audio_llm
             else:
                 llm, model = configured_audio_llm, "fake"
             source_names = {source.id: source.name for source in sources}
             notebook_id = artifact.notebook_id
+            user_id = artifact.user_id
             options = dict(artifact.options_json)
             evidence = [
                 {
@@ -877,6 +888,17 @@ async def generate_audio_overview(ctx: dict[str, Any], artifact_id: str) -> str:
         if not evidence:
             raise ValueError("No indexed source text is available for this audio overview")
 
+        checkpoint_key = f"audio/{user_id}/{artifact_id}/checkpoint.json"
+        try:
+            checkpoint = json.loads((await storage.get(checkpoint_key)).decode("utf-8"))
+        except (KeyError, FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError):
+            checkpoint = {}
+
+        async def save_checkpoint() -> None:
+            await storage.put(
+                checkpoint_key, json.dumps(checkpoint, ensure_ascii=False).encode("utf-8")
+            )
+
         async def cancelled() -> bool:
             return bool(await redis.get(f"audio:cancel:{artifact_id}"))
 
@@ -887,18 +909,39 @@ async def generate_audio_overview(ctx: dict[str, Any], artifact_id: str) -> str:
             await _artifact_stage(ctx, artifact_id, name, progress)
             return True
 
-        if not await stage("outline", 10):
-            return artifact_id
+        if "script" in checkpoint:
+            from opennotebook_core.audio import AudioLine, AudioScript
 
-        async def generation_progress(name: str) -> bool:
-            return await stage(name, 25 if name == "script" else 40)
+            script = AudioScript.model_validate(checkpoint["script"])
+            lines = [AudioLine.model_validate(item) for item in checkpoint["lines"]]
+            target_words = int(checkpoint["target_words"])
+        else:
+            if not await stage("outline", 10):
+                return artifact_id
 
-        try:
-            script, lines, target_words = await generate_script(
-                llm, evidence, options, progress=generation_progress
-            )
-        except AudioJobCancelled:
-            return artifact_id
+            async def generation_progress(name: str) -> bool:
+                progress = {"script": 25, "script_retry": 30, "faithfulness_check": 40}.get(
+                    name, 25
+                )
+                return await stage(name, progress)
+
+            try:
+                script, lines, target_words = await generate_script(
+                    llm,
+                    evidence,
+                    options,
+                    progress=generation_progress,
+                    fallback_llm=fallback_audio_llm,
+                )
+            except AudioJobCancelled:
+                return artifact_id
+            checkpoint.update({
+                "script": script.model_dump(),
+                "lines": [line.model_dump() for line in lines],
+                "target_words": target_words,
+                "segments": {},
+            })
+            await save_checkpoint()
         # generate_script runs the line-level support pass and drops every unsupported line.
         if not await stage("tts", 45):
             return artifact_id
@@ -915,6 +958,11 @@ async def generate_audio_overview(ctx: dict[str, Any], artifact_id: str) -> str:
             for index, line in enumerate(lines):
                 if await cancelled():
                     break
+                segment_key = f"audio/{user_id}/{artifact_id}/segment-{index}.wav"
+                existing = checkpoint.get("segments", {}).get(str(index))
+                if existing:
+                    segments.append(await storage.get(segment_key))
+                    continue
                 if settings.tts_provider == "openai":
                     voice = "nova" if line.speaker == "Maya" else "onyx"
                 else:
@@ -929,9 +977,13 @@ async def generate_audio_overview(ctx: dict[str, Any], artifact_id: str) -> str:
                     if language not in voices:
                         raise ValueError("Choose a language supported by the audio service")
                     voice = voices[language][0 if line.speaker == "Maya" else 1]
-                segments.append(
-                    await tts.synthesize(line.text, voice, str(options.get("language", "English")))
+                audio_segment = await tts.synthesize(
+                    line.text, voice, str(options.get("language", "English"))
                 )
+                await storage.put(segment_key, audio_segment)
+                checkpoint.setdefault("segments", {})[str(index)] = segment_key
+                await save_checkpoint()
+                segments.append(audio_segment)
                 await _artifact_stage(ctx, artifact_id, "tts", 45 + int(30 * (index + 1) / total))
             return segments
 
@@ -970,8 +1022,9 @@ async def generate_audio_overview(ctx: dict[str, Any], artifact_id: str) -> str:
         ]
         elapsed = 0.0
         transcript: list[TimedAudioLine] = []
-        for line in lines:
-            line_duration = len(line.text.split()) / 150 * 60
+        for line, segment in zip(lines, segments, strict=True):
+            with wave.open(BytesIO(segment), "rb") as audio:
+                line_duration = audio.getnframes() / audio.getframerate()
             transcript.append(
                 TimedAudioLine(
                     speaker=line.speaker,
@@ -1039,6 +1092,9 @@ async def generate_audio_overview(ctx: dict[str, Any], artifact_id: str) -> str:
                     job.progress = 100
                     job.error = None
             await session.commit()
+        for segment_key in checkpoint.get("segments", {}).values():
+            await storage.delete(str(segment_key))
+        await storage.delete(checkpoint_key)
         await redis.publish(
             f"notebook:{notebook_id}:artifact-events",
             json.dumps(
@@ -1053,7 +1109,11 @@ async def generate_audio_overview(ctx: dict[str, Any], artifact_id: str) -> str:
     except AudioJobCancelled:
         await _artifact_stage(ctx, artifact_id, "cancelled", 0, "Cancelled by user")
     except Exception as exc:
+        from opennotebook_core.audio import AudioOutputValidationError
+
         delay = _retry_delay(ctx, settings)
+        if isinstance(exc, AudioOutputValidationError):
+            delay = None
         await _artifact_stage(
             ctx,
             artifact_id,

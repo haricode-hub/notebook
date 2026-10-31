@@ -56,7 +56,7 @@ All colors are CSS variables in `app/globals.css`, exposed to Tailwind (see §13
 | `--border-strong` | `#B7C7BF` | Hover border on inputs, focused outlines (non-accent) |
 | `--text-primary` | `#202B27` | Headings, body |
 | `--text-secondary` | `#52625B` | Labels, metadata, secondary body |
-| `--text-tertiary` | `#66766E` | Placeholders, timestamps, disabled-ish hints |
+| `--text-tertiary` | `#59695F` | Placeholders, timestamps, disabled-ish hints; at least 4.5:1 on light canvas and active surfaces |
 | `--text-disabled` | `#84938B` | Disabled text |
 | `--text-on-accent` | `#FFFFFF` | Text on accent fills |
 | `--accent` | `#176B5B` | Primary action, current selection, links; WCAG AA text contrast on paper surfaces |
@@ -466,3 +466,15 @@ User-directed identity update supersedes earlier cream/terracotta references. In
 
 - v1.2 ? Research desk identity, teal light/dark palettes, compact notebook/chat spacing, source-to-note illustration and restrained action feedback.
 - v1.3 ? Landing workflow illustrations show source intake, citation inspection and study output. The chat composer keeps its source scope, send/stop action and grounding note in one compact control with one accent focus ring; workflow motion is transform/opacity-only and removed under reduced motion.
+
+## 17. Marketing website and landing-page design
+
+The public landing page is a storytelling surface, not a compact workspace pane. It may use a larger display scale while retaining the same semantic color tokens, fonts, icon library, focus treatment, and motion preferences.
+
+- **Display type:** `--marketing-display-size` is fluid from 48px to 68px with tight leading for the hero; `--marketing-lead-size` supports 17px–20px explanatory copy; `--marketing-section-size` supports 30px–44px section headings. Source Serif is reserved for expressive headlines; Geist handles navigation, labels, controls, and product details.
+- **Containers:** marketing content uses a max width of 1280px, with 20px mobile and 32px–40px desktop gutters. Hero layouts may use a 0.72/1.28 text-to-product split; body copy stays below 68ch.
+- **Rhythm:** the hero uses 64px–96px vertical breathing room; showcase sections use 64px–80px; compact service and CTA bands use 48px–64px. Rhythm should vary by purpose rather than repeating equal full-width panels.
+- **Product preview:** use sanitized, readable interface details from verified Open Notebook behavior: named sources, a grounded question and answer, citation markers, and a study artifact. Prefer one substantial preview over several generic feature cards. Preview surfaces use quiet borders, one elevation level, and no gradients or glass effects.
+- **Composition:** the page sequence is hero/product preview, one capability showcase, compact service access, concise FAQ, and one closing CTA. Remove sections that repeat the same workflow claim. Future service messaging stays subordinate to the active Open Notebook action.
+- **Responsive rules:** at 768px the product preview hides secondary artifact detail before shrinking primary content; below 640px sources stack above chat and all controls remain touch-sized. No hero visual may create horizontal overflow.
+- **Interaction:** links and accordions use color, border, and short transitions. Product previews may use static states and restrained transform/opacity entrances only when they clarify the product. Reduced motion removes nonessential entrance motion.

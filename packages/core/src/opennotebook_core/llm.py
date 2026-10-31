@@ -133,6 +133,7 @@ class LiteLLMProvider:
                             ),
                             stream=True,
                             timeout=60,
+                            **({"max_tokens": 8192} if json_mode else {}),
                         )
                         if json_mode:
                             request["response_format"] = {"type": "json_object"}

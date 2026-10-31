@@ -16,8 +16,8 @@ export function SiteHeader() {
         </Link>
         <nav aria-label="Main navigation" className="hidden items-center gap-6 text-small text-fg-secondary md:flex">
           <Link className="hover:text-fg" href="/#services">Services</Link>
-          <Link className="hover:text-fg" href="/#how-it-works">How it works</Link>
-          <Link className="hover:text-fg" href="/#faq">FAQ</Link>
+          <Link className="hover:text-fg" href="/#product">How it works</Link>
+          <Link className="hover:text-fg" href="/#faq-title">FAQ</Link>
         </nav>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <ThemeToggle />

@@ -3,7 +3,7 @@ import { expect, type Page } from "@playwright/test";
 type MailpitMessage = { ID: string; Subject: string; Text?: string; HTML?: string; To?: { Address: string }[] };
 
 async function messages(page: Page): Promise<MailpitMessage[]> {
-  const response = await page.request.get("http://localhost:8025/api/v1/messages");
+  const response = await page.request.get("http://127.0.0.1:8025/api/v1/messages");
   if (!response.ok()) return [];
   const data = await response.json() as { messages?: MailpitMessage[] };
   return data.messages ?? [];
@@ -18,7 +18,7 @@ async function verificationLink(page: Page, email: string): Promise<string> {
     return mailId;
   }, { timeout: 10_000 }).not.toBe("");
 
-  const response = await page.request.get(`http://localhost:8025/api/v1/message/${mailId}`);
+  const response = await page.request.get(`http://127.0.0.1:8025/api/v1/message/${mailId}`);
   const mail = await response.json() as MailpitMessage;
   const rawUrl = `${mail.Text ?? ""}\n${mail.HTML ?? ""}`.match(/https?:\/\/[^\s<>"']+/)?.[0];
   expect(rawUrl, "Mailpit verification email should contain a link").toBeTruthy();

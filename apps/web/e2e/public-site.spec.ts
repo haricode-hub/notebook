@@ -6,7 +6,7 @@ test("public landing page leads into the real Open Notebook service", async ({ p
 
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
-  await expect(page.getByRole("heading", { level: 1, name: "Research that stays close to its sources." })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Your sources. Your questions. The evidence between them." })).toBeVisible();
   await expect(page.getByRole("link", { name: /Start a notebook/ })).toHaveAttribute("href", "/sign-up");
   await expect(page.getByRole("link", { name: "Open the workspace" })).toHaveAttribute("href", "/notebooks");
   await expect(page.getByRole("heading", { name: "Open Notebook", exact: true })).toBeVisible();

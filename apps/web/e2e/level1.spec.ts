@@ -53,7 +53,7 @@ test("sign up, create notebook, use workspace, change theme, sign out", async ({
   await page.getByRole("button", { name: "Save settings" }).click();
   await page.reload();
   await expect(page.getByLabel("LLM provider")).toContainText("Gemini");
-  await page.getByRole("link", { name: "OpenNotebook Studio" }).click();
+  await page.goto("/notebooks");
   await page.getByRole("link", { name: "My research" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileTabs = page.getByRole("tablist", { name: "Workspace panels" });

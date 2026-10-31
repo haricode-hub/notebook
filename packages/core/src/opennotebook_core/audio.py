@@ -43,7 +43,7 @@ class AudioLine(BaseModel):
 class AudioScript(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     title: str = Field(min_length=1, max_length=200)
-    lines: list[AudioLine] = Field(min_length=2, max_length=240)
+    lines: list[AudioLine] = Field(min_length=2, max_length=48)
 
 
 class AudioOutline(BaseModel):
@@ -86,6 +86,10 @@ class AudioLLM(Protocol):
     def stream(self, messages: list[dict[str, str]]) -> AsyncIterator[str]: ...
 
 
+class AudioOutputValidationError(ValueError):
+    """The model produced output that stayed invalid after its repair attempt."""
+
+
 async def _collect(llm: AudioLLM, messages: list[dict[str, str]]) -> str:
     json_stream = getattr(llm, "stream_json", None)
     stream = json_stream(messages) if callable(json_stream) else llm.stream(messages)
@@ -124,6 +128,7 @@ async def _validated[T: BaseModel](
     messages: list[dict[str, str]],
     schema: type[T],
     validate: Callable[[T], None] | None = None,
+    normalize_raw: Callable[[str], str] | None = None,
 ) -> T:
     schema_json = json.dumps(schema.model_json_schema(), ensure_ascii=False)
     messages = [dict(message) for message in messages]
@@ -135,13 +140,17 @@ async def _validated[T: BaseModel](
     for attempt in range(2):
         try:
             cleaned = _extract_json_object(raw)
+            if normalize_raw:
+                cleaned = normalize_raw(cleaned)
             value = schema.model_validate_json(cleaned)
             if validate:
                 validate(value)
             return value
         except ValueError as exc:
             if attempt:
-                raise ValueError("Audio model returned invalid JSON after repair") from exc
+                raise AudioOutputValidationError(
+                    "Audio response failed schema or grounding validation after repair"
+                ) from exc
             messages = [
                 *messages,
                 {"role": "assistant", "content": raw[:12000]},
@@ -161,14 +170,40 @@ def word_count(lines: list[AudioLine]) -> int:
     return sum(len(re.findall(r"\b[\w'-]+\b", line.text)) for line in lines)
 
 
+def _fill_unambiguous_citations(raw: str, evidence: list[dict[str, object]]) -> str:
+    """Attach the sole supplied excerpt to uncited dialogue before the support check.
+
+    The model sometimes emits empty refs for introductory lines. With one excerpt
+    there is no source-selection ambiguity; the later faithfulness pass still
+    removes lines unsupported by that excerpt. Never guess among multiple refs.
+    """
+    if len(evidence) != 1:
+        return raw
+    payload = json.loads(raw)
+    if not isinstance(payload, dict) or not isinstance(payload.get("lines"), list):
+        return raw
+    ref = evidence[0]["ref"]
+    for line in payload["lines"]:
+        if isinstance(line, dict) and line.get("citation_refs") == []:
+            line["citation_refs"] = [ref]
+    return json.dumps(payload, ensure_ascii=False)
+
+
 async def generate_script(
     llm: AudioLLM,
     evidence: list[dict[str, object]],
     options: dict[str, object],
     progress: Callable[[str], Awaitable[bool]] | None = None,
+    fallback_llm: AudioLLM | None = None,
 ) -> tuple[AudioScript, list[AudioLine], int]:
     length = str(options.get("length", "default"))
-    target = target_word_count(length)
+    requested_target = target_word_count(length)
+    evidence_words = sum(
+        len(re.findall(r"\b[\w'-]+\b", str(item.get("text", "")))) for item in evidence
+    )
+    # A tiny source cannot support a full-length conversation without repetition.
+    # Keep the requested duration for substantive notebooks and shorten sparse ones.
+    target = min(requested_target, max(240, evidence_words * 10))
     outline = await _validated(llm, outline_messages(evidence, options), AudioOutline)
     if progress and not await progress("script"):
         raise AudioJobCancelled
@@ -177,16 +212,28 @@ async def generate_script(
     def validate_script(value: AudioScript) -> None:
         if any(not set(line.citation_refs) <= allowed for line in value.lines):
             raise ValueError("Audio script contains fabricated source refs")
-        actual = word_count(value.lines)
-        if not target * 0.70 <= actual <= target * 1.20:
-            raise ValueError(f"Audio script has {actual} words; expected about {target}")
 
-    script = await _validated(
-        llm,
-        script_messages(evidence, outline.beats, options, target),
-        AudioScript,
-        validate_script,
-    )
+    script_prompt = script_messages(evidence, outline.beats, options, target)
+    try:
+        script = await _validated(
+            llm,
+            script_prompt,
+            AudioScript,
+            validate_script,
+            normalize_raw=lambda raw: _fill_unambiguous_citations(raw, evidence),
+        )
+    except ValueError:
+        if fallback_llm is None:
+            raise
+        if progress and not await progress("script_retry"):
+            raise AudioJobCancelled
+        script = await _validated(
+            fallback_llm,
+            script_prompt,
+            AudioScript,
+            validate_script,
+            normalize_raw=lambda raw: _fill_unambiguous_citations(raw, evidence),
+        )
     if progress and not await progress("faithfulness_check"):
         raise AudioJobCancelled
 
@@ -207,9 +254,10 @@ async def generate_script(
     kept = [line for index, line in enumerate(script.lines) if by_index[index].supported]
     if len(kept) < 2:
         raise ValueError("Faithfulness check removed the entire script")
-    if word_count(kept) < target * 0.70:
-        raise ValueError("Faithfulness check removed too much of the requested audio script")
-    return script, kept, target
+    # A sparse source may support a shorter script than the requested length.
+    # Keep only supported lines and report the resulting length honestly.
+    supported_words = word_count(kept)
+    return script, kept, min(target, supported_words)
 
 
 class AudioJobCancelled(Exception):

@@ -533,3 +533,39 @@ def pdf_export(document: ArtifactDocument, citations: list[Citation]) -> bytes:
         </style></head><body><h1>{html.escape(document.title)}</h1>{sections}
         <h2>Sources</h2><ul>{"".join(sources)}</ul></body></html>"""
     return cast(bytes, HTML(string=markup).write_pdf())
+
+
+def quiz_pdf_export(quiz: QuizArtifact, citations: list[Citation]) -> bytes:
+    """Render a printable quiz with its answer key and cited explanations."""
+    from weasyprint import HTML  # type: ignore[import-untyped]
+
+    questions = []
+    answers = []
+    for index, question in enumerate(quiz.questions, start=1):
+        options = "".join(
+            f"<li>{html.escape(option)}</li>" for option in question.options
+        )
+        questions.append(
+            f"<section><h2>{index}. {html.escape(question.question)}</h2><ol type='A'>{options}</ol></section>"
+        )
+        correct = html.escape(question.options[question.answer_index])
+        answers.append(
+            f"<li><strong>{index}. {correct}</strong><p>{html.escape(question.explanation)}</p></li>"
+        )
+    sources = "".join(
+        f"<li>[S{citation['n']}] {html.escape(citation['source_name'])}"
+        + (f", page {citation['page_start']}" if citation["page_start"] else "")
+        + "</li>"
+        for citation in citations
+    )
+    markup = f"""<!doctype html><html><head><meta charset="utf-8"><style>
+        @page {{ size: A4; margin: 18mm 16mm; }}
+        body {{ font: 11pt/1.5 sans-serif; }} h1 {{ font-size: 22pt; }}
+        h2 {{ font-size: 12pt; margin: 1.5em 0 0.5em; }}
+        section {{ break-inside: avoid; }} ol {{ padding-left: 1.5em; }}
+        .answer-key {{ break-before: page; }}
+        </style></head><body><h1>{html.escape(quiz.title)}</h1>
+        <h2>Questions</h2>{''.join(questions)}
+        <div class="answer-key"><h2>Answer key and explanations</h2><ol>{''.join(answers)}</ol></div>
+        <h2>Sources</h2><ul>{sources}</ul></body></html>"""
+    return cast(bytes, HTML(string=markup).write_pdf())

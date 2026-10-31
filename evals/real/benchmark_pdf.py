@@ -8,7 +8,7 @@ import os
 import time
 from pathlib import Path
 
-import psutil
+import psutil  # type: ignore[import-untyped]
 from opennotebook_core.chunking import chunk_document
 from opennotebook_core.extractors import PdfExtractor
 from pypdf import PdfReader, PdfWriter

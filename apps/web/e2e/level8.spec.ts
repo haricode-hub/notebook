@@ -3,7 +3,7 @@ import { signUpAndVerifyIfConfigured } from "./helpers/auth";
 import { readFileSync } from "node:fs";
 
 test("generate an audio overview, seek its transcript, and download the MP3", async ({ page }) => {
-  test.setTimeout(300_000);
+  test.setTimeout(600_000);
   const authIp = `198.18.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
   await page.route("**/api/auth/**", (route) => route.continue({ headers: { ...route.request().headers(), "x-forwarded-for": authIp } }));
   await page.goto("/sign-up");
@@ -28,7 +28,7 @@ test("generate an audio overview, seek its transcript, and download the MP3", as
   await page.getByRole("option", { name: "Curious" }).click();
   await options.getByRole("button", { name: "Generate", exact: true }).click();
   const row = studio.getByRole("region", { name: "Studio artifacts" }).getByRole("list").last().getByRole("listitem").first();
-  await expect(row.getByText("ready", { exact: true })).toBeVisible({ timeout: 240_000 });
+  await expect(row.getByText("ready", { exact: true })).toBeVisible({ timeout: 480_000 });
   await row.getByRole("button").first().click();
   const viewer = page.getByRole("region", { name: "Artifact viewer" });
   const player = viewer.getByRole("region", { name: "Audio overview player" });

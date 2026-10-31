@@ -223,6 +223,8 @@ async def main(split: str) -> int:
     cache_dir = ROOT / ".cache"
     cache_dir.mkdir(exist_ok=True)
     cache_path = cache_dir / f"passages-{cache_key}.npz"
+    passage_sources: list[str]
+    passage_texts: list[str]
     if cache_path.exists():
         import numpy as np
 
@@ -232,8 +234,8 @@ async def main(split: str) -> int:
             passage_vectors = cached["vectors"].tolist()
         print(f"Loaded {len(passage_texts)} cached real Gemma passages", flush=True)
     else:
-        passage_texts: list[str] = []
-        passage_sources: list[str] = []
+        passage_texts = []
+        passage_sources = []
         for item in manifest:
             raw_text = load_text(DOCS / item["filename"])
             for paragraph in split_text(raw_text):

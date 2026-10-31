@@ -41,6 +41,7 @@ export default function WorkspacePage() {
   const query = useQuery({ queryKey: ["notebook", id], queryFn: () => notebookApi.get(id) });
   const [tab, setTab] = useState<Tab>("Chat");
   const [tabletSide, setTabletSide] = useState<Exclude<Tab, "Chat">>("Sources");
+  const [sourcesView, setSourcesView] = useState<"sources" | "library">("sources");
   const { reducedMotion } = useMotionPrefs();
   const [viewer, setViewer] = useState<ViewerSelection | null>(null);
   const [studioArtifactId, setStudioArtifactId] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export default function WorkspacePage() {
   const suggestionNumber = useRef(0);
   const askQuestion = (text: string) => { suggestionNumber.current += 1; setSuggestedQuestion({ id: suggestionNumber.current, text }); setTab("Chat"); };
   const openArtifact = (artifactId: string) => { setStudioArtifactId(artifactId); setTab("Chat"); };
+  const openLibrary = () => { setSourcesView("library"); setTab("Sources"); setTabletSide("Sources"); sourcesRef.current?.expand(); };
   const [desktop, setDesktop] = useState(false);
   const [tablet, setTablet] = useState(false);
   useEffect(() => {
@@ -177,7 +179,7 @@ export default function WorkspacePage() {
           className="mobile-sheet absolute inset-x-0 z-20 overflow-hidden rounded-t-lg border border-border bg-surface"
         >
           <div className="mx-auto my-2 h-1.5 w-10 rounded-full bg-border-strong" aria-hidden="true" />
-          {tab === "Sources" ? <SourcesPanel notebookId={id} onOpenSource={openSource} onOpenGuide={openGuide} /> : <StudioPanel notebookId={id} onAskQuestion={askQuestion} onOpenCitation={openCitation} onOpenArtifact={openArtifact} />}
+          {tab === "Sources" ? <SourcesPanel notebookId={id} onOpenSource={openSource} onOpenGuide={openGuide} onOpenArtifact={openArtifact} view={sourcesView} onViewChange={setSourcesView} /> : <StudioPanel notebookId={id} onAskQuestion={askQuestion} onOpenCitation={openCitation} onOpenArtifact={openArtifact} onOpenLibrary={openLibrary} />}
         </motion.section>}
       </AnimatePresence>
       <nav className="mobile-tabs absolute inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-border-subtle bg-raised" aria-label="Workspace panels" role="tablist">
@@ -192,7 +194,7 @@ export default function WorkspacePage() {
         <nav className="grid grid-cols-2 border-b border-border-subtle" aria-label="Workspace side panel" role="tablist">
           {(["Sources", "Studio"] as const).map((item) => <button key={item} type="button" role="tab" aria-selected={tabletSide === item} onClick={() => setTabletSide(item)} className={`h-10 border-b-2 px-3 text-body ${tabletSide === item ? "border-fg font-semibold text-fg" : "border-transparent text-fg-secondary hover:text-fg"}`}>{item}</button>)}
         </nav>
-        <div className="workspace-tablet-panel min-h-0">{tabletSide === "Sources" ? <SourcesPanel notebookId={id} onOpenSource={openSource} onOpenGuide={openGuide} /> : <StudioPanel notebookId={id} onAskQuestion={askQuestion} onOpenCitation={openCitation} onOpenArtifact={openArtifact} />}</div>
+        <div className="workspace-tablet-panel min-h-0">{tabletSide === "Sources" ? <SourcesPanel notebookId={id} onOpenSource={openSource} onOpenGuide={openGuide} onOpenArtifact={openArtifact} view={sourcesView} onViewChange={setSourcesView} /> : <StudioPanel notebookId={id} onAskQuestion={askQuestion} onOpenCitation={openCitation} onOpenArtifact={openArtifact} onOpenLibrary={openLibrary} />}</div>
       </aside>
     </div>}
     <div className="workspace-desktop min-h-0 flex-1">
@@ -208,7 +210,7 @@ export default function WorkspacePage() {
         }
       }}
     >
-      <Panel id="sources" panelRef={sourcesRef} defaultSize="18%" minSize="14%" collapsible collapsedSize="0%" className="overflow-hidden rounded-lg border border-border-subtle bg-surface">{desktop && <SourcesPanel notebookId={id} onOpenSource={openSource} onOpenGuide={openGuide} />}</Panel>
+      <Panel id="sources" panelRef={sourcesRef} defaultSize="18%" minSize="14%" collapsible collapsedSize="0%" className="overflow-hidden rounded-lg border border-border-subtle bg-surface">{desktop && <SourcesPanel notebookId={id} onOpenSource={openSource} onOpenGuide={openGuide} onOpenArtifact={openArtifact} view={sourcesView} onViewChange={setSourcesView} />}</Panel>
       <Separator
         data-workspace-separator="sources-chat"
         aria-label="Resize sources and chat panels"
@@ -228,7 +230,7 @@ export default function WorkspacePage() {
         onPointerUp={endDividerGesture}
         onPointerCancel={endDividerGesture}
       />
-      <Panel id="studio" panelRef={studioRef} defaultSize="28%" minSize="22%" collapsible collapsedSize="0%" className="overflow-hidden rounded-lg border border-border-subtle bg-surface"><StudioPanel notebookId={id} onAskQuestion={askQuestion} onOpenCitation={openCitation} onOpenArtifact={openArtifact} /></Panel>
+      <Panel id="studio" panelRef={studioRef} defaultSize="28%" minSize="22%" collapsible collapsedSize="0%" className="overflow-hidden rounded-lg border border-border-subtle bg-surface"><StudioPanel notebookId={id} onAskQuestion={askQuestion} onOpenCitation={openCitation} onOpenArtifact={openArtifact} onOpenLibrary={openLibrary} /></Panel>
     </Group>
     </div>
     {viewer && <SourceViewer notebookId={id} selection={viewer} onClose={() => setViewer(null)} onNavigate={(index) => setViewer((current) => current && ({ ...current, index }))} onAskQuestion={askQuestion} />}
